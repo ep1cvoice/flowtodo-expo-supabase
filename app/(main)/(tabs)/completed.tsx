@@ -1,7 +1,9 @@
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import { tokens } from '@/constants/theme';
@@ -9,6 +11,30 @@ import { tokens } from '@/constants/theme';
 export default function CompletedTasksScreen() {
   const { completedTasks, toggleTask, deleteTask } = useTasks();
   const { colors } = useTheme();
+  const { showToast } = useToast();
+
+  const handleToggle = useCallback(
+    async (id: number) => {
+      try {
+        await toggleTask(id);
+      } catch {
+        showToast('Could not update task.', 'error');
+      }
+    },
+    [toggleTask, showToast]
+  );
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      try {
+        await deleteTask(id);
+        showToast('Task deleted.');
+      } catch {
+        showToast('Could not delete task.', 'error');
+      }
+    },
+    [deleteTask, showToast]
+  );
 
   return (
     <ScreenBackground style={styles.container}>
@@ -38,8 +64,8 @@ export default function CompletedTasksScreen() {
             <ToDoItem
               task={item}
               index={index}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
             />
           )}
         />

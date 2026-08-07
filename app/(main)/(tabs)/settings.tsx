@@ -29,6 +29,7 @@ import ScreenBackground from '@/components/ui/ScreenBackground';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useTasks } from '@/context/TasksContext';
+import { useToast } from '@/context/ToastContext';
 import type { CategoryIcon } from '@/types';
 import type { ThemeMode } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
@@ -43,6 +44,7 @@ type SectionKey = 'profile' | 'preferences' | 'labels' | 'data' | 'productivity'
 export default function SettingsScreen() {
   const { user, updateProfile, logout } = useAuth();
   const { theme, setTheme, colors } = useTheme();
+  const { showToast } = useToast();
   const {
     activeTasks,
     completedTasks,
@@ -62,11 +64,8 @@ export default function SettingsScreen() {
   const [pomodoroTime, setPomodoroTime] = useState<string>(
     String(user?.settings?.pomodoroTime ?? 25)
   );
-  const [pomodoroMsg, setPomodoroMsg] = useState('');
   const [pomodoroErr, setPomodoroErr] = useState('');
   const [pomodoroSaving, setPomodoroSaving] = useState(false);
-  const [themeMsg, setThemeMsg] = useState('');
-  const [themeErr, setThemeErr] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -81,7 +80,6 @@ export default function SettingsScreen() {
   };
 
   const handlePomodoroSave = async () => {
-    setPomodoroMsg('');
     setPomodoroErr('');
     const value = Number(pomodoroTime);
     if (!Number.isFinite(value) || value < 1 || value > 60) {
@@ -94,22 +92,20 @@ export default function SettingsScreen() {
     setPomodoroSaving(false);
 
     if (error) {
-      setPomodoroErr(error);
+      showToast(error, 'error');
       return;
     }
-    setPomodoroMsg('Pomodoro time saved.');
+    showToast('Pomodoro time saved.');
   };
 
   const handleThemeChange = async (next: ThemeMode) => {
     if (next === theme) return;
-    setThemeMsg('');
-    setThemeErr('');
     const { error } = await setTheme(next);
     if (error) {
-      setThemeErr(error);
+      showToast(error, 'error');
       return;
     }
-    setThemeMsg('Theme saved.');
+    showToast('Theme saved.');
   };
 
   const confirmDeleteAllActive = () => {
@@ -122,7 +118,18 @@ export default function SettingsScreen() {
       `This will remove ${activeTasks.length} active task(s).`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: deleteAllActive },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAllActive();
+              showToast('Active tasks deleted.');
+            } catch {
+              showToast('Could not delete tasks.', 'error');
+            }
+          },
+        },
       ]
     );
   };
@@ -137,7 +144,18 @@ export default function SettingsScreen() {
       `This will remove ${completedTasks.length} completed task(s).`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: deleteAllCompleted },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAllCompleted();
+              showToast('Completed tasks deleted.');
+            } catch {
+              showToast('Could not delete tasks.', 'error');
+            }
+          },
+        },
       ]
     );
   };
@@ -148,7 +166,18 @@ export default function SettingsScreen() {
       `Remove "${name}"? Tasks keep their title; this category will be cleared.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => deleteCategory(id) },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCategory(id);
+              showToast('Category removed.');
+            } catch {
+              showToast('Could not remove category.', 'error');
+            }
+          },
+        },
       ]
     );
   };
@@ -159,7 +188,18 @@ export default function SettingsScreen() {
       `Remove "#${name}"? It will be removed from any tasks that use it.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => deleteTag(id) },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTag(id);
+              showToast('Tag removed.');
+            } catch {
+              showToast('Could not remove tag.', 'error');
+            }
+          },
+        },
       ]
     );
   };
@@ -303,8 +343,6 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
-            {!!themeMsg && <Text style={styles.successInfo}>{themeMsg}</Text>}
-            {!!themeErr && <Text style={styles.errorInfo}>{themeErr}</Text>}
           </View>
         )}
       </View>
@@ -548,7 +586,6 @@ export default function SettingsScreen() {
                 </Text>
               </Pressable>
             </View>
-            {!!pomodoroMsg && <Text style={styles.successInfo}>{pomodoroMsg}</Text>}
             {!!pomodoroErr && <Text style={styles.errorInfo}>{pomodoroErr}</Text>}
 
             <View style={styles.historyBlock}>
@@ -576,15 +613,27 @@ export default function SettingsScreen() {
       <CategoryModal
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
-        onSave={(name, color, icon) => {
-          void addCategory({ name, color, icon: icon as CategoryIcon });
+        onSave={async (name, color, icon) => {
+          try {
+            await addCategory({ name, color, icon: icon as CategoryIcon });
+            showToast('Category created.');
+          } catch {
+            showToast('Could not save category.', 'error');
+            throw new Error('category save failed');
+          }
         }}
       />
       <TagModal
         visible={showTagModal}
         onClose={() => setShowTagModal(false)}
-        onSave={(name, color) => {
-          void addTag({ name, color });
+        onSave={async (name, color) => {
+          try {
+            await addTag({ name, color });
+            showToast('Tag created.');
+          } catch {
+            showToast('Could not save tag.', 'error');
+            throw new Error('tag save failed');
+          }
         }}
       />
     </ScrollView>
@@ -865,11 +914,6 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       color: '#fff',
       fontWeight: '600',
       fontSize: 14,
-    },
-    successInfo: {
-      color: colors.green,
-      fontSize: 13,
-      fontWeight: '500',
     },
     errorInfo: {
       color: colors.red,

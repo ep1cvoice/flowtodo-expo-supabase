@@ -4,6 +4,7 @@ import { useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
 import CreateTaskButton from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
@@ -18,12 +19,36 @@ function toggleId(prev: number[], id: number): number[] {
 export default function ActiveTasks() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { activeTasks, categories, tags, addTask, toggleTask, deleteTask } = useTasks();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  const handleToggle = useCallback(
+    async (id: number) => {
+      try {
+        await toggleTask(id);
+      } catch {
+        showToast('Could not update task.', 'error');
+      }
+    },
+    [toggleTask, showToast]
+  );
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      try {
+        await deleteTask(id);
+        showToast('Task deleted.');
+      } catch {
+        showToast('Could not delete task.', 'error');
+      }
+    },
+    [deleteTask, showToast]
+  );
 
   const validCategoryIds = useMemo(
     () => selectedCategoryIds.filter((id) => categories.some((c) => c.id === id)),
@@ -133,8 +158,8 @@ export default function ActiveTasks() {
           <ToDoItem
             task={item}
             index={index}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
           />
         )}
       />
