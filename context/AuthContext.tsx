@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { supabase } from '@/supabase/client';
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    await pausePomodoroBeforeLogout();
     await supabase.auth.signOut();
   };
 

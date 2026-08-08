@@ -49,6 +49,60 @@ export type Database = {
           },
         ]
       }
+      pomodoros: {
+        Row: {
+          id: number
+          user_id: string
+          task_id: number | null
+          task_name: string
+          duration: number
+          elapsed: number
+          started_at: string
+          paused_at: string | null
+          ended_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          task_id?: number | null
+          task_name?: string
+          duration: number
+          elapsed?: number
+          started_at?: string
+          paused_at?: string | null
+          ended_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          task_id?: number | null
+          task_name?: string
+          duration?: number
+          elapsed?: number
+          started_at?: string
+          paused_at?: string | null
+          ended_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pomodoros_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pomodoros_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null

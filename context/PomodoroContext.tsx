@@ -4,15 +4,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PomoData, PomoRecord } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
+import { mapActivePomo, mapPomoRecord } from '@/lib/pomoMappers';
+import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoroLogoutBridge';
+import { supabase } from '@/supabase/client';
 
-const ACTIVE_KEY = 'activePomodoroSession';
-const HISTORY_KEY = 'pomodoroHistory';
 const MAX_HISTORY = 5;
 
 interface PomodoroContextValue {
@@ -20,11 +21,12 @@ interface PomodoroContextValue {
   activePomo: PomoData | null;
   history: PomoRecord[];
   canStart: boolean;
-  startPomo: (taskId: number) => void;
-  pausePomo: () => void;
-  resumePomo: () => void;
-  endPomo: () => void;
-  deleteHistoryRecord: (id: number) => void;
+  loading: boolean;
+  startPomo: (taskId: number) => Promise<void>;
+  pausePomo: () => Promise<void>;
+  resumePomo: () => Promise<void>;
+  endPomo: () => Promise<void>;
+  deleteHistoryRecord: (id: number) => Promise<void>;
   getElapsedSeconds: (pomo?: PomoData | null) => number;
 }
 
@@ -43,111 +45,203 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const { tasks } = useTasks();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const activeTaskId = activePomo?.taskId ?? null;
   const canStart = activePomo === null;
 
+  const activePomoRef = useRef(activePomo);
+  activePomoRef.current = activePomo;
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [rawActive, rawHistory] = await Promise.all([
-          AsyncStorage.getItem(ACTIVE_KEY),
-          AsyncStorage.getItem(HISTORY_KEY),
-        ]);
-        if (cancelled) return;
-        if (rawActive) {
-          const parsed = JSON.parse(rawActive) as PomoData;
-          if (parsed && parsed.endedAt === null) {
-            setActivePomo(parsed);
-          } else {
-            await AsyncStorage.removeItem(ACTIVE_KEY);
-          }
-        }
-        if (rawHistory) {
-          setHistory(JSON.parse(rawHistory) as PomoRecord[]);
-        }
-      } catch {
-        // ignore corrupt storage
-      } finally {
-        if (!cancelled) setHydrated(true);
+    if (!user) {
+      return registerPomodoroLogoutSnapshot(() => null);
+    }
+    const userId = user.id;
+    return registerPomodoroLogoutSnapshot(() => {
+      const pomo = activePomoRef.current;
+      if (!pomo) return null;
+      return { userId, pomo };
+    });
+  }, [user?.id]);
+
+  const refresh = useCallback(async (userId: string, { resumeIfPaused = false } = {}) => {
+    const [activeRes, historyRes] = await Promise.all([
+      supabase
+        .from('pomodoros')
+        .select('*')
+        .eq('user_id', userId)
+        .is('ended_at', null)
+        .maybeSingle(),
+      supabase
+        .from('pomodoros')
+        .select('*')
+        .eq('user_id', userId)
+        .not('ended_at', 'is', null)
+        .order('ended_at', { ascending: false })
+        .limit(MAX_HISTORY),
+    ]);
+
+    if (activeRes.error) throw activeRes.error;
+    if (historyRes.error) throw historyRes.error;
+
+    setHistory((historyRes.data ?? []).map(mapPomoRecord));
+
+    if (!activeRes.data) {
+      setActivePomo(null);
+      return;
+    }
+
+    let active = mapActivePomo(activeRes.data);
+
+    // After login: continue the session that was frozen on logout.
+    if (resumeIfPaused && active.pausedAt && !active.endedAt) {
+      const startedAt = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('pomodoros')
+        .update({ paused_at: null, started_at: startedAt })
+        .eq('id', active.id)
+        .eq('user_id', userId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.warn('Failed to resume pomodoro after login:', error.message);
+        setActivePomo(active);
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      active = mapActivePomo(data);
+    }
+
+    setActivePomo(active);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    if (activePomo) {
-      AsyncStorage.setItem(ACTIVE_KEY, JSON.stringify(activePomo)).catch(() => {});
-    } else {
-      AsyncStorage.removeItem(ACTIVE_KEY).catch(() => {});
-    }
-  }, [activePomo, hydrated]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!hydrated) return;
-    AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history)).catch(() => {});
-  }, [history, hydrated]);
+    if (!user) {
+      setActivePomo(null);
+      setHistory([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    refresh(user.id, { resumeIfPaused: true })
+      .catch((err) => {
+        console.warn('Failed to load pomodoros:', err?.message ?? err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, refresh]);
 
   const getElapsedSeconds = useCallback((pomo?: PomoData | null) => {
     if (!pomo) return 0;
     return Math.floor(computeElapsedMs(pomo) / 1000);
   }, []);
 
+  const requireUserId = () => {
+    if (!user) throw new Error('Not signed in');
+    return user.id;
+  };
+
   const startPomo = useCallback(
-    (taskId: number) => {
+    async (taskId: number) => {
       if (activePomo) return;
+      const userId = requireUserId();
       const minutes = Number(user?.settings?.pomodoroTime);
       const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
+      const taskName = tasks.find((t) => t.id === taskId)?.title ?? 'Task';
       const now = new Date().toISOString();
-      const nextId =
-        Math.max(0, ...history.map((h) => h.id), activePomo?.id ?? 0) + 1;
-      setActivePomo({
-        id: nextId,
-        taskId,
-        duration: durationSec,
-        startedAt: now,
-        pausedAt: null,
-        elapsed: 0,
-        endedAt: null,
-      });
+
+      const { data, error } = await supabase
+        .from('pomodoros')
+        .insert({
+          user_id: userId,
+          task_id: taskId,
+          task_name: taskName,
+          duration: durationSec,
+          elapsed: 0,
+          started_at: now,
+          paused_at: null,
+          ended_at: null,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      setActivePomo(mapActivePomo(data));
     },
-    [activePomo, history, user?.settings?.pomodoroTime]
+    [activePomo, tasks, user]
   );
 
-  const pausePomo = useCallback(() => {
-    setActivePomo((prev) => {
-      if (!prev || prev.pausedAt) return prev;
-      const elapsed = computeElapsedMs(prev);
-      return {
-        ...prev,
-        elapsed,
-        pausedAt: new Date().toISOString(),
-      };
-    });
-  }, []);
+  const pausePomo = useCallback(async () => {
+    if (!activePomo || activePomo.pausedAt) return;
+    const userId = requireUserId();
+    const elapsed = computeElapsedMs(activePomo);
+    const pausedAt = new Date().toISOString();
 
-  const resumePomo = useCallback(() => {
-    setActivePomo((prev) => {
-      if (!prev || !prev.pausedAt) return prev;
-      return {
-        ...prev,
-        pausedAt: null,
-        startedAt: new Date().toISOString(),
-      };
-    });
-  }, []);
+    setActivePomo({ ...activePomo, elapsed, pausedAt });
 
-  const endPomo = useCallback(() => {
+    const { error } = await supabase
+      .from('pomodoros')
+      .update({ elapsed, paused_at: pausedAt })
+      .eq('id', activePomo.id)
+      .eq('user_id', userId);
+
+    if (error) {
+      setActivePomo(activePomo);
+      throw error;
+    }
+  }, [activePomo, user]);
+
+  const resumePomo = useCallback(async () => {
+    if (!activePomo || !activePomo.pausedAt) return;
+    const userId = requireUserId();
+    const startedAt = new Date().toISOString();
+    const next = { ...activePomo, pausedAt: null, startedAt };
+
+    setActivePomo(next);
+
+    const { error } = await supabase
+      .from('pomodoros')
+      .update({ paused_at: null, started_at: startedAt })
+      .eq('id', activePomo.id)
+      .eq('user_id', userId);
+
+    if (error) {
+      setActivePomo(activePomo);
+      throw error;
+    }
+  }, [activePomo, user]);
+
+  const endPomo = useCallback(async () => {
     if (!activePomo) return;
+    const userId = requireUserId();
     const elapsed = computeElapsedMs(activePomo);
     const endedAt = new Date().toISOString();
     const taskName =
-      tasks.find((t) => t.id === activePomo.taskId)?.title ?? 'Deleted task';
+      tasks.find((t) => t.id === activePomo.taskId)?.title ??
+      'Deleted task';
+
+    const { error } = await supabase
+      .from('pomodoros')
+      .update({
+        elapsed,
+        ended_at: endedAt,
+        paused_at: null,
+        task_name: taskName,
+      })
+      .eq('id', activePomo.id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
     const record: PomoRecord = {
       id: activePomo.id,
       taskId: activePomo.taskId,
@@ -157,13 +251,26 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       elapsed,
       duration: activePomo.duration,
     };
+
     setHistory((h) => [record, ...h].slice(0, MAX_HISTORY));
     setActivePomo(null);
-  }, [activePomo, tasks]);
+  }, [activePomo, tasks, user]);
 
-  const deleteHistoryRecord = useCallback((id: number) => {
-    setHistory((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  const deleteHistoryRecord = useCallback(
+    async (id: number) => {
+      const userId = requireUserId();
+      const { error } = await supabase
+        .from('pomodoros')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId)
+        .not('ended_at', 'is', null);
+
+      if (error) throw error;
+      setHistory((prev) => prev.filter((p) => p.id !== id));
+    },
+    [user]
+  );
 
   const value = useMemo(
     () => ({
@@ -171,6 +278,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       activePomo,
       history,
       canStart,
+      loading,
       startPomo,
       pausePomo,
       resumePomo,
@@ -183,6 +291,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       activePomo,
       history,
       canStart,
+      loading,
       startPomo,
       pausePomo,
       resumePomo,

@@ -52,7 +52,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
       if (!alarmedRef.current && duration > 0 && total >= duration) {
         alarmedRef.current = true;
         setShowAlarm(true);
-        if (!activePomo.pausedAt) pausePomo();
+        if (!activePomo.pausedAt) void pausePomo();
         void playPomodoroAlarm();
       }
     };
@@ -75,7 +75,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
   const stopAlarmAndEnd = () => {
     void stopPomodoroAlarm();
     setShowAlarm(false);
-    endPomo();
+    void endPomo();
   };
 
   const handleDismissAlarm = () => {
@@ -90,8 +90,8 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
         <Pressable
           onPress={() => {
             if (showAlarm) return;
-            if (isPaused) resumePomo();
-            else pausePomo();
+            if (isPaused) void resumePomo();
+            else void pausePomo();
           }}
           hitSlop={8}
           style={({ pressed, hovered }) => [
