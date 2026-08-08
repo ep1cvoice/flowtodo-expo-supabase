@@ -22,6 +22,7 @@ import {
   Plus,
   AlertTriangle,
 } from 'lucide-react-native';
+import ChangePasswordModal from '@/components/settings/ChangePasswordModal';
 import CategoryModal from '@/components/tasks/CategoryModal';
 import PomodoroHistory from '@/components/tasks/PomodoroHistory';
 import TagModal from '@/components/tasks/TagModal';
@@ -41,7 +42,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 type SectionKey = 'profile' | 'preferences' | 'labels' | 'data' | 'productivity';
 
 export default function SettingsScreen() {
-  const { user, updateProfile, logout } = useAuth();
+  const { user, updateProfile, updatePassword, deleteAccount, logout } = useAuth();
   const { theme, setTheme, colors } = useTheme();
   const {
     activeTasks,
@@ -67,6 +68,10 @@ export default function SettingsScreen() {
   const [pomodoroSaving, setPomodoroSaving] = useState(false);
   const [themeMsg, setThemeMsg] = useState('');
   const [themeErr, setThemeErr] = useState('');
+  const [accountMsg, setAccountMsg] = useState('');
+  const [accountErr, setAccountErr] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -78,6 +83,32 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/login' as Href);
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your account, tasks, categories, and tags. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setAccountMsg('');
+            setAccountErr('');
+            setDeletingAccount(true);
+            const { error } = await deleteAccount();
+            setDeletingAccount(false);
+            if (error) {
+              setAccountErr(error);
+              return;
+            }
+            router.replace('/(auth)/login' as Href);
+          },
+        },
+      ]
+    );
   };
 
   const handlePomodoroSave = async () => {
@@ -218,27 +249,35 @@ export default function SettingsScreen() {
                 styles.secondaryBtn,
                 (hovered || pressed) && styles.secondaryBtnPressed,
               ]}
-              onPress={() =>
-                Alert.alert('Coming with Supabase', 'Change email / password after Auth is connected.')
-              }>
-              <Text style={styles.secondaryBtnText}>Change email / password</Text>
+              onPress={() => {
+                setAccountMsg('');
+                setAccountErr('');
+                setShowPasswordModal(true);
+              }}>
+              <Text style={styles.secondaryBtnText}>Change password</Text>
             </Pressable>
+            {!!accountMsg && <Text style={styles.successInfo}>{accountMsg}</Text>}
+            {!!accountErr && <Text style={styles.errorInfo}>{accountErr}</Text>}
 
             <View style={styles.dangerZone}>
               <View style={styles.dangerHeader}>
                 <AlertTriangle size={18} color={colors.red} />
                 <Text style={styles.dangerTitle}>Danger zone</Text>
               </View>
-              <Text style={styles.description}>Account delete will be available with Supabase Auth.</Text>
+              <Text style={styles.description}>
+                Permanently delete your account and all associated data.
+              </Text>
               <Pressable
                 style={({ pressed, hovered }) => [
                   styles.dangerBtn,
                   (hovered || pressed) && styles.dangerBtnPressed,
+                  deletingAccount && styles.primaryBtnDisabled,
                 ]}
-                onPress={() =>
-                  Alert.alert('Coming with Supabase', 'Delete account requires real Auth backend.')
-                }>
-                <Text style={styles.dangerBtnText}>Delete account</Text>
+                disabled={deletingAccount}
+                onPress={confirmDeleteAccount}>
+                <Text style={styles.dangerBtnText}>
+                  {deletingAccount ? 'Deleting…' : 'Delete account'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -573,6 +612,18 @@ export default function SettingsScreen() {
       </Pressable>
       </View>
 
+      <ChangePasswordModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={async (currentPassword, newPassword) => {
+          const result = await updatePassword(currentPassword, newPassword);
+          if (!result.error) {
+            setAccountMsg('Password updated.');
+            setAccountErr('');
+          }
+          return result;
+        }}
+      />
       <CategoryModal
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}

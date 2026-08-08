@@ -140,9 +140,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null };
   };
 
+  const updatePassword = async (currentPassword: string, newPassword: string) => {
+    if (!user?.email) {
+      return { error: 'Please sign in to update your password.' };
+    }
+
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (reauthError) {
+      return { error: 'Current password is incorrect' };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  };
+
+  const deleteAccount = async () => {
+    if (!user) {
+      return { error: 'Not signed in' };
+    }
+
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) {
+      return { error: error.message };
+    }
+
+    await supabase.auth.signOut();
+    setUserState(null);
+    return { error: null };
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, loading, signIn, signUp, logout, updateProfile }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        signIn,
+        signUp,
+        logout,
+        updateProfile,
+        updatePassword,
+        deleteAccount,
+      }}
     >
       {children}
     </AuthContext.Provider>

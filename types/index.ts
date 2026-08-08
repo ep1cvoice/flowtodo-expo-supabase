@@ -23,6 +23,11 @@ export interface AuthContextValue {
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   updateProfile: (updates: ProfileUpdates) => Promise<{ error: string | null }>;
+  updatePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ error: string | null }>;
+  deleteAccount: () => Promise<{ error: string | null }>;
 }
 
 export interface Task {

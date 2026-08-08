@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { seedDemoData } from '@/lib/seedDemoData';
 import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
 import { supabase } from '@/supabase/client';
 import type { Category, CategoryIcon, Tag, Task } from '@/types';
@@ -100,9 +101,19 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     if (tagsRes.error) throw tagsRes.error;
     if (tasksRes.error) throw tasksRes.error;
 
-    setCategories((categoriesRes.data ?? []).map(mapCategory));
-    setTags((tagsRes.data ?? []).map(mapTag));
-    setTasks(((tasksRes.data ?? []) as TaskQueryRow[]).map(mapTask));
+    const nextCategories = (categoriesRes.data ?? []).map(mapCategory);
+    const nextTags = (tagsRes.data ?? []).map(mapTag);
+    const nextTasks = ((tasksRes.data ?? []) as TaskQueryRow[]).map(mapTask);
+
+    setCategories(nextCategories);
+    setTags(nextTags);
+    setTasks(nextTasks);
+
+    return {
+      categories: nextCategories,
+      tags: nextTags,
+      tasks: nextTasks,
+    };
   }, []);
 
   useEffect(() => {
@@ -121,14 +132,30 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const userId = user.id;
     setLoading(true);
-    refresh(user.id)
-      .catch((err) => {
-        console.warn('Failed to load tasks domain:', err?.message ?? err);
-      })
-      .finally(() => {
+
+    (async () => {
+      try {
+        const snapshot = await refresh(userId);
+        if (cancelled) return;
+
+        const isEmpty =
+          snapshot.categories.length === 0 &&
+          snapshot.tags.length === 0 &&
+          snapshot.tasks.length === 0;
+
+        if (isEmpty) {
+          await seedDemoData(userId);
+          if (cancelled) return;
+          await refresh(userId);
+        }
+      } catch (err) {
+        console.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
