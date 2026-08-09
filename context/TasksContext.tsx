@@ -50,6 +50,7 @@ interface TasksContextValue {
   deleteTask: (id: number) => Promise<void>;
   deleteAllActive: () => Promise<void>;
   deleteAllCompleted: () => Promise<void>;
+  reorderTasks: (items: { id: number; sortOrder: number }[]) => Promise<void>;
 }
 
 const TASK_SELECT = `
@@ -352,6 +353,31 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setTasks((prev) => prev.filter((t) => !t.done));
   };
 
+  const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
+    if (items.length === 0) return;
+    const userId = requireUserId();
+    const previous = tasks;
+    const orderMap = new Map(items.map((item) => [item.id, item.sortOrder]));
+
+    setTasks((current) =>
+      current.map((task) =>
+        orderMap.has(task.id) ? { ...task, sortOrder: orderMap.get(task.id)! } : task
+      )
+    );
+
+    const results = await Promise.all(
+      items.map(({ id, sortOrder }) =>
+        supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id).eq('user_id', userId)
+      )
+    );
+
+    const failed = results.find((result) => result.error);
+    if (failed?.error) {
+      setTasks(previous);
+      throw failed.error;
+    }
+  };
+
   return (
     <TasksContext.Provider
       value={{
@@ -372,6 +398,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         deleteTask,
         deleteAllActive,
         deleteAllCompleted,
+        reorderTasks,
       }}>
       {children}
     </TasksContext.Provider>

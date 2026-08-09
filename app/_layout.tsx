@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -40,18 +42,20 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <SafeAreaProvider>
-      {/* Auth outside Theme so theme loading never remounts the session */}
-      <AuthProvider>
-        <ThemeProvider>
-          <TasksProvider>
-            <PomodoroProvider>
-              <RootNavigation />
-            </PomodoroProvider>
-          </TasksProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        {/* Auth outside Theme so theme loading never remounts the session */}
+        <AuthProvider>
+          <ThemeProvider>
+            <TasksProvider>
+              <PomodoroProvider>
+                <RootNavigation />
+              </PomodoroProvider>
+            </TasksProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

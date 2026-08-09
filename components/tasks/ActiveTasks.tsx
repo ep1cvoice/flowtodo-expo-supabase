@@ -1,7 +1,11 @@
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, FlatList } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
@@ -10,6 +14,7 @@ import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
 import type { AppColors } from '@/constants/theme';
+import type { Task } from '@/types';
 
 function toggleId(prev: number[], id: number): number[] {
   return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
@@ -19,7 +24,16 @@ export default function ActiveTasks() {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { activeTasks, categories, tags, loading, addTask, toggleTask, deleteTask } = useTasks();
+  const {
+    activeTasks,
+    categories,
+    tags,
+    loading,
+    addTask,
+    toggleTask,
+    deleteTask,
+    reorderTasks,
+  } = useTasks();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
@@ -34,6 +48,7 @@ export default function ActiveTasks() {
     [selectedTagIds, tags]
   );
   const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
+  const canReorder = !hasFilters;
 
   const filteredTasks = useMemo(() => {
     return activeTasks.filter((task) => {
@@ -82,6 +97,36 @@ export default function ActiveTasks() {
     clearFilters,
   ]);
 
+  const handleDragEnd = useCallback(
+    ({ data }: { data: Task[] }) => {
+      if (!canReorder) return;
+      void reorderTasks(data.map((task, index) => ({ id: task.id, sortOrder: index }))).catch(
+        (err) => {
+          console.warn('Failed to reorder tasks:', err?.message ?? err);
+        }
+      );
+    },
+    [canReorder, reorderTasks]
+  );
+
+  const renderItem = useCallback(
+    ({ item, drag, getIndex, isActive }: RenderItemParams<Task>) => (
+      <ScaleDecorator activeScale={1.02}>
+        <View style={[styles.itemWrap, isActive && styles.itemDragging]}>
+          <ToDoItem
+            task={item}
+            index={getIndex() ?? 0}
+            onToggle={toggleTask}
+            onDelete={deleteTask}
+            showDragHandle={canReorder}
+            drag={canReorder ? drag : undefined}
+          />
+        </View>
+      </ScaleDecorator>
+    ),
+    [canReorder, deleteTask, styles.itemDragging, styles.itemWrap, toggleTask]
+  );
+
   const emptyCopy = (() => {
     if (!hasFilters) {
       return {
@@ -115,15 +160,17 @@ export default function ActiveTasks() {
           <Text style={styles.loadingText}>Loading tasks…</Text>
         </View>
       ) : (
-        <FlatList
+        <DraggableFlatList
           style={styles.tasksList}
+          containerStyle={styles.tasksList}
           contentContainerStyle={[
             styles.tasksContent,
             filteredTasks.length === 0 && styles.tasksContentEmpty,
           ]}
           data={filteredTasks}
           keyExtractor={(item) => String(item.id)}
-          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          onDragEnd={handleDragEnd}
+          activationDistance={canReorder ? 8 : 9999}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyContainer}>
@@ -135,14 +182,7 @@ export default function ActiveTasks() {
               </View>
             </View>
           }
-          renderItem={({ item, index }) => (
-            <ToDoItem
-              task={item}
-              index={index}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-            />
-          )}
+          renderItem={renderItem}
         />
       )}
 
@@ -191,6 +231,13 @@ function createStyles(colors: AppColors) {
     },
     tasksContentEmpty: {
       flexGrow: 1,
+    },
+    itemWrap: {
+      marginBottom: 6,
+    },
+    itemDragging: {
+      opacity: 0.96,
+      zIndex: 20,
     },
     loadingState: {
       flex: 1,

@@ -32,6 +32,7 @@ import {
   Music,
   Palette,
   Pencil,
+  GripVertical,
   Plane,
   ShoppingCart,
   Star,
@@ -103,9 +104,20 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
+  /** Show reorder grip (Active list). Wire `drag` in DnD stage 3. */
+  showDragHandle?: boolean;
+  /** Called on long-press of the grip — used by DraggableFlatList. */
+  drag?: () => void;
 }
 
-export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoItemProps) {
+export default function ToDoItem({
+  task,
+  index = 0,
+  onToggle,
+  onDelete,
+  showDragHandle = false,
+  drag,
+}: ToDoItemProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
@@ -223,6 +235,22 @@ export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoIt
         )}
 
         <View style={[styles.todoMainRow, isExpanded && styles.todoMainRowExpanded]}>
+          {showDragHandle ? (
+            <Pressable
+              onLongPress={drag}
+              delayLongPress={120}
+              disabled={!drag}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Drag to reorder"
+              style={({ pressed, hovered }) => [
+                styles.dragHandle,
+                (hovered || pressed) && styles.dragHandlePressed,
+              ]}>
+              <GripVertical size={18} color={colors.textMuted} strokeWidth={2.2} />
+            </Pressable>
+          ) : null}
+
           <Pressable
             style={({ pressed, hovered }) => [
               styles.todoCheckbox,
@@ -536,6 +564,18 @@ function createStyles(colors: AppColors) {
     },
     todoMainRowExpanded: {
       alignItems: 'flex-start',
+    },
+    dragHandle: {
+      width: 22,
+      height: 28,
+      marginLeft: -4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 6,
+      ...webInteractive,
+    },
+    dragHandlePressed: {
+      backgroundColor: colors.todoHighlight,
     },
     todoCheckbox: {
       width: 22,
