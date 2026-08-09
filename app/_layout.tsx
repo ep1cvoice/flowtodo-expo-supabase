@@ -14,10 +14,12 @@ import {
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppSplash from '@/components/ui/AppSplash';
+import ToastHost from '@/components/ui/ToastHost';
 import { AuthProvider } from '@/context/AuthContext';
 import { PomodoroProvider } from '@/context/PomodoroContext';
 import { TasksProvider } from '@/context/TasksContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { ToastProvider } from '@/context/ToastContext';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -47,11 +49,13 @@ export default function RootLayout() {
         {/* Auth outside Theme so theme loading never remounts the session */}
         <AuthProvider>
           <ThemeProvider>
-            <TasksProvider>
-              <PomodoroProvider>
-                <RootNavigation />
-              </PomodoroProvider>
-            </TasksProvider>
+            <ToastProvider>
+              <TasksProvider>
+                <PomodoroProvider>
+                  <RootNavigation />
+                </PomodoroProvider>
+              </TasksProvider>
+            </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
       </SafeAreaProvider>
@@ -72,6 +76,7 @@ function RootNavigation() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <AppSplash />
+      <ToastHost />
     </View>
   );
 }

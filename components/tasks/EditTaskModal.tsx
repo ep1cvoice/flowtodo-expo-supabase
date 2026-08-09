@@ -20,6 +20,7 @@ import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export interface EditTaskUpdates {
@@ -49,6 +50,7 @@ export default function EditTaskModal({
   const { width } = useWindowDimensions();
   const isMobile = width < 480;
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const { addCategory, addTag } = useTasks();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -93,10 +95,11 @@ export default function EditTaskModal({
 
     try {
       await onUpdate(task.id, { title, description, categoryId, tagIds });
+      showToast('Task updated.');
       onClose();
     } catch (err) {
       console.warn('Failed to update task:', err);
-      setInputError('Could not save task. Try again.');
+      showToast('Could not save task.', 'error');
     }
   };
 
@@ -228,16 +231,30 @@ export default function EditTaskModal({
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
         onSave={async (name, color, icon) => {
-          const created = await addCategory({ name, color, icon: icon as CategoryIcon });
-          setCategoryId(created.id);
+          try {
+            const created = await addCategory({ name, color, icon: icon as CategoryIcon });
+            setCategoryId(created.id);
+            showToast('Category created.');
+          } catch (err) {
+            console.warn('Failed to create category:', err);
+            showToast('Could not save category.', 'error');
+            throw err;
+          }
         }}
       />
       <TagModal
         visible={showTagModal}
         onClose={() => setShowTagModal(false)}
         onSave={async (name, color) => {
-          const created = await addTag({ name, color });
-          setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
+          try {
+            const created = await addTag({ name, color });
+            setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
+            showToast('Tag created.');
+          } catch (err) {
+            console.warn('Failed to create tag:', err);
+            showToast('Could not save tag.', 'error');
+            throw err;
+          }
         }}
       />
     </Modal>

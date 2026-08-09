@@ -16,6 +16,7 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
 import CreateTaskButton from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
@@ -51,6 +52,7 @@ const isWeb = Platform.OS === 'web';
 export default function ActiveTasks() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     activeTasks,
@@ -66,6 +68,29 @@ export default function ActiveTasks() {
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  const handleToggle = useCallback(
+    async (id: number) => {
+      try {
+        await toggleTask(id);
+      } catch {
+        showToast('Could not update task.', 'error');
+      }
+    },
+    [toggleTask, showToast]
+  );
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      try {
+        await deleteTask(id);
+        showToast('Task deleted.');
+      } catch {
+        showToast('Could not delete task.', 'error');
+      }
+    },
+    [deleteTask, showToast]
+  );
 
   const validCategoryIds = useMemo(
     () => selectedCategoryIds.filter((id) => categories.some((c) => c.id === id)),
@@ -132,9 +157,10 @@ export default function ActiveTasks() {
         orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
       ).catch((err) => {
         console.warn('Failed to reorder tasks:', err?.message ?? err);
+        showToast('Could not save order.', 'error');
       });
     },
-    [reorderTasks]
+    [reorderTasks, showToast]
   );
 
   const persistVisibleOrder = useCallback(
@@ -184,14 +210,21 @@ export default function ActiveTasks() {
           <ToDoItem
             task={item}
             index={getIndex() ?? 0}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
             drag={canReorder ? () => beginDrag(drag) : undefined}
           />
         </View>
       </ScaleDecorator>
     ),
-    [beginDrag, canReorder, deleteTask, styles.itemDragging, styles.itemWrap, toggleTask]
+    [
+      beginDrag,
+      canReorder,
+      handleDelete,
+      handleToggle,
+      styles.itemDragging,
+      styles.itemWrap,
+    ]
   );
 
   const renderWebItem = useCallback(
@@ -200,8 +233,8 @@ export default function ActiveTasks() {
         <ToDoItem
           task={item}
           index={index}
-          onToggle={toggleTask}
-          onDelete={deleteTask}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
           showReorderButtons={canReorder}
           canMoveUp={canReorder && index > 0}
           canMoveDown={canReorder && index < filteredTasks.length - 1}
@@ -210,7 +243,14 @@ export default function ActiveTasks() {
         />
       </View>
     ),
-    [canReorder, deleteTask, filteredTasks.length, moveTask, styles.itemWrap, toggleTask]
+    [
+      canReorder,
+      filteredTasks.length,
+      handleDelete,
+      handleToggle,
+      moveTask,
+      styles.itemWrap,
+    ]
   );
 
   const emptyCopy = (() => {

@@ -51,6 +51,7 @@ import { tokens } from '@/constants/theme';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import type { CategoryIcon, Task } from '@/types';
 import { webInteractive } from '@/utils/pressableWeb';
 
@@ -128,6 +129,7 @@ export default function ToDoItem({
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
   const { activeTaskId, canStart, startPomo, endPomo } = usePomodoro();
@@ -203,16 +205,24 @@ export default function ToDoItem({
     setShowCalendarModal(true);
   };
 
-  const handleClearDate = () => {
-    setTaskScheduled(task.id, null);
-    setShowCalendarModal(false);
+  const handleClearDate = async () => {
+    try {
+      await setTaskScheduled(task.id, null);
+      setShowCalendarModal(false);
+    } catch {
+      showToast('Could not update date.', 'error');
+    }
   };
 
-  const handleConfirmDate = (date: Date) => {
+  const handleConfirmDate = async (date: Date) => {
     const normalized = new Date(date);
     normalized.setHours(12, 0, 0, 0);
-    setTaskScheduled(task.id, normalized.toISOString());
-    setShowCalendarModal(false);
+    try {
+      await setTaskScheduled(task.id, normalized.toISOString());
+      setShowCalendarModal(false);
+    } catch {
+      showToast('Could not update date.', 'error');
+    }
   };
 
   return (
