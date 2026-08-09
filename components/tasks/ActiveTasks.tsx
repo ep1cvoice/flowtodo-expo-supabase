@@ -7,6 +7,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import DraggableFlatList, {
@@ -149,10 +150,16 @@ export default function ActiveTasks() {
   const handleDragEnd = useCallback(
     ({ data }: { data: Task[] }) => {
       if (!canReorder || isWeb) return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       persistVisibleOrder(data);
     },
     [canReorder, persistVisibleOrder]
   );
+
+  const beginDrag = useCallback((drag: () => void) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    drag();
+  }, []);
 
   const moveTask = useCallback(
     (taskId: number, direction: -1 | 1) => {
@@ -179,12 +186,12 @@ export default function ActiveTasks() {
             index={getIndex() ?? 0}
             onToggle={toggleTask}
             onDelete={deleteTask}
-            drag={canReorder ? drag : undefined}
+            drag={canReorder ? () => beginDrag(drag) : undefined}
           />
         </View>
       </ScaleDecorator>
     ),
-    [canReorder, deleteTask, styles.itemDragging, styles.itemWrap, toggleTask]
+    [beginDrag, canReorder, deleteTask, styles.itemDragging, styles.itemWrap, toggleTask]
   );
 
   const renderWebItem = useCallback(
@@ -313,17 +320,22 @@ function createStyles(colors: AppColors) {
     container: {
       flex: 1,
       minHeight: 0,
+      overflow: 'visible',
     },
     tasksList: {
       flex: 1,
       minHeight: 0,
+      overflow: 'visible',
     },
     tasksContent: {
       paddingBottom: 10,
       flexGrow: 1,
     },
+    // Padding on all sides so ScaleDecorator growth isn't clipped by the list.
     tasksContentDragPad: {
       paddingHorizontal: 10,
+      paddingTop: 10,
+      paddingBottom: 14,
     },
     tasksContentEmpty: {
       flexGrow: 1,

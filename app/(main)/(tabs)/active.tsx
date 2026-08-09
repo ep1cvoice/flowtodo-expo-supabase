@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     maxWidth: tokens.contentMaxWidth,
-    paddingVertical: 16,
+    paddingVertical: 8,
     paddingHorizontal: 6,
     minHeight: 0,
     overflow: 'visible',
