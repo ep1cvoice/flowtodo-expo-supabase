@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   AlarmClock,
@@ -188,11 +189,17 @@ export default function ToDoItem({
 
   const handleToggleDone = () => {
     if (isPomoActive) void endPomo();
+    if (Platform.OS !== 'web') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     onToggle(task.id);
   };
 
   const handleDelete = () => {
     if (isPomoActive) void endPomo();
+    if (Platform.OS !== 'web') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
     onDelete(task.id);
   };
 
@@ -230,7 +237,7 @@ export default function ToDoItem({
       <Pressable
         onPress={handleItemPress}
         onLongPress={drag}
-        delayLongPress={220}
+        delayLongPress={drag ? 450 : undefined}
         accessibilityHint={drag ? 'Long press to reorder' : undefined}
         style={({ pressed, hovered }) => [
           styles.todoItem,

@@ -176,10 +176,12 @@ export default function ActiveTasks() {
   const handleDragEnd = useCallback(
     ({ data }: { data: Task[] }) => {
       if (!canReorder || isWeb) return;
+      const orderChanged = data.some((task, i) => task.id !== filteredTasks[i]?.id);
+      if (!orderChanged) return;
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       persistVisibleOrder(data);
     },
-    [canReorder, persistVisibleOrder]
+    [canReorder, filteredTasks, persistVisibleOrder]
   );
 
   const beginDrag = useCallback((drag: () => void) => {
