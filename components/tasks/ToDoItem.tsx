@@ -26,13 +26,13 @@ import {
   Dumbbell,
   Gamepad2,
   Globe,
+  GripVertical,
   Heart,
   Home,
   Leaf,
   Music,
   Palette,
   Pencil,
-  GripVertical,
   Plane,
   ShoppingCart,
   Star,
@@ -104,10 +104,15 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
-  /** Show reorder grip (Active list). Wire `drag` in DnD stage 3. */
+  /** Native: long-press grip for DraggableFlatList. */
   showDragHandle?: boolean;
-  /** Called on long-press of the grip — used by DraggableFlatList. */
   drag?: () => void;
+  /** Web: up and down buttons instead of drag (draggable-flatlist is poor on web). */
+  showReorderButtons?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 export default function ToDoItem({
@@ -117,6 +122,11 @@ export default function ToDoItem({
   onDelete,
   showDragHandle = false,
   drag,
+  showReorderButtons = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
 }: ToDoItemProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
@@ -249,6 +259,45 @@ export default function ToDoItem({
               ]}>
               <GripVertical size={18} color={colors.textMuted} strokeWidth={2.2} />
             </Pressable>
+          ) : null}
+
+          {showReorderButtons ? (
+            <View style={styles.reorderButtons}>
+              <Pressable
+                onPress={onMoveUp}
+                disabled={!canMoveUp}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Move task up"
+                style={({ pressed, hovered }) => [
+                  styles.reorderBtn,
+                  !canMoveUp && styles.reorderBtnDisabled,
+                  canMoveUp && (hovered || pressed) && styles.dragHandlePressed,
+                ]}>
+                <ChevronUp
+                  size={16}
+                  color={canMoveUp ? colors.textSecondary : colors.textMuted}
+                  strokeWidth={2.4}
+                />
+              </Pressable>
+              <Pressable
+                onPress={onMoveDown}
+                disabled={!canMoveDown}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Move task down"
+                style={({ pressed, hovered }) => [
+                  styles.reorderBtn,
+                  !canMoveDown && styles.reorderBtnDisabled,
+                  canMoveDown && (hovered || pressed) && styles.dragHandlePressed,
+                ]}>
+                <ChevronDown
+                  size={16}
+                  color={canMoveDown ? colors.textSecondary : colors.textMuted}
+                  strokeWidth={2.4}
+                />
+              </Pressable>
+            </View>
           ) : null}
 
           <Pressable
@@ -576,6 +625,23 @@ function createStyles(colors: AppColors) {
     },
     dragHandlePressed: {
       backgroundColor: colors.todoHighlight,
+    },
+    reorderButtons: {
+      marginLeft: -4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 0,
+    },
+    reorderBtn: {
+      width: 22,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 5,
+      ...webInteractive,
+    },
+    reorderBtnDisabled: {
+      opacity: 0.35,
     },
     todoCheckbox: {
       width: 22,
