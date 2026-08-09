@@ -162,16 +162,16 @@ export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoIt
 
   const handleStartPomodoro = () => {
     if (!canStart || task.done) return;
-    startPomo(task.id);
+    void startPomo(task.id);
   };
 
   const handleToggleDone = () => {
-    if (isPomoActive) endPomo();
+    if (isPomoActive) void endPomo();
     onToggle(task.id);
   };
 
   const handleDelete = () => {
-    if (isPomoActive) endPomo();
+    if (isPomoActive) void endPomo();
     onDelete(task.id);
   };
 

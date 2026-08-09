@@ -68,7 +68,7 @@ export default function PomodoroHistory() {
               </Text>
             </View>
             <Pressable
-              onPress={() => deleteHistoryRecord(record.id)}
+              onPress={() => void deleteHistoryRecord(record.id)}
               hitSlop={8}
               style={({ pressed, hovered }) => [
                 styles.deleteBtn,

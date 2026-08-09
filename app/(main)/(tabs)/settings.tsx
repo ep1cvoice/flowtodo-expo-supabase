@@ -592,7 +592,7 @@ export default function SettingsScreen() {
 
             <View style={styles.historyBlock}>
               <Text style={styles.label}>Recent sessions</Text>
-              <Text style={styles.description}>Last 5 Pomodoros on this device</Text>
+              <Text style={styles.description}>Last 5 Pomodoros (synced to your account)</Text>
               <PomodoroHistory />
             </View>
           </View>
