@@ -27,6 +27,24 @@ function toggleId(prev: number[], id: number): number[] {
   return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
 }
 
+
+function applyFilteredReorder(fullActive: Task[], reorderedFiltered: Task[]): Task[] {
+  const filteredIds = new Set(reorderedFiltered.map((task) => task.id));
+  const slots = fullActive
+    .map((task, index) => (filteredIds.has(task.id) ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (slots.length !== reorderedFiltered.length) {
+    return reorderedFiltered;
+  }
+
+  const next = [...fullActive];
+  slots.forEach((slotIndex, i) => {
+    next[slotIndex] = reorderedFiltered[i];
+  });
+  return next;
+}
+
 const isWeb = Platform.OS === 'web';
 
 export default function ActiveTasks() {
@@ -57,7 +75,6 @@ export default function ActiveTasks() {
     [selectedTagIds, tags]
   );
   const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
-  const canReorder = !hasFilters;
 
   const filteredTasks = useMemo(() => {
     return activeTasks.filter((task) => {
@@ -74,6 +91,8 @@ export default function ActiveTasks() {
       return true;
     });
   }, [activeTasks, validCategoryIds, validTagIds]);
+
+  const canReorder = filteredTasks.length > 1;
 
   const clearFilters = useCallback(() => {
     setSelectedCategoryIds([]);
@@ -107,22 +126,32 @@ export default function ActiveTasks() {
   ]);
 
   const persistOrder = useCallback(
-    (ordered: Task[]) => {
-      void reorderTasks(ordered.map((task, index) => ({ id: task.id, sortOrder: index }))).catch(
-        (err) => {
-          console.warn('Failed to reorder tasks:', err?.message ?? err);
-        }
-      );
+    (orderedActive: Task[]) => {
+      void reorderTasks(
+        orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
+      ).catch((err) => {
+        console.warn('Failed to reorder tasks:', err?.message ?? err);
+      });
     },
     [reorderTasks]
+  );
+
+  const persistVisibleOrder = useCallback(
+    (reorderedFiltered: Task[]) => {
+      const orderedActive = hasFilters
+        ? applyFilteredReorder(activeTasks, reorderedFiltered)
+        : reorderedFiltered;
+      persistOrder(orderedActive);
+    },
+    [activeTasks, hasFilters, persistOrder]
   );
 
   const handleDragEnd = useCallback(
     ({ data }: { data: Task[] }) => {
       if (!canReorder || isWeb) return;
-      persistOrder(data);
+      persistVisibleOrder(data);
     },
-    [canReorder, persistOrder]
+    [canReorder, persistVisibleOrder]
   );
 
   const moveTask = useCallback(
@@ -136,9 +165,9 @@ export default function ActiveTasks() {
       const tmp = next[index];
       next[index] = next[swapIndex];
       next[swapIndex] = tmp;
-      persistOrder(next);
+      persistVisibleOrder(next);
     },
-    [canReorder, filteredTasks, persistOrder]
+    [canReorder, filteredTasks, persistVisibleOrder]
   );
 
   const renderNativeItem = useCallback(
@@ -150,7 +179,6 @@ export default function ActiveTasks() {
             index={getIndex() ?? 0}
             onToggle={toggleTask}
             onDelete={deleteTask}
-            showDragHandle={canReorder}
             drag={canReorder ? drag : undefined}
           />
         </View>

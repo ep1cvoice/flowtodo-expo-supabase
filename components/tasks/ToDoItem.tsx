@@ -26,7 +26,6 @@ import {
   Dumbbell,
   Gamepad2,
   Globe,
-  GripVertical,
   Heart,
   Home,
   Leaf,
@@ -104,8 +103,7 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
-  /** Native: long-press grip for DraggableFlatList. */
-  showDragHandle?: boolean;
+  /** Native: long-press the whole row to start DraggableFlatList drag. */
   drag?: () => void;
   /** Web: up and down buttons instead of drag (draggable-flatlist is poor on web). */
   showReorderButtons?: boolean;
@@ -120,7 +118,6 @@ export default function ToDoItem({
   index = 0,
   onToggle,
   onDelete,
-  showDragHandle = false,
   drag,
   showReorderButtons = false,
   canMoveUp = false,
@@ -222,6 +219,9 @@ export default function ToDoItem({
     <>
       <Pressable
         onPress={handleItemPress}
+        onLongPress={drag}
+        delayLongPress={220}
+        accessibilityHint={drag ? 'Long press to reorder' : undefined}
         style={({ pressed, hovered }) => [
           styles.todoItem,
           category && !isMobile ? styles.hasCategory : null,
@@ -245,22 +245,6 @@ export default function ToDoItem({
         )}
 
         <View style={[styles.todoMainRow, isExpanded && styles.todoMainRowExpanded]}>
-          {showDragHandle ? (
-            <Pressable
-              onLongPress={drag}
-              delayLongPress={120}
-              disabled={!drag}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Drag to reorder"
-              style={({ pressed, hovered }) => [
-                styles.dragHandle,
-                (hovered || pressed) && styles.dragHandlePressed,
-              ]}>
-              <GripVertical size={18} color={colors.textMuted} strokeWidth={2.2} />
-            </Pressable>
-          ) : null}
-
           {showReorderButtons ? (
             <View style={styles.reorderButtons}>
               <Pressable
@@ -272,7 +256,7 @@ export default function ToDoItem({
                 style={({ pressed, hovered }) => [
                   styles.reorderBtn,
                   !canMoveUp && styles.reorderBtnDisabled,
-                  canMoveUp && (hovered || pressed) && styles.dragHandlePressed,
+                  canMoveUp && (hovered || pressed) && styles.reorderBtnPressed,
                 ]}>
                 <ChevronUp
                   size={16}
@@ -289,7 +273,7 @@ export default function ToDoItem({
                 style={({ pressed, hovered }) => [
                   styles.reorderBtn,
                   !canMoveDown && styles.reorderBtnDisabled,
-                  canMoveDown && (hovered || pressed) && styles.dragHandlePressed,
+                  canMoveDown && (hovered || pressed) && styles.reorderBtnPressed,
                 ]}>
                 <ChevronDown
                   size={16}
@@ -614,18 +598,6 @@ function createStyles(colors: AppColors) {
     todoMainRowExpanded: {
       alignItems: 'flex-start',
     },
-    dragHandle: {
-      width: 22,
-      height: 28,
-      marginLeft: -4,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-      ...webInteractive,
-    },
-    dragHandlePressed: {
-      backgroundColor: colors.todoHighlight,
-    },
     reorderButtons: {
       marginLeft: -4,
       alignItems: 'center',
@@ -639,6 +611,9 @@ function createStyles(colors: AppColors) {
       justifyContent: 'center',
       borderRadius: 5,
       ...webInteractive,
+    },
+    reorderBtnPressed: {
+      backgroundColor: colors.todoHighlight,
     },
     reorderBtnDisabled: {
       opacity: 0.35,
