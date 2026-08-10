@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -12,10 +14,12 @@ import {
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppSplash from '@/components/ui/AppSplash';
+import ToastHost from '@/components/ui/ToastHost';
 import { AuthProvider } from '@/context/AuthContext';
 import { PomodoroProvider } from '@/context/PomodoroContext';
 import { TasksProvider } from '@/context/TasksContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { ToastProvider } from '@/context/ToastContext';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -40,18 +44,22 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <SafeAreaProvider>
-      {/* Auth outside Theme so theme loading never remounts the session */}
-      <AuthProvider>
-        <ThemeProvider>
-          <TasksProvider>
-            <PomodoroProvider>
-              <RootNavigation />
-            </PomodoroProvider>
-          </TasksProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        {/* Auth outside Theme so theme loading never remounts the session */}
+        <AuthProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <TasksProvider>
+                <PomodoroProvider>
+                  <RootNavigation />
+                </PomodoroProvider>
+              </TasksProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -68,6 +76,7 @@ function RootNavigation() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <AppSplash />
+      <ToastHost />
     </View>
   );
 }

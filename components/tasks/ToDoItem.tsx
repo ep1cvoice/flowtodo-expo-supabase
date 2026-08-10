@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   AlarmClock,
@@ -51,6 +52,7 @@ import { tokens } from '@/constants/theme';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
 import type { CategoryIcon, Task } from '@/types';
 import { webInteractive } from '@/utils/pressableWeb';
 
@@ -103,12 +105,32 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
+  /** Native: long-press the whole row to start DraggableFlatList drag. */
+  drag?: () => void;
+  /** Web: up and down buttons instead of drag (draggable-flatlist is poor on web). */
+  showReorderButtons?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
-export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoItemProps) {
+export default function ToDoItem({
+  task,
+  index = 0,
+  onToggle,
+  onDelete,
+  drag,
+  showReorderButtons = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
+}: ToDoItemProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
   const { activeTaskId, canStart, startPomo, endPomo } = usePomodoro();
@@ -167,11 +189,17 @@ export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoIt
 
   const handleToggleDone = () => {
     if (isPomoActive) void endPomo();
+    if (Platform.OS !== 'web') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     onToggle(task.id);
   };
 
   const handleDelete = () => {
     if (isPomoActive) void endPomo();
+    if (Platform.OS !== 'web') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
     onDelete(task.id);
   };
 
@@ -184,22 +212,33 @@ export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoIt
     setShowCalendarModal(true);
   };
 
-  const handleClearDate = () => {
-    setTaskScheduled(task.id, null);
-    setShowCalendarModal(false);
+  const handleClearDate = async () => {
+    try {
+      await setTaskScheduled(task.id, null);
+      setShowCalendarModal(false);
+    } catch {
+      showToast('Could not update date.', 'error');
+    }
   };
 
-  const handleConfirmDate = (date: Date) => {
+  const handleConfirmDate = async (date: Date) => {
     const normalized = new Date(date);
     normalized.setHours(12, 0, 0, 0);
-    setTaskScheduled(task.id, normalized.toISOString());
-    setShowCalendarModal(false);
+    try {
+      await setTaskScheduled(task.id, normalized.toISOString());
+      setShowCalendarModal(false);
+    } catch {
+      showToast('Could not update date.', 'error');
+    }
   };
 
   return (
     <>
       <Pressable
         onPress={handleItemPress}
+        onLongPress={drag}
+        delayLongPress={drag ? 450 : undefined}
+        accessibilityHint={drag ? 'Long press to reorder' : undefined}
         style={({ pressed, hovered }) => [
           styles.todoItem,
           category && !isMobile ? styles.hasCategory : null,
@@ -223,6 +262,45 @@ export default function ToDoItem({ task, index = 0, onToggle, onDelete }: ToDoIt
         )}
 
         <View style={[styles.todoMainRow, isExpanded && styles.todoMainRowExpanded]}>
+          {showReorderButtons ? (
+            <View style={styles.reorderButtons}>
+              <Pressable
+                onPress={onMoveUp}
+                disabled={!canMoveUp}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Move task up"
+                style={({ pressed, hovered }) => [
+                  styles.reorderBtn,
+                  !canMoveUp && styles.reorderBtnDisabled,
+                  canMoveUp && (hovered || pressed) && styles.reorderBtnPressed,
+                ]}>
+                <ChevronUp
+                  size={16}
+                  color={canMoveUp ? colors.textSecondary : colors.textMuted}
+                  strokeWidth={2.4}
+                />
+              </Pressable>
+              <Pressable
+                onPress={onMoveDown}
+                disabled={!canMoveDown}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Move task down"
+                style={({ pressed, hovered }) => [
+                  styles.reorderBtn,
+                  !canMoveDown && styles.reorderBtnDisabled,
+                  canMoveDown && (hovered || pressed) && styles.reorderBtnPressed,
+                ]}>
+                <ChevronDown
+                  size={16}
+                  color={canMoveDown ? colors.textSecondary : colors.textMuted}
+                  strokeWidth={2.4}
+                />
+              </Pressable>
+            </View>
+          ) : null}
+
           <Pressable
             style={({ pressed, hovered }) => [
               styles.todoCheckbox,
@@ -536,6 +614,26 @@ function createStyles(colors: AppColors) {
     },
     todoMainRowExpanded: {
       alignItems: 'flex-start',
+    },
+    reorderButtons: {
+      marginLeft: -4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 0,
+    },
+    reorderBtn: {
+      width: 22,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 5,
+      ...webInteractive,
+    },
+    reorderBtnPressed: {
+      backgroundColor: colors.todoHighlight,
+    },
+    reorderBtnDisabled: {
+      opacity: 0.35,
     },
     todoCheckbox: {
       width: 22,
