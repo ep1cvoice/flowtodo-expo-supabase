@@ -10,6 +10,7 @@ import AuthLayout from '@/components/ui/AuthLayout';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { validateRegister } from '@/lib/authValidation';
 import { toastForError } from '@/lib/networkError';
 
 export default function RegisterScreen() {
@@ -28,29 +29,6 @@ export default function RegisterScreen() {
   const styles = useMemo(() => createStyles(), [colors]);
   const { signUp } = useAuth();
 
-  const validate = (vals: typeof values) => {
-    const temp: Record<string, string> = {};
-
-    if (!vals.email) temp.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(vals.email)) temp.email = 'Enter a correct email address';
-
-    if (!vals.username) temp.username = 'Username is required';
-    else if (vals.username.length < 3) temp.username = 'Username must be at least 3 characters';
-
-    if (!vals.password) temp.password = 'Password is required';
-    else if (vals.password.length < 8) temp.password = 'Password must be at least 8 characters long';
-    else if (!/[a-z]/.test(vals.password)) temp.password = 'Must contain lowercase letter';
-    else if (!/[A-Z]/.test(vals.password)) temp.password = 'Must contain uppercase letter';
-    else if (!/[0-9]/.test(vals.password)) temp.password = 'Must contain a digit';
-    else if (!/[!@#$%^&*()_\-+=[\]{};:'",.<>/?`~|]/.test(vals.password))
-      temp.password = 'Must contain a special character';
-
-    if (!vals.confirmPassword) temp.confirmPassword = 'Confirm your password';
-    else if (vals.password !== vals.confirmPassword) temp.confirmPassword = 'Passwords do not match';
-
-    return temp;
-  };
-
   const setField = (key: keyof typeof values, text: string) => {
     setValues((prev) => ({ ...prev, [key]: text }));
     setErrors((prev) => ({ ...prev, [key]: '' }));
@@ -58,7 +36,7 @@ export default function RegisterScreen() {
 
   const handleSubmit = async () => {
     setSubmitted(true);
-    const validationErrors = validate(values);
+    const validationErrors = validateRegister(values);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length !== 0) return false;
 

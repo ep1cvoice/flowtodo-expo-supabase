@@ -69,4 +69,4 @@ npm test
 ```
 
 Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
-Must-have coverage for now: network error helper, task mappers, filtered reorder, offline banner.
+Must-have coverage for now: auth validation (+ login smoke), network errors, task/pomo mappers, filtered reorder, offline banner.
