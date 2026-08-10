@@ -39,6 +39,7 @@ interface TasksContextValue {
   categories: Category[];
   tags: Tag[];
   loading: boolean;
+  refetch: () => Promise<void>;
   addTask: (input: AddTaskInput) => Promise<void>;
   updateTask: (id: number, input: UpdateTaskInput) => Promise<void>;
   setTaskScheduled: (id: number, scheduled: string | null) => Promise<void>;
@@ -162,6 +163,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [user?.id, authLoading, refresh]);
+
+  const refetch = useCallback(async () => {
+    if (!user) return;
+    try {
+      await refresh(user.id);
+    } catch (err) {
+      console.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
+    }
+  }, [user, refresh]);
 
   const requireUserId = () => {
     if (!user) throw new Error('Not signed in');
@@ -387,6 +397,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         categories,
         tags,
         loading,
+        refetch,
         addTask,
         updateTask,
         setTaskScheduled,

@@ -53,6 +53,7 @@ import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { toastForError } from '@/lib/networkError';
 import type { CategoryIcon, Task } from '@/types';
 import { webInteractive } from '@/utils/pressableWeb';
 
@@ -216,8 +217,8 @@ export default function ToDoItem({
     try {
       await setTaskScheduled(task.id, null);
       setShowCalendarModal(false);
-    } catch {
-      showToast('Could not update date.', 'error');
+    } catch (err) {
+      showToast(toastForError(err, 'Could not update date.'), 'error');
     }
   };
 
@@ -227,8 +228,8 @@ export default function ToDoItem({
     try {
       await setTaskScheduled(task.id, normalized.toISOString());
       setShowCalendarModal(false);
-    } catch {
-      showToast('Could not update date.', 'error');
+    } catch (err) {
+      showToast(toastForError(err, 'Could not update date.'), 'error');
     }
   };
 

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { toastForError } from '@/lib/networkError';
 import Heading from '@/components/ui/Heading';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
@@ -44,7 +45,7 @@ export default function LoginScreen() {
 
     if (error) {
       setLoggingIn(false);
-      showToast(error, 'error');
+      showToast(toastForError(error, error), 'error');
       return false;
     }
 

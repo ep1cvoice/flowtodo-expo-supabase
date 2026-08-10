@@ -23,6 +23,7 @@ import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
 import type { AppColors } from '@/constants/theme';
+import { toastForError } from '@/lib/networkError';
 import type { Task } from '@/types';
 
 function toggleId(prev: number[], id: number): number[] {
@@ -73,8 +74,8 @@ export default function ActiveTasks() {
     async (id: number) => {
       try {
         await toggleTask(id);
-      } catch {
-        showToast('Could not update task.', 'error');
+      } catch (err) {
+        showToast(toastForError(err, 'Could not update task.'), 'error');
       }
     },
     [toggleTask, showToast]
@@ -85,8 +86,8 @@ export default function ActiveTasks() {
       try {
         await deleteTask(id);
         showToast('Task deleted.');
-      } catch {
-        showToast('Could not delete task.', 'error');
+      } catch (err) {
+        showToast(toastForError(err, 'Could not delete task.'), 'error');
       }
     },
     [deleteTask, showToast]
@@ -157,7 +158,7 @@ export default function ActiveTasks() {
         orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
       ).catch((err) => {
         console.warn('Failed to reorder tasks:', err?.message ?? err);
-        showToast('Could not save order.', 'error');
+        showToast(toastForError(err, 'Could not save order.'), 'error');
       });
     },
     [reorderTasks, showToast]

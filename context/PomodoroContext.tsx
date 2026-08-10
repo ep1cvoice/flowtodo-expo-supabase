@@ -22,6 +22,7 @@ interface PomodoroContextValue {
   history: PomoRecord[];
   canStart: boolean;
   loading: boolean;
+  refetch: () => Promise<void>;
   startPomo: (taskId: number) => Promise<void>;
   pausePomo: () => Promise<void>;
   resumePomo: () => Promise<void>;
@@ -139,6 +140,15 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [user?.id, refresh]);
+
+  const refetch = useCallback(async () => {
+    if (!user) return;
+    try {
+      await refresh(user.id);
+    } catch (err) {
+      console.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
+    }
+  }, [user, refresh]);
 
   const getElapsedSeconds = useCallback((pomo?: PomoData | null) => {
     if (!pomo) return 0;
@@ -279,6 +289,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       history,
       canStart,
       loading,
+      refetch,
       startPomo,
       pausePomo,
       resumePomo,
@@ -292,6 +303,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       history,
       canStart,
       loading,
+      refetch,
       startPomo,
       pausePomo,
       resumePomo,

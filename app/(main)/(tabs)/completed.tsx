@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import { tokens } from '@/constants/theme';
+import { toastForError } from '@/lib/networkError';
 
 export default function CompletedTasksScreen() {
   const { completedTasks, loading, toggleTask, deleteTask } = useTasks();
@@ -18,8 +19,8 @@ export default function CompletedTasksScreen() {
     async (id: number) => {
       try {
         await toggleTask(id);
-      } catch {
-        showToast('Could not update task.', 'error');
+      } catch (err) {
+        showToast(toastForError(err, 'Could not update task.'), 'error');
       }
     },
     [toggleTask, showToast]
@@ -30,8 +31,8 @@ export default function CompletedTasksScreen() {
       try {
         await deleteTask(id);
         showToast('Task deleted.');
-      } catch {
-        showToast('Could not delete task.', 'error');
+      } catch (err) {
+        showToast(toastForError(err, 'Could not delete task.'), 'error');
       }
     },
     [deleteTask, showToast]
