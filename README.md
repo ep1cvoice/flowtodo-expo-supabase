@@ -13,15 +13,19 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 
 ## Status
 
+**v1.0** — core flow jest spięty z Supabase (auth, tasks, pomodoro, settings).
+
 | Obszar | Stan |
 |--------|------|
 | Auth (login / register / session) | Supabase Auth + `profiles` |
-| Theme + Pomodoro duration | UI gotowe; zapis do `profiles` w osobnym PR / branchu |
-| Tasks / categories / tags | Mock lokalny (UI) |
-| Pomodoro timer + historia | Lokalnie (AsyncStorage / kontekst) |
+| Change password / delete account | Settings + RPC `delete_own_account` |
+| Theme + Pomodoro duration | Zapis w `profiles` |
+| Tasks / categories / tags | Supabase + RLS; demo seed dla nowych userów |
+| Pomodoro timer + historia | Tabela `pomodoros` + UI |
 | Splash screen | Brand overlay przy starcie sesji |
-| Drag & drop / reorder | Później |
-| Toasty | Później |
+| Drag & drop / reorder | Native: long-press; web: ↑/↓; `sort_order` w DB |
+| Toasty | Globalny `ToastContext` / `ToastHost` |
+| Haptics | Drag, complete, delete (native) |
 
 ## Stack
 
@@ -31,8 +35,21 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 | UI | React Native + `react-native-web`, StyleSheet |
 | Ikony | `lucide-react-native` |
 | Auth / DB | Supabase (`supabase-js`), sesja w AsyncStorage |
+| Gestures / DnD | `gesture-handler`, `reanimated`, `react-native-draggable-flatlist` |
+| Feedback | `expo-haptics`, custom toasts |
 | Dźwięk | `expo-av` (alarm Pomodoro) |
-| Animacje | RN `Animated` / Reanimated (DnD później) |
+
+## Supabase migrations
+
+Kolejność w `supabase/migrations/`:
+
+1. `001_profiles.sql` — profil + settings
+2. `002_tasks_domain.sql` — tasks / categories / tags + RLS
+3. `003_grants.sql` — GRANTy dla `authenticated`
+4. `004_delete_own_account.sql` — RPC usuwania konta
+5. `005_pomodoros.sql` — sesje i historia Pomodoro
+
+Odpal migracje w projekcie Supabase (SQL Editor albo CLI) w tej kolejności na świeżej bazie.
 
 ## Run
 
