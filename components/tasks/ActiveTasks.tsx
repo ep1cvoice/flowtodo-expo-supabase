@@ -24,28 +24,11 @@ import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
 import type { AppColors } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
+import { applyFilteredReorder } from '@/lib/taskReorder';
 import type { Task } from '@/types';
 
 function toggleId(prev: number[], id: number): number[] {
   return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-}
-
-
-function applyFilteredReorder(fullActive: Task[], reorderedFiltered: Task[]): Task[] {
-  const filteredIds = new Set(reorderedFiltered.map((task) => task.id));
-  const slots = fullActive
-    .map((task, index) => (filteredIds.has(task.id) ? index : -1))
-    .filter((index) => index >= 0);
-
-  if (slots.length !== reorderedFiltered.length) {
-    return reorderedFiltered;
-  }
-
-  const next = [...fullActive];
-  slots.forEach((slotIndex, i) => {
-    next[slotIndex] = reorderedFiltered[i];
-  });
-  return next;
 }
 
 const isWeb = Platform.OS === 'web';

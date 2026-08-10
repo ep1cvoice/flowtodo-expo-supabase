@@ -61,3 +61,12 @@ npm start -- -c
 ```
 
 `w` = web · Expo Go = QR z terminala · SDK celowo **54** pod aktualne Expo Go.
+
+## Tests
+
+```bash
+npm test
+```
+
+Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
+Must-have coverage for now: auth validation (+ login smoke), network errors, task/pomo mappers, filtered reorder, offline banner.

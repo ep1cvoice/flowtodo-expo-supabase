@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { validateLogin } from '@/lib/authValidation';
 import { toastForError } from '@/lib/networkError';
 import Heading from '@/components/ui/Heading';
 import Field from '@/components/ui/Field';
@@ -26,16 +27,9 @@ export default function LoginScreen() {
     }
   }, [params.registered, showToast]);
 
-  const validate = (vals: typeof values) => {
-    const temp: Record<string, string> = {};
-    if (!vals.email) temp.email = 'Email is required';
-    if (!vals.password) temp.password = 'Password is required';
-    return temp;
-  };
-
   const handleSubmit = async () => {
     setSubmitted(true);
-    const validationErrors = validate(values);
+    const validationErrors = validateLogin(values);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length !== 0) return false;
 
