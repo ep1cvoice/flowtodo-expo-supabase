@@ -13,9 +13,11 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import ReconnectRefresh from '@/components/network/ReconnectRefresh';
 import AppSplash from '@/components/ui/AppSplash';
 import ToastHost from '@/components/ui/ToastHost';
 import { AuthProvider } from '@/context/AuthContext';
+import { NetworkProvider } from '@/context/NetworkContext';
 import { PomodoroProvider } from '@/context/PomodoroContext';
 import { TasksProvider } from '@/context/TasksContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
@@ -46,18 +48,21 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        {/* Auth outside Theme so theme loading never remounts the session */}
-        <AuthProvider>
-          <ThemeProvider>
-            <ToastProvider>
-              <TasksProvider>
-                <PomodoroProvider>
-                  <RootNavigation />
-                </PomodoroProvider>
-              </TasksProvider>
-            </ToastProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <NetworkProvider>
+          {/* Auth outside Theme so theme loading never remounts the session */}
+          <AuthProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                <TasksProvider>
+                  <PomodoroProvider>
+                    <ReconnectRefresh />
+                    <RootNavigation />
+                  </PomodoroProvider>
+                </TasksProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </NetworkProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

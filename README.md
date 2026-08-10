@@ -26,6 +26,7 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 | Drag & drop / reorder | Native: long-press; web: ↑/↓; `sort_order` w DB |
 | Toasty | Globalny `ToastContext` / `ToastHost` |
 | Haptics | Drag, complete, delete (native) |
+| Network awareness | Offline banner + refetch on reconnect; network toasts |
 
 ## Stack
 

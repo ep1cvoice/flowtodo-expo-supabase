@@ -34,6 +34,7 @@ import { useToast } from '@/context/ToastContext';
 import type { CategoryIcon } from '@/types';
 import type { ThemeMode } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
+import { toastForError } from '@/lib/networkError';
 import { webInteractive } from '@/utils/pressableWeb';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -123,7 +124,7 @@ export default function SettingsScreen() {
     setPomodoroSaving(false);
 
     if (error) {
-      showToast(error, 'error');
+      showToast(toastForError(error, error), 'error');
       return;
     }
     showToast('Pomodoro time saved.');
@@ -133,7 +134,7 @@ export default function SettingsScreen() {
     if (next === theme) return;
     const { error } = await setTheme(next);
     if (error) {
-      showToast(error, 'error');
+      showToast(toastForError(error, error), 'error');
       return;
     }
     showToast('Theme saved.');
@@ -156,8 +157,8 @@ export default function SettingsScreen() {
             try {
               await deleteAllActive();
               showToast('Active tasks deleted.');
-            } catch {
-              showToast('Could not delete tasks.', 'error');
+            } catch (err) {
+              showToast(toastForError(err, 'Could not delete tasks.'), 'error');
             }
           },
         },
@@ -182,8 +183,8 @@ export default function SettingsScreen() {
             try {
               await deleteAllCompleted();
               showToast('Completed tasks deleted.');
-            } catch {
-              showToast('Could not delete tasks.', 'error');
+            } catch (err) {
+              showToast(toastForError(err, 'Could not delete tasks.'), 'error');
             }
           },
         },
@@ -204,8 +205,8 @@ export default function SettingsScreen() {
             try {
               await deleteCategory(id);
               showToast('Category removed.');
-            } catch {
-              showToast('Could not remove category.', 'error');
+            } catch (err) {
+              showToast(toastForError(err, 'Could not remove category.'), 'error');
             }
           },
         },
@@ -226,8 +227,8 @@ export default function SettingsScreen() {
             try {
               await deleteTag(id);
               showToast('Tag removed.');
-            } catch {
-              showToast('Could not remove tag.', 'error');
+            } catch (err) {
+              showToast(toastForError(err, 'Could not remove tag.'), 'error');
             }
           },
         },
@@ -668,8 +669,8 @@ export default function SettingsScreen() {
           try {
             await addCategory({ name, color, icon: icon as CategoryIcon });
             showToast('Category created.');
-          } catch {
-            showToast('Could not save category.', 'error');
+          } catch (err) {
+            showToast(toastForError(err, 'Could not save category.'), 'error');
             throw new Error('category save failed');
           }
         }}
@@ -681,8 +682,8 @@ export default function SettingsScreen() {
           try {
             await addTag({ name, color });
             showToast('Tag created.');
-          } catch {
-            showToast('Could not save tag.', 'error');
+          } catch (err) {
+            showToast(toastForError(err, 'Could not save tag.'), 'error');
             throw new Error('tag save failed');
           }
         }}
@@ -965,6 +966,11 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       color: '#fff',
       fontWeight: '600',
       fontSize: 14,
+    },
+    successInfo: {
+      color: colors.green,
+      fontSize: 13,
+      fontWeight: '500',
     },
     errorInfo: {
       color: colors.red,

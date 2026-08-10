@@ -21,6 +21,7 @@ import { tokens } from '@/constants/theme';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { toastForError } from '@/lib/networkError';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export interface EditTaskUpdates {
@@ -99,7 +100,7 @@ export default function EditTaskModal({
       onClose();
     } catch (err) {
       console.warn('Failed to update task:', err);
-      showToast('Could not save task.', 'error');
+      showToast(toastForError(err, 'Could not save task.'), 'error');
     }
   };
 
@@ -237,7 +238,7 @@ export default function EditTaskModal({
             showToast('Category created.');
           } catch (err) {
             console.warn('Failed to create category:', err);
-            showToast('Could not save category.', 'error');
+            showToast(toastForError(err, 'Could not save category.'), 'error');
             throw err;
           }
         }}
@@ -252,7 +253,7 @@ export default function EditTaskModal({
             showToast('Tag created.');
           } catch (err) {
             console.warn('Failed to create tag:', err);
-            showToast('Could not save tag.', 'error');
+            showToast(toastForError(err, 'Could not save tag.'), 'error');
             throw err;
           }
         }}

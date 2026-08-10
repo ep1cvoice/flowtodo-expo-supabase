@@ -10,6 +10,7 @@ import AuthLayout from '@/components/ui/AuthLayout';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { toastForError } from '@/lib/networkError';
 
 export default function RegisterScreen() {
   const [values, setValues] = useState({
@@ -66,7 +67,7 @@ export default function RegisterScreen() {
     setSubmitting(false);
 
     if (error) {
-      showToast(error, 'error');
+      showToast(toastForError(error, error), 'error');
       return false;
     }
 
