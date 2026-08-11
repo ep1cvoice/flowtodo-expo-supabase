@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,8 @@ export default function EditTaskModal({
   const [categoryId, setCategoryId] = useState<number | null>(task.categoryId);
   const [tagIds, setTagIds] = useState<number[]>((task.tags ?? []).map((t) => t.id));
   const [inputError, setInputError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -70,6 +72,8 @@ export default function EditTaskModal({
     setCategoryId(task.categoryId);
     setTagIds((task.tags ?? []).map((t) => t.id));
     setInputError('');
+    setSubmitting(false);
+    submittingRef.current = false;
   }, [visible, task]);
 
   const validateTitle = (value: string): string => {
@@ -87,13 +91,22 @@ export default function EditTaskModal({
     if (inputError) setInputError(validateTitle(value));
   };
 
+  const handleClose = () => {
+    if (submittingRef.current) return;
+    onClose();
+  };
+
   const handleSave = async () => {
+    if (submittingRef.current) return;
+
     const error = validateTitle(title);
     if (error) {
       setInputError(error);
       return;
     }
 
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       await onUpdate(task.id, { title, description, categoryId, tagIds });
       showToast('Task updated.');
@@ -101,21 +114,27 @@ export default function EditTaskModal({
     } catch (err) {
       console.warn('Failed to update task:', err);
       showToast(toastForError(err, 'Could not save task.'), 'error');
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
+        <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={handleClose}>
           <Pressable
             style={[styles.modal, isMobile && styles.modalMobile]}
             onPress={(e) => e.stopPropagation()}>
             <View style={styles.header}>
               <Text style={styles.title}>Edit Task</Text>
-              <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
+              <Pressable
+                onPress={handleClose}
+                disabled={submitting}
+                style={styles.closeBtn}
+                hitSlop={8}>
                 <X size={20} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -212,15 +231,27 @@ export default function EditTaskModal({
 
               <View style={styles.footer}>
                 <Pressable
-                  onPress={onClose}
-                  style={({ pressed }) => [styles.btn, styles.cancel, pressed && styles.cancelPressed]}>
+                  onPress={handleClose}
+                  disabled={submitting}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    styles.cancel,
+                    pressed && !submitting && styles.cancelPressed,
+                    submitting && styles.btnDisabled,
+                  ]}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSave}
-                  style={({ pressed }) => [styles.btn, styles.save, pressed && styles.savePressed]}>
+                  disabled={submitting}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    styles.save,
+                    pressed && !submitting && styles.savePressed,
+                    submitting && styles.btnDisabled,
+                  ]}>
                   <Pencil size={16} color="#fff" />
-                  <Text style={styles.saveText}>Save changes</Text>
+                  <Text style={styles.saveText}>{submitting ? 'Saving…' : 'Save changes'}</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -408,6 +439,9 @@ function createStyles(colors: AppColors) {
     },
     savePressed: {
       backgroundColor: colors.primaryHover,
+    },
+    btnDisabled: {
+      opacity: 0.6,
     },
     saveText: {
       fontSize: 14,
