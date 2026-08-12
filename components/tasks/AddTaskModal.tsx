@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,8 @@ export default function AddTaskModal({
   const [categoryId, setCategoryId] = useState<number | null>(defaultCategoryId);
   const [tagIds, setTagIds] = useState<number[]>(defaultTagIds);
   const [inputError, setInputError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -69,9 +71,12 @@ export default function AddTaskModal({
     setCategoryId(defaultCategoryId);
     setTagIds(defaultTagIds);
     setInputError('');
+    setSubmitting(false);
+    submittingRef.current = false;
   };
 
   const handleClose = () => {
+    if (submittingRef.current) return;
     reset();
     onClose();
   };
@@ -92,12 +97,16 @@ export default function AddTaskModal({
   };
 
   const handleAdd = async () => {
+    if (submittingRef.current) return;
+
     const error = validateTitle(title);
     if (error) {
       setInputError(error);
       return;
     }
 
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       await onAdd({ title, description, categoryId, tagIds });
       showToast('Task created.');
@@ -106,6 +115,8 @@ export default function AddTaskModal({
     } catch (err) {
       console.warn('Failed to add task:', err);
       showToast(toastForError(err, 'Could not save task.'), 'error');
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -218,14 +229,26 @@ export default function AddTaskModal({
               <View style={styles.footer}>
                 <Pressable
                   onPress={handleClose}
-                  style={({ pressed }) => [styles.btn, styles.cancel, pressed && styles.cancelPressed]}>
+                  disabled={submitting}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    styles.cancel,
+                    pressed && !submitting && styles.cancelPressed,
+                    submitting && styles.btnDisabled,
+                  ]}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleAdd}
-                  style={({ pressed }) => [styles.btn, styles.add, pressed && styles.addPressed]}>
+                  disabled={submitting}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    styles.add,
+                    pressed && !submitting && styles.addPressed,
+                    submitting && styles.btnDisabled,
+                  ]}>
                   <Plus size={16} color="#fff" />
-                  <Text style={styles.addText}>Add Task</Text>
+                  <Text style={styles.addText}>{submitting ? 'Adding…' : 'Add Task'}</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -413,6 +436,9 @@ function createStyles(colors: AppColors) {
     },
     addPressed: {
       backgroundColor: colors.primaryHover,
+    },
+    btnDisabled: {
+      opacity: 0.6,
     },
     addText: {
       fontSize: 14,
