@@ -203,6 +203,7 @@ export type Database = {
           description: string
           done: boolean
           scheduled: string | null
+          completed_at: string | null
           sort_order: number
           category_id: number | null
           created_at: string
@@ -215,6 +216,7 @@ export type Database = {
           description?: string
           done?: boolean
           scheduled?: string | null
+          completed_at?: string | null
           sort_order?: number
           category_id?: number | null
           created_at?: string
@@ -227,6 +229,7 @@ export type Database = {
           description?: string
           done?: boolean
           scheduled?: string | null
+          completed_at?: string | null
           sort_order?: number
           category_id?: number | null
           created_at?: string

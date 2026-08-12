@@ -8,6 +8,7 @@ function task(id: number, title = `t${id}`): Task {
     description: '',
     done: false,
     scheduled: null,
+    completedAt: null,
     created: '2026-01-01T00:00:00Z',
     categoryId: null,
     category: null,

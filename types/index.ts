@@ -36,6 +36,8 @@ export interface Task {
   description: string;
   done: boolean;
   scheduled: string | null;
+  /** ISO timestamp when marked done; null while active. */
+  completedAt: string | null;
   created: string;
   categoryId: number | null;
   category: Category | null;

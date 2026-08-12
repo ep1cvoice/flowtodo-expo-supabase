@@ -49,6 +49,7 @@ Kolejność w `supabase/migrations/`:
 3. `003_grants.sql` — GRANTy dla `authenticated`
 4. `004_delete_own_account.sql` — RPC usuwania konta
 5. `005_pomodoros.sql` — sesje i historia Pomodoro
+6. `006_tasks_completed_at.sql` — `completed_at` na taskach
 
 Odpal migracje w projekcie Supabase (SQL Editor albo CLI) w tej kolejności na świeżej bazie.
 

@@ -45,6 +45,7 @@ describe('task mappers', () => {
       category_id: 1,
       created_at: '2026-01-02T00:00:00Z',
       updated_at: '2026-01-02T00:00:00Z',
+      completed_at: null,
       categories: {
         id: 1,
         user_id: 'u1',
@@ -71,6 +72,7 @@ describe('task mappers', () => {
       title: 'Ship tests',
       description: 'must-have only',
       done: false,
+      completedAt: null,
       categoryId: 1,
       sortOrder: 3,
       category: { id: 1, name: 'Work' },
