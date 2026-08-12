@@ -39,6 +39,7 @@ export function mapTask(row: TaskQueryRow): Task {
     description: row.description ?? '',
     done: row.done,
     scheduled: row.scheduled,
+    completedAt: row.completed_at,
     created: row.created_at,
     categoryId: row.category_id != null ? Number(row.category_id) : null,
     category,

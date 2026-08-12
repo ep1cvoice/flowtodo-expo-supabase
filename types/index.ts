@@ -3,9 +3,10 @@ export interface UserSettings {
   notificationType?: string;
   pomodoroTime?: number;
   view?: string;
+  /** Max categories + tags selectable together in Active filters (5–30). */
+  maxFilterSelections?: number;
 }
 
-/** Partial settings payload for `profiles` updates. */
 export type ProfileUpdates = Partial<UserSettings>;
 
 export interface User {
@@ -36,6 +37,7 @@ export interface Task {
   description: string;
   done: boolean;
   scheduled: string | null;
+  completedAt: string | null;
   created: string;
   categoryId: number | null;
   category: Category | null;
@@ -61,9 +63,7 @@ export interface PomoData {
   taskId: number;
   startedAt: string;
   endedAt: string | null;
-  /** Target duration in seconds */
   duration: number;
-  /** Accumulated elapsed time in milliseconds (frozen while paused) */
   elapsed: number;
   pausedAt: string | null;
 }

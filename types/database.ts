@@ -107,6 +107,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          max_filter_selections: number
           notification_type: string | null
           pomodoro_time: number | null
           theme: string | null
@@ -116,6 +117,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id: string
+          max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
           theme?: string | null
@@ -125,6 +127,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
           theme?: string | null
@@ -203,6 +206,7 @@ export type Database = {
           description: string
           done: boolean
           scheduled: string | null
+          completed_at: string | null
           sort_order: number
           category_id: number | null
           created_at: string
@@ -215,6 +219,7 @@ export type Database = {
           description?: string
           done?: boolean
           scheduled?: string | null
+          completed_at?: string | null
           sort_order?: number
           category_id?: number | null
           created_at?: string
@@ -227,6 +232,7 @@ export type Database = {
           description?: string
           done?: boolean
           scheduled?: string | null
+          completed_at?: string | null
           sort_order?: number
           category_id?: number | null
           created_at?: string

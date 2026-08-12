@@ -61,6 +61,7 @@ const TASK_SELECT = `
   description,
   done,
   scheduled,
+  completed_at,
   sort_order,
   category_id,
   created_at,
@@ -84,7 +85,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completedTasks = useMemo(
-    () => tasks.filter((t) => t.done).sort((a, b) => a.sortOrder - b.sortOrder),
+    () =>
+      tasks
+        .filter((t) => t.done)
+        .sort((a, b) => {
+          const aAt = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const bAt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return bAt - aAt;
+        }),
     [tasks]
   );
 
@@ -320,16 +328,25 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     if (!current) return;
 
     const nextDone = !current.done;
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone } : t)));
+    const nextCompletedAt = nextDone ? new Date().toISOString() : null;
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, done: nextDone, completedAt: nextCompletedAt } : t
+      )
+    );
 
     const { error } = await supabase
       .from('tasks')
-      .update({ done: nextDone })
+      .update({ done: nextDone, completed_at: nextCompletedAt })
       .eq('id', id)
       .eq('user_id', userId);
 
     if (error) {
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: current.done } : t)));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, done: current.done, completedAt: current.completedAt } : t
+        )
+      );
       throw error;
     }
   };

@@ -32,6 +32,12 @@ import { useTheme } from '@/context/ThemeContext';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
 import type { CategoryIcon } from '@/types';
+import {
+  clampFilterLimit,
+  FILTER_LIMIT_DEFAULT,
+  FILTER_LIMIT_MAX,
+  FILTER_LIMIT_MIN,
+} from '@/constants/filterLimits';
 import type { ThemeMode } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
@@ -68,6 +74,11 @@ export default function SettingsScreen() {
   );
   const [pomodoroErr, setPomodoroErr] = useState('');
   const [pomodoroSaving, setPomodoroSaving] = useState(false);
+  const [filterLimit, setFilterLimit] = useState<string>(
+    String(user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT)
+  );
+  const [filterLimitErr, setFilterLimitErr] = useState('');
+  const [filterLimitSaving, setFilterLimitSaving] = useState(false);
   const [accountMsg, setAccountMsg] = useState('');
   const [accountErr, setAccountErr] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -128,6 +139,27 @@ export default function SettingsScreen() {
       return;
     }
     showToast('Pomodoro time saved.');
+  };
+
+  const handleFilterLimitsSave = async () => {
+    setFilterLimitErr('');
+    const value = Number(filterLimit);
+    if (!Number.isFinite(value) || value < FILTER_LIMIT_MIN || value > FILTER_LIMIT_MAX) {
+      setFilterLimitErr(`Limit must be between ${FILTER_LIMIT_MIN} and ${FILTER_LIMIT_MAX}`);
+      return;
+    }
+
+    setFilterLimitSaving(true);
+    const next = clampFilterLimit(value);
+    const { error } = await updateProfile({ maxFilterSelections: next });
+    setFilterLimitSaving(false);
+
+    if (error) {
+      showToast(toastForError(error, error), 'error');
+      return;
+    }
+    setFilterLimit(String(next));
+    showToast('Filter limit saved.');
   };
 
   const handleThemeChange = async (next: ThemeMode) => {
@@ -422,6 +454,39 @@ export default function SettingsScreen() {
         </Pressable>
         {openSection === 'labels' && (
           <View style={styles.sectionBody}>
+            <Text style={styles.label}>Active filter limit</Text>
+            <Text style={styles.description}>
+              Shared max for selected categories + tags ({FILTER_LIMIT_MIN}–{FILTER_LIMIT_MAX})
+            </Text>
+            <View style={styles.filterLimitBlock}>
+              <View style={styles.filterLimitRow}>
+                <Text style={styles.filterLimitLabel}>Max selected</Text>
+                <TextInput
+                  value={filterLimit}
+                  onChangeText={(val) => {
+                    if (val === '') return setFilterLimit('');
+                    if (/^\d{1,2}$/.test(val)) setFilterLimit(val);
+                  }}
+                  keyboardType="number-pad"
+                  style={styles.pomodoroInput}
+                  placeholderTextColor={colors.textMuted}
+                />
+                <Pressable
+                  style={({ pressed, hovered }) => [
+                    styles.primaryBtn,
+                    (hovered || pressed) && styles.primaryBtnPressed,
+                    filterLimitSaving && styles.primaryBtnDisabled,
+                  ]}
+                  disabled={filterLimitSaving}
+                  onPress={handleFilterLimitsSave}>
+                  <Text style={styles.primaryBtnText}>
+                    {filterLimitSaving ? 'Saving…' : 'Save'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+            {!!filterLimitErr && <Text style={styles.errorInfo}>{filterLimitErr}</Text>}
+
             <View style={styles.labelBlock}>
               <View style={styles.labelBlockHeader}>
                 <Text style={styles.label}>Categories</Text>
@@ -808,6 +873,21 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 8,
+    },
+    filterLimitBlock: {
+      gap: 10,
+      marginBottom: 4,
+    },
+    filterLimitRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    filterLimitLabel: {
+      minWidth: 96,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
     },
     addLinkBtn: {
       flexDirection: 'row',

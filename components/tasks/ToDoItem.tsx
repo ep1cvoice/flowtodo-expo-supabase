@@ -148,6 +148,7 @@ export default function ToDoItem({
     category ? ICON_MAP[category.icon as CategoryIcon] ?? Briefcase : null;
 
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
+  const completedDate = task.completedAt ? new Date(task.completedAt) : null;
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -164,6 +165,11 @@ export default function ToDoItem({
     d.setHours(0, 0, 0, 0);
     return d < todayStart;
   })();
+
+  const formatShortDate = (date: Date) =>
+    date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+  const completedDateLabel = completedDate ? formatShortDate(completedDate) : null;
 
   const categoryGradientColors = category
     ? (() => {
@@ -333,7 +339,13 @@ export default function ToDoItem({
           {/* Desktop: date stays in the main row */}
           {!isMobile && (
             <View style={styles.todoIndicators}>
-              {dueDate && (
+              {task.done && completedDateLabel ? (
+                <View style={[styles.todoDate, styles.todoDateCompleted]}>
+                  <Text style={[styles.todoDateText, styles.todoDateTextCompleted]}>
+                    Done {completedDateLabel}
+                  </Text>
+                </View>
+              ) : dueDate ? (
                 <Pressable
                   onPress={() => {
                     if (!task.done) openCalendar();
@@ -351,10 +363,10 @@ export default function ToDoItem({
                       isToday && styles.todoDateTextToday,
                       isPast && styles.todoDateTextPast,
                     ]}>
-                    {dueDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                    {formatShortDate(dueDate)}
                   </Text>
                 </Pressable>
-              )}
+              ) : null}
             </View>
           )}
 
@@ -410,7 +422,15 @@ export default function ToDoItem({
 
           {isMobile && (
             <View style={styles.mobileRight}>
-              {dueDate ? (
+              {task.done && completedDateLabel ? (
+                <View style={[styles.todoDate, styles.todoDateCompleted]}>
+                  <Text
+                    style={[styles.todoDateText, styles.todoDateTextCompleted]}
+                    numberOfLines={1}>
+                    Done {completedDateLabel}
+                  </Text>
+                </View>
+              ) : dueDate ? (
                 <Pressable
                   onPress={() => {
                     if (!task.done) openCalendar();
@@ -427,7 +447,7 @@ export default function ToDoItem({
                       isPast && styles.todoDateTextPast,
                     ]}
                     numberOfLines={1}>
-                    {dueDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                    {formatShortDate(dueDate)}
                   </Text>
                 </Pressable>
               ) : null}
@@ -724,6 +744,10 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.pink,
       borderColor: colors.red,
     },
+    todoDateCompleted: {
+      backgroundColor: colors.bgSurface,
+      borderColor: colors.borderColor,
+    },
     todoDateText: {
       fontSize: 11,
       fontWeight: '600',
@@ -734,6 +758,9 @@ function createStyles(colors: AppColors) {
     },
     todoDateTextPast: {
       color: colors.red,
+    },
+    todoDateTextCompleted: {
+      color: colors.textMuted,
     },
     todoActions: {
       flexDirection: 'row',
