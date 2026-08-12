@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist';
+import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -22,14 +23,14 @@ import CreateTaskButton from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
+import {
+  clampFilterLimit,
+  FILTER_LIMIT_DEFAULT,
+} from '@/constants/filterLimits';
 import type { AppColors } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
 import { applyFilteredReorder } from '@/lib/taskReorder';
 import type { Task } from '@/types';
-
-function toggleId(prev: number[], id: number): number[] {
-  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-}
 
 const isWeb = Platform.OS === 'web';
 
@@ -37,6 +38,7 @@ export default function ActiveTasks() {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     activeTasks,
@@ -52,6 +54,22 @@ export default function ActiveTasks() {
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  const maxFilterSelections = clampFilterLimit(
+    user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
+  );
+
+  useEffect(() => {
+    setSelectedCategoryIds((cats) => {
+      const nextCats =
+        cats.length > maxFilterSelections ? cats.slice(0, maxFilterSelections) : cats;
+      setSelectedTagIds((tags) => {
+        const room = maxFilterSelections - nextCats.length;
+        return tags.length > room ? tags.slice(0, room) : tags;
+      });
+      return nextCats;
+    });
+  }, [maxFilterSelections]);
 
   const handleToggle = useCallback(
     async (id: number) => {
@@ -74,6 +92,40 @@ export default function ActiveTasks() {
       }
     },
     [deleteTask, showToast]
+  );
+
+  const handleToggleCategory = useCallback(
+    (id: number) => {
+      setSelectedCategoryIds((prev) => {
+        if (prev.includes(id)) return prev.filter((x) => x !== id);
+        if (prev.length + selectedTagIds.length >= maxFilterSelections) {
+          showToast(
+            `You can select up to ${maxFilterSelections} categories and tags combined.`,
+            'error'
+          );
+          return prev;
+        }
+        return [...prev, id];
+      });
+    },
+    [maxFilterSelections, selectedTagIds.length, showToast]
+  );
+
+  const handleToggleTag = useCallback(
+    (id: number) => {
+      setSelectedTagIds((prev) => {
+        if (prev.includes(id)) return prev.filter((x) => x !== id);
+        if (selectedCategoryIds.length + prev.length >= maxFilterSelections) {
+          showToast(
+            `You can select up to ${maxFilterSelections} categories and tags combined.`,
+            'error'
+          );
+          return prev;
+        }
+        return [...prev, id];
+      });
+    },
+    [maxFilterSelections, selectedCategoryIds.length, showToast]
   );
 
   const validCategoryIds = useMemo(
@@ -330,10 +382,11 @@ export default function ActiveTasks() {
         tags={tags}
         selectedCategoryIds={validCategoryIds}
         selectedTagIds={validTagIds}
+        maxFilterSelections={maxFilterSelections}
         onClearCategories={() => setSelectedCategoryIds([])}
-        onToggleCategory={(id) => setSelectedCategoryIds((prev) => toggleId(prev, id))}
+        onToggleCategory={handleToggleCategory}
         onClearTags={() => setSelectedTagIds([])}
-        onToggleTag={(id) => setSelectedTagIds((prev) => toggleId(prev, id))}
+        onToggleTag={handleToggleTag}
         onClear={clearFilters}
         onClose={() => setShowFilterSheet(false)}
       />

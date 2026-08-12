@@ -1,4 +1,5 @@
--- Track when a task was marked done
+-- When a task was marked done (Completed list).
+
 alter table public.tasks
   add column if not exists completed_at timestamptz;
 

@@ -1,4 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  clampFilterLimit,
+  FILTER_LIMIT_DEFAULT,
+} from '@/constants/filterLimits';
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { supabase } from '@/supabase/client';
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
@@ -19,7 +23,9 @@ async function fetchProfile(
 ): Promise<User | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('username, theme, notification_type, pomodoro_time, view')
+    .select(
+      'username, theme, notification_type, pomodoro_time, view, max_filter_selections'
+    )
     .eq('id', userId)
     .single();
 
@@ -41,6 +47,10 @@ async function fetchProfile(
       notificationType: data.notification_type ?? undefined,
       pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
       view: data.view ?? undefined,
+      maxFilterSelections:
+        data.max_filter_selections != null
+          ? clampFilterLimit(Number(data.max_filter_selections))
+          : FILTER_LIMIT_DEFAULT,
     },
   };
 }
@@ -51,12 +61,16 @@ function toProfileRow(updates: ProfileUpdates) {
     notification_type?: string;
     pomodoro_time?: number;
     view?: string;
+    max_filter_selections?: number;
   } = {};
 
   if (updates.theme !== undefined) row.theme = updates.theme;
   if (updates.notificationType !== undefined) row.notification_type = updates.notificationType;
   if (updates.pomodoroTime !== undefined) row.pomodoro_time = updates.pomodoroTime;
   if (updates.view !== undefined) row.view = updates.view;
+  if (updates.maxFilterSelections !== undefined) {
+    row.max_filter_selections = clampFilterLimit(updates.maxFilterSelections);
+  }
 
   return row;
 }
@@ -127,13 +141,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: error.message };
     }
 
+    const nextSettings: ProfileUpdates = { ...updates };
+    if (updates.maxFilterSelections !== undefined) {
+      nextSettings.maxFilterSelections = clampFilterLimit(updates.maxFilterSelections);
+    }
+
     setUserState((prev) =>
       prev
         ? {
             ...prev,
             settings: {
               ...prev.settings,
-              ...updates,
+              ...nextSettings,
             },
           }
         : prev

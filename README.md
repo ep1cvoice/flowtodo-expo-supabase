@@ -50,6 +50,7 @@ Kolejność w `supabase/migrations/`:
 4. `004_delete_own_account.sql` — RPC usuwania konta
 5. `005_pomodoros.sql` — sesje i historia Pomodoro
 6. `006_tasks_completed_at.sql` — `completed_at` na taskach
+7. `007_filter_limits.sql` — wspólny limit filtrów (`max_filter_selections`, 5–30)
 
 Odpal migracje w projekcie Supabase (SQL Editor albo CLI) w tej kolejności na świeżej bazie.
 

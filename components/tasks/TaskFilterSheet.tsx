@@ -21,6 +21,7 @@ interface TaskFilterSheetProps {
   tags: Tag[];
   selectedCategoryIds: number[];
   selectedTagIds: number[];
+  maxFilterSelections: number;
   onClearCategories: () => void;
   onToggleCategory: (id: number) => void;
   onClearTags: () => void;
@@ -35,6 +36,7 @@ export default function TaskFilterSheet({
   tags,
   selectedCategoryIds,
   selectedTagIds,
+  maxFilterSelections,
   onClearCategories,
   onToggleCategory,
   onClearTags,
@@ -49,6 +51,8 @@ export default function TaskFilterSheet({
   const allCategories = selectedCategoryIds.length === 0;
   const allTags = selectedTagIds.length === 0;
   const hasFilters = !allCategories || !allTags;
+  const selectedCount = selectedCategoryIds.length + selectedTagIds.length;
+  const atSharedLimit = selectedCount >= maxFilterSelections;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -75,7 +79,12 @@ export default function TaskFilterSheet({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Categories</Text>
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionLabel}>Categories</Text>
+                <Text style={styles.limitHint}>
+                  {selectedCount}/{maxFilterSelections}
+                </Text>
+              </View>
               <View style={styles.chipWrap}>
                 <Pressable
                   onPress={onClearCategories}
@@ -92,6 +101,7 @@ export default function TaskFilterSheet({
                 </Pressable>
                 {categories.map((cat) => {
                   const selected = selectedCategoryIds.includes(cat.id);
+                  const atLimit = !selected && atSharedLimit;
                   return (
                     <Pressable
                       key={cat.id}
@@ -100,7 +110,8 @@ export default function TaskFilterSheet({
                         styles.chip,
                         { borderColor: cat.color },
                         selected && { backgroundColor: `${cat.color}22` },
-                        hovered && !selected && styles.chipHovered,
+                        atLimit && styles.chipDisabled,
+                        hovered && !selected && !atLimit && styles.chipHovered,
                         pressed && styles.chipPressed,
                       ]}>
                       <View style={[styles.dot, { backgroundColor: cat.color }]} />
@@ -112,7 +123,10 @@ export default function TaskFilterSheet({
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Tags</Text>
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionLabel}>Tags</Text>
+              
+              </View>
               {tags.length === 0 ? (
                 <Text style={styles.emptyHint}>No tags yet. Create some in Settings.</Text>
               ) : (
@@ -131,6 +145,7 @@ export default function TaskFilterSheet({
                   </Pressable>
                   {tags.map((tag) => {
                     const selected = selectedTagIds.includes(tag.id);
+                    const atLimit = !selected && atSharedLimit;
                     return (
                       <Pressable
                         key={tag.id}
@@ -139,7 +154,8 @@ export default function TaskFilterSheet({
                           styles.chip,
                           { borderColor: tag.color },
                           selected && { backgroundColor: `${tag.color}22` },
-                          hovered && !selected && styles.chipHovered,
+                          atLimit && styles.chipDisabled,
+                          hovered && !selected && !atLimit && styles.chipHovered,
                           pressed && styles.chipPressed,
                         ]}>
                         <Text style={[styles.chipText, { color: tag.color }]}>#{tag.name}</Text>
@@ -238,10 +254,21 @@ function createStyles(colors: AppColors) {
     section: {
       gap: 10,
     },
+    sectionLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
     sectionLabel: {
       color: colors.textSecondary,
       fontSize: 14,
       fontWeight: '600',
+    },
+    limitHint: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '500',
     },
     chipWrap: {
       flexDirection: 'row',
@@ -259,6 +286,9 @@ function createStyles(colors: AppColors) {
       borderColor: colors.borderColor,
       backgroundColor: colors.bgSurface,
       ...webInteractive,
+    },
+    chipDisabled: {
+      opacity: 0.45,
     },
     chipSelectedNeutral: {
       backgroundColor: colors.primary,
