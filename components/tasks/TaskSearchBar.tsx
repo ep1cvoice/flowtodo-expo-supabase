@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-const OPEN_HEIGHT = 44;
+/** Same as list content inset / ToDoItem outer spacing. Parent must provide this pad. */
+export const TASK_LIST_INSET = 10;
+const OPEN_HEIGHT = 40;
 
 interface TaskSearchBarProps {
   value: string;
@@ -70,27 +71,16 @@ export default function TaskSearchBar({
     inputRange: [0, 1],
     outputRange: [0, OPEN_HEIGHT],
   });
+  // Gap under search = same as ToDoItem marginBottom when open.
   const marginBottom = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 10],
+    outputRange: [0, TASK_LIST_INSET],
   });
   const opacity = progress;
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-10, 0],
-  });
 
   return (
     <Animated.View
-      style={[
-        styles.outer,
-        {
-          height,
-          marginBottom,
-          opacity,
-          transform: [{ translateY }],
-        },
-      ]}
+      style={[styles.outer, { height, marginBottom, opacity }]}
       pointerEvents={visible ? 'auto' : 'none'}>
       <View style={styles.wrap}>
         <Search size={16} color={colors.textMuted} strokeWidth={2.2} />
@@ -164,8 +154,6 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     outer: {
       width: '100%',
-      maxWidth: tokens.contentMaxWidth,
-      alignSelf: 'center',
       overflow: 'hidden',
     },
     wrap: {
@@ -182,7 +170,8 @@ function createStyles(colors: AppColors) {
     input: {
       flex: 1,
       minWidth: 0,
-      paddingVertical: 2,
+      paddingVertical: 0,
+      margin: 0,
       fontSize: 14,
       fontWeight: '500',
       color: colors.textPrimary,
