@@ -1,19 +1,50 @@
-import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, FlatList } from 'react-native';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, FlatList, Keyboard } from 'react-native';
+import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
+import TaskSearchBar, { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
+import { filterTasksBySearch } from '@/lib/taskSearch';
 
 export default function CompletedTasksScreen() {
+  const navigation = useNavigation();
   const { completedTasks, loading, toggleTask, deleteTask } = useTasks();
   const { colors } = useTheme();
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const visibleTasks = useMemo(
+    () => filterTasksBySearch(completedTasks, searchQuery),
+    [completedTasks, searchQuery]
+  );
+  const hasSearch = searchQuery.trim().length > 0;
+
+  const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSearchOpen(false);
+        Keyboard.dismiss();
+      };
+    }, [])
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TaskSearchToggle open={searchOpen} hasQuery={hasSearch} onPress={toggleSearch} />
+      ),
+    });
+  }, [navigation, searchOpen, hasSearch, toggleSearch]);
 
   const handleToggle = useCallback(
     async (id: number) => {
@@ -41,6 +72,11 @@ export default function CompletedTasksScreen() {
   return (
     <ScreenBackground style={styles.container}>
       <View style={styles.panel}>
+        <TaskSearchBar
+          visible={searchOpen}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -48,29 +84,38 @@ export default function CompletedTasksScreen() {
           </View>
         ) : (
           <FlatList
-            data={completedTasks}
+            style={styles.list}
+            data={visibleTasks}
             keyExtractor={(item) => String(item.id)}
-            ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={[
               styles.listContent,
-              completedTasks.length === 0 && styles.listEmpty,
+              visibleTasks.length === 0 && styles.listEmpty,
             ]}
             ListEmptyComponent={
               <View style={styles.empty}>
                 <View style={styles.emptyIcon}>
                   <Search size={48} color={colors.primary} />
                 </View>
-                <Text style={styles.emptyTitle}>No completed tasks</Text>
-                <Text style={styles.emptyText}>Mark a task as done to see it here</Text>
+                <Text style={styles.emptyTitle}>
+                  {hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                </Text>
+                <Text style={styles.emptyText}>
+                  {hasSearch
+                    ? 'Try a different search term'
+                    : 'Mark a task as done to see it here'}
+                </Text>
               </View>
             }
             renderItem={({ item, index }) => (
-              <ToDoItem
-                task={item}
-                index={index}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-              />
+              <View style={styles.itemWrap}>
+                <ToDoItem
+                  task={item}
+                  index={index}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                />
+              </View>
             )}
           />
         )}
@@ -88,15 +133,26 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       flex: 1,
       width: '100%',
       maxWidth: tokens.contentMaxWidth,
-      padding: 16,
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+      minHeight: 0,
+      overflow: 'visible',
+    },
+    list: {
+      flex: 1,
       minHeight: 0,
     },
     listContent: {
-      paddingBottom: 16,
+      paddingHorizontal: 10,
+      paddingTop: 10,
+      paddingBottom: 14,
       flexGrow: 1,
     },
     listEmpty: {
       flexGrow: 1,
+    },
+    itemWrap: {
+      marginBottom: 6,
     },
     loadingState: {
       flex: 1,

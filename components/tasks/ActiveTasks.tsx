@@ -2,13 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Platform,
   View,
   Text,
   StyleSheet,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useNavigation } from 'expo-router';
+import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import DraggableFlatList, {
   ScaleDecorator,
@@ -23,6 +24,7 @@ import CreateTaskButton from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
+import TaskSearchBar from '@/components/tasks/TaskSearchBar';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
@@ -30,6 +32,7 @@ import {
 import type { AppColors } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
 import { applyFilteredReorder } from '@/lib/taskReorder';
+import { filterTasksBySearch } from '@/lib/taskSearch';
 import type { Task } from '@/types';
 
 const isWeb = Platform.OS === 'web';
@@ -52,6 +55,8 @@ export default function ActiveTasks() {
   } = useTasks();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
@@ -137,9 +142,11 @@ export default function ActiveTasks() {
     [selectedTagIds, tags]
   );
   const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
+  const hasSearch = searchQuery.trim().length > 0;
+  const hasListConstraints = hasFilters || hasSearch;
 
   const filteredTasks = useMemo(() => {
-    return activeTasks.filter((task) => {
+    const byLabels = activeTasks.filter((task) => {
       if (validCategoryIds.length > 0) {
         if (task.categoryId === null || !validCategoryIds.includes(task.categoryId)) {
           return false;
@@ -152,7 +159,8 @@ export default function ActiveTasks() {
       }
       return true;
     });
-  }, [activeTasks, validCategoryIds, validTagIds]);
+    return filterTasksBySearch(byLabels, searchQuery);
+  }, [activeTasks, validCategoryIds, validTagIds, searchQuery]);
 
   const canReorder = filteredTasks.length > 1;
 
@@ -162,6 +170,16 @@ export default function ActiveTasks() {
   }, []);
 
   const openFilterSheet = useCallback(() => setShowFilterSheet(true), []);
+  const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSearchOpen(false);
+        Keyboard.dismiss();
+      };
+    }, [])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -174,6 +192,9 @@ export default function ActiveTasks() {
           selectedTagIds={validTagIds}
           onOpen={openFilterSheet}
           onClear={clearFilters}
+          searchOpen={searchOpen}
+          searchHasQuery={hasSearch}
+          onToggleSearch={toggleSearch}
         />
       ),
     });
@@ -185,6 +206,9 @@ export default function ActiveTasks() {
     validTagIds,
     openFilterSheet,
     clearFilters,
+    searchOpen,
+    hasSearch,
+    toggleSearch,
   ]);
 
   const persistOrder = useCallback(
@@ -201,12 +225,12 @@ export default function ActiveTasks() {
 
   const persistVisibleOrder = useCallback(
     (reorderedFiltered: Task[]) => {
-      const orderedActive = hasFilters
+      const orderedActive = hasListConstraints
         ? applyFilteredReorder(activeTasks, reorderedFiltered)
         : reorderedFiltered;
       persistOrder(orderedActive);
     },
-    [activeTasks, hasFilters, persistOrder]
+    [activeTasks, hasListConstraints, persistOrder]
   );
 
   const handleDragEnd = useCallback(
@@ -292,6 +316,18 @@ export default function ActiveTasks() {
   );
 
   const emptyCopy = (() => {
+    if (hasSearch && !hasFilters) {
+      return {
+        title: 'No matching tasks',
+        text: 'Try a different search term',
+      };
+    }
+    if (hasSearch && hasFilters) {
+      return {
+        title: 'No matching tasks',
+        text: 'Try clearing search or filters',
+      };
+    }
     if (!hasFilters) {
       return {
         title: 'No active tasks',
@@ -330,12 +366,17 @@ export default function ActiveTasks() {
 
   const listContentStyle = [
     styles.tasksContent,
-    canReorder && !isWeb && styles.tasksContentDragPad,
+    styles.tasksContentInset,
     filteredTasks.length === 0 && styles.tasksContentEmpty,
   ];
 
   return (
     <View style={styles.container}>
+      <TaskSearchBar
+        visible={searchOpen}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
       {loading ? (
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -349,6 +390,7 @@ export default function ActiveTasks() {
           keyExtractor={(item) => String(item.id)}
           ListEmptyComponent={emptyComponent}
           renderItem={renderWebItem}
+          keyboardShouldPersistTaps="handled"
         />
       ) : (
         <DraggableFlatList
@@ -361,6 +403,7 @@ export default function ActiveTasks() {
           activationDistance={canReorder ? 8 : 9999}
           ListEmptyComponent={emptyComponent}
           renderItem={renderNativeItem}
+          keyboardShouldPersistTaps="handled"
         />
       )}
 
@@ -407,11 +450,9 @@ function createStyles(colors: AppColors) {
       overflow: 'visible',
     },
     tasksContent: {
-      paddingBottom: 10,
       flexGrow: 1,
     },
-    // Padding on all sides so ScaleDecorator growth isn't clipped by the list.
-    tasksContentDragPad: {
+    tasksContentInset: {
       paddingHorizontal: 10,
       paddingTop: 10,
       paddingBottom: 14,
