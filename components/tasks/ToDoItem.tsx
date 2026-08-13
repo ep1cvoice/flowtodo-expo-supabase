@@ -148,7 +148,6 @@ export default function ToDoItem({
     category ? ICON_MAP[category.icon as CategoryIcon] ?? Briefcase : null;
 
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
-  const completedDate = task.completedAt ? new Date(task.completedAt) : null;
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -168,8 +167,6 @@ export default function ToDoItem({
 
   const formatShortDate = (date: Date) =>
     date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-
-  const completedDateLabel = completedDate ? formatShortDate(completedDate) : null;
 
   const categoryGradientColors = category
     ? (() => {
@@ -336,20 +333,12 @@ export default function ToDoItem({
             ) : null}
           </View>
 
-          {/* Desktop: date stays in the main row */}
+          {/* Desktop: due date in the main row (hidden on completed — grouped by day). */}
           {!isMobile && (
             <View style={styles.todoIndicators}>
-              {task.done && completedDateLabel ? (
-                <View style={[styles.todoDate, styles.todoDateCompleted]}>
-                  <Text style={[styles.todoDateText, styles.todoDateTextCompleted]}>
-                    Done {completedDateLabel}
-                  </Text>
-                </View>
-              ) : dueDate ? (
+              {!task.done && dueDate ? (
                 <Pressable
-                  onPress={() => {
-                    if (!task.done) openCalendar();
-                  }}
+                  onPress={openCalendar}
                   style={({ pressed, hovered }) => [
                     styles.todoDate,
                     isToday && styles.todoDateToday,
@@ -422,19 +411,9 @@ export default function ToDoItem({
 
           {isMobile && (
             <View style={styles.mobileRight}>
-              {task.done && completedDateLabel ? (
-                <View style={[styles.todoDate, styles.todoDateCompleted]}>
-                  <Text
-                    style={[styles.todoDateText, styles.todoDateTextCompleted]}
-                    numberOfLines={1}>
-                    Done {completedDateLabel}
-                  </Text>
-                </View>
-              ) : dueDate ? (
+              {!task.done && dueDate ? (
                 <Pressable
-                  onPress={() => {
-                    if (!task.done) openCalendar();
-                  }}
+                  onPress={openCalendar}
                   style={[
                     styles.todoDate,
                     isToday && styles.todoDateToday,
