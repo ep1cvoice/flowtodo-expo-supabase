@@ -591,7 +591,7 @@ function createStyles(colors: AppColors) {
       borderColor: colors.borderColor,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      marginBottom: 10,
+      marginBottom: 8,
       ...webInteractive,
       ...Platform.select({
         web: { boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' } as object,

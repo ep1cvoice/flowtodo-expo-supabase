@@ -6,7 +6,10 @@ import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
-import TaskSearchBar, { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
+import TaskSearchBar, {
+  TASK_LIST_INSET,
+  TaskSearchToggle,
+} from '@/components/tasks/TaskSearchBar';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
@@ -72,53 +75,53 @@ export default function CompletedTasksScreen() {
   return (
     <ScreenBackground style={styles.container}>
       <View style={styles.panel}>
-        <TaskSearchBar
-          visible={searchOpen}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading tasks…</Text>
-          </View>
-        ) : (
-          <FlatList
-            style={styles.list}
-            data={visibleTasks}
-            keyExtractor={(item) => String(item.id)}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.listContent,
-              visibleTasks.length === 0 && styles.listEmpty,
-            ]}
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <View style={styles.emptyIcon}>
-                  <Search size={48} color={colors.primary} />
+        <View style={styles.contentInset}>
+          <TaskSearchBar
+            visible={searchOpen}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {loading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Loading tasks…</Text>
+            </View>
+          ) : (
+            <FlatList
+              style={styles.list}
+              data={visibleTasks}
+              keyExtractor={(item) => String(item.id)}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[
+                styles.listContent,
+                visibleTasks.length === 0 && styles.listEmpty,
+              ]}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <View style={styles.emptyIcon}>
+                    <Search size={48} color={colors.primary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                  </Text>
+                  <Text style={styles.emptyText}>
+                    {hasSearch
+                      ? 'Try a different search term'
+                      : 'Mark a task as done to see it here'}
+                  </Text>
                 </View>
-                <Text style={styles.emptyTitle}>
-                  {hasSearch ? 'No matching tasks' : 'No completed tasks'}
-                </Text>
-                <Text style={styles.emptyText}>
-                  {hasSearch
-                    ? 'Try a different search term'
-                    : 'Mark a task as done to see it here'}
-                </Text>
-              </View>
-            }
-            renderItem={({ item, index }) => (
-              <View style={styles.itemWrap}>
+              }
+              renderItem={({ item, index }) => (
                 <ToDoItem
                   task={item}
                   index={index}
                   onToggle={handleToggle}
                   onDelete={handleDelete}
                 />
-              </View>
-            )}
-          />
-        )}
+              )}
+            />
+          )}
+        </View>
       </View>
     </ScreenBackground>
   );
@@ -133,26 +136,28 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       flex: 1,
       width: '100%',
       maxWidth: tokens.contentMaxWidth,
-      paddingVertical: 8,
+      paddingTop: 0,
+      paddingBottom: 8,
       paddingHorizontal: 6,
       minHeight: 0,
       overflow: 'visible',
+    },
+    contentInset: {
+      flex: 1,
+      minHeight: 0,
+      paddingHorizontal: TASK_LIST_INSET,
+      paddingTop: TASK_LIST_INSET,
     },
     list: {
       flex: 1,
       minHeight: 0,
     },
     listContent: {
-      paddingHorizontal: 10,
-      paddingTop: 10,
       paddingBottom: 14,
       flexGrow: 1,
     },
     listEmpty: {
       flexGrow: 1,
-    },
-    itemWrap: {
-      marginBottom: 6,
     },
     loadingState: {
       flex: 1,

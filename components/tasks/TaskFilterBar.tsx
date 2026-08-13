@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { ListFilter, X } from 'lucide-react-native';
 import { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
+import { TaskSortToggle } from '@/components/tasks/TaskSortMenu';
+import type { TaskSortMode } from '@/lib/taskSort';
 import type { Category, Tag } from '@/types';
 import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,6 +20,8 @@ interface TaskFilterBarProps {
   searchOpen?: boolean;
   searchHasQuery?: boolean;
   onToggleSearch?: () => void;
+  sortMode?: TaskSortMode;
+  onOpenSort?: () => void;
 }
 
 export default function TaskFilterBar({
@@ -31,6 +35,8 @@ export default function TaskFilterBar({
   searchOpen = false,
   searchHasQuery = false,
   onToggleSearch,
+  sortMode = 'manual',
+  onOpenSort,
 }: TaskFilterBarProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors, variant), [colors, variant]);
@@ -49,6 +55,8 @@ export default function TaskFilterBar({
           onPress={onToggleSearch}
         />
       ) : null}
+
+      {onOpenSort ? <TaskSortToggle mode={sortMode} onPress={onOpenSort} /> : null}
 
       {!hasFilters ? (
         <Pressable
