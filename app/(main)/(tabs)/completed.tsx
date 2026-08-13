@@ -13,7 +13,10 @@ import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
-import TaskSearchBar, { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
+import TaskSearchBar, {
+  TASK_LIST_INSET,
+  TaskSearchToggle,
+} from '@/components/tasks/TaskSearchBar';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
@@ -83,55 +86,57 @@ export default function CompletedTasksScreen() {
   return (
     <ScreenBackground style={styles.container}>
       <View style={styles.panel}>
-        <TaskSearchBar
-          visible={searchOpen}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading tasks…</Text>
-          </View>
-        ) : (
-          <SectionList
-            style={styles.list}
-            sections={sections}
-            keyExtractor={(item) => String(item.id)}
-            stickySectionHeadersEnabled
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <View style={styles.emptyIcon}>
-                  <Search size={48} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {hasSearch ? 'No matching tasks' : 'No completed tasks'}
-                </Text>
-                <Text style={styles.emptyText}>
-                  {hasSearch
-                    ? 'Try a different search term'
-                    : 'Mark a task as done to see it here'}
-                </Text>
-              </View>
-            }
-            renderSectionHeader={({ section }) => (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-                <Text style={styles.sectionCount}>{section.data.length}</Text>
-              </View>
-            )}
-            renderItem={({ item, index }) => (
-              <ToDoItem
-                task={item}
-                index={index}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-              />
-            )}
+        <View style={styles.contentInset}>
+          <TaskSearchBar
+            visible={searchOpen}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-        )}
+          {loading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Loading tasks…</Text>
+            </View>
+          ) : (
+            <SectionList
+              style={styles.list}
+              sections={sections}
+              keyExtractor={(item) => String(item.id)}
+              stickySectionHeadersEnabled
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <View style={styles.emptyIcon}>
+                    <Search size={48} color={colors.primary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                  </Text>
+                  <Text style={styles.emptyText}>
+                    {hasSearch
+                      ? 'Try a different search term'
+                      : 'Mark a task as done to see it here'}
+                  </Text>
+                </View>
+              }
+              renderSectionHeader={({ section }) => (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>{section.title}</Text>
+                  <Text style={styles.sectionCount}>{section.data.length}</Text>
+                </View>
+              )}
+              renderItem={({ item, index }) => (
+                <ToDoItem
+                  task={item}
+                  index={index}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                />
+              )}
+            />
+          )}
+        </View>
       </View>
     </ScreenBackground>
   );
@@ -146,18 +151,23 @@ function createStyles(colors: AppColors) {
       flex: 1,
       width: '100%',
       maxWidth: tokens.contentMaxWidth,
-      paddingVertical: 8,
+      paddingTop: 0,
+      paddingBottom: 8,
       paddingHorizontal: 6,
       minHeight: 0,
       overflow: 'visible',
+    },
+    contentInset: {
+      flex: 1,
+      minHeight: 0,
+      paddingHorizontal: TASK_LIST_INSET,
+      paddingTop: TASK_LIST_INSET,
     },
     list: {
       flex: 1,
       minHeight: 0,
     },
     listContent: {
-      paddingHorizontal: 10,
-      paddingTop: 10,
       paddingBottom: 14,
       flexGrow: 1,
     },

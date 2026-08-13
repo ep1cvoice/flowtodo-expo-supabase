@@ -601,7 +601,7 @@ export default function SettingsScreen() {
         {openSection === 'data' && (
           <View style={styles.sectionBody}>
             <Text style={styles.description}>
-              Bulk delete lives here (moved out of task lists).
+              Bulk delete data.
             </Text>
             <Pressable
               style={({ pressed, hovered }) => [
@@ -767,6 +767,7 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
     content: {
       padding: 16,
       paddingBottom: 32,
+      paddingTop: 10,
       alignItems: 'center',
     },
     panel: {

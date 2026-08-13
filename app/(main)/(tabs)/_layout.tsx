@@ -60,6 +60,7 @@ function DesktopConstrainedHeader({
   const insets = useSafeAreaInsets();
   const HeaderIcon = routeName ? HEADER_ICONS[routeName] : undefined;
   const right = headerRight?.({ canGoBack: false });
+  const showTitle = Boolean(title);
 
   return (
     <View
@@ -72,15 +73,21 @@ function DesktopConstrainedHeader({
         },
       ]}>
       <View style={styles.headerInner}>
-        <View style={styles.headerTitleRow}>
-          {HeaderIcon ? (
-            <HeaderIcon size={22} color={colors.primary} strokeWidth={2.2} />
-          ) : null}
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-            {title}
-          </Text>
-        </View>
-        {right ? <View style={styles.headerRight}>{right}</View> : <BrandLogo />}
+        {showTitle ? (
+          <View style={styles.headerTitleRow}>
+            {HeaderIcon ? (
+              <HeaderIcon size={22} color={colors.primary} strokeWidth={2.2} />
+            ) : null}
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+        ) : null}
+        {right ? (
+          <View style={[styles.headerRight, !showTitle && styles.headerRightFull]}>{right}</View>
+        ) : (
+          <BrandLogo />
+        )}
       </View>
     </View>
   );
@@ -233,5 +240,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     minWidth: 0,
+  },
+  headerRightFull: {
+    flexGrow: 1,
+    maxWidth: '100%',
   },
 });

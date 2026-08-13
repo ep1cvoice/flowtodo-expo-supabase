@@ -7,7 +7,9 @@ import {
   View,
   Text,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
@@ -24,21 +26,27 @@ import CreateTaskButton from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
-import TaskSearchBar from '@/components/tasks/TaskSearchBar';
+import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/TaskSearchBar';
+import TaskSortSheet from '@/components/tasks/TaskSortMenu';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
 } from '@/constants/filterLimits';
 import type { AppColors } from '@/constants/theme';
+import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
 import { applyFilteredReorder } from '@/lib/taskReorder';
 import { filterTasksBySearch } from '@/lib/taskSearch';
+import { isTaskSortMode, sortTasks, type TaskSortMode } from '@/lib/taskSort';
 import type { Task } from '@/types';
 
 const isWeb = Platform.OS === 'web';
+const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
 
 export default function ActiveTasks() {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -55,14 +63,24 @@ export default function ActiveTasks() {
   } = useTasks();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [showSortSheet, setShowSortSheet] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<TaskSortMode>('manual');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
   );
+
+  useEffect(() => {
+    AsyncStorage.getItem(SORT_STORAGE_KEY)
+      .then((value) => {
+        if (isTaskSortMode(value)) setSortMode(value);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setSelectedCategoryIds((cats) => {
@@ -144,9 +162,11 @@ export default function ActiveTasks() {
   const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
   const hasSearch = searchQuery.trim().length > 0;
   const hasListConstraints = hasFilters || hasSearch;
+  const isManualSort = sortMode === 'manual';
 
   const filteredTasks = useMemo(() => {
-    const byLabels = activeTasks.filter((task) => {
+    const sorted = sortTasks(activeTasks, sortMode);
+    const byLabels = sorted.filter((task) => {
       if (validCategoryIds.length > 0) {
         if (task.categoryId === null || !validCategoryIds.includes(task.categoryId)) {
           return false;
@@ -160,9 +180,9 @@ export default function ActiveTasks() {
       return true;
     });
     return filterTasksBySearch(byLabels, searchQuery);
-  }, [activeTasks, validCategoryIds, validTagIds, searchQuery]);
+  }, [activeTasks, sortMode, validCategoryIds, validTagIds, searchQuery]);
 
-  const canReorder = filteredTasks.length > 1;
+  const canReorder = isManualSort && filteredTasks.length > 1;
 
   const clearFilters = useCallback(() => {
     setSelectedCategoryIds([]);
@@ -170,7 +190,13 @@ export default function ActiveTasks() {
   }, []);
 
   const openFilterSheet = useCallback(() => setShowFilterSheet(true), []);
+  const openSortSheet = useCallback(() => setShowSortSheet(true), []);
   const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
+
+  const handleSelectSort = useCallback((mode: TaskSortMode) => {
+    setSortMode(mode);
+    AsyncStorage.setItem(SORT_STORAGE_KEY, mode).catch(() => {});
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -183,6 +209,7 @@ export default function ActiveTasks() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      title: isMobile && hasFilters ? '' : 'Active',
       headerRight: () => (
         <TaskFilterBar
           variant="header"
@@ -195,11 +222,15 @@ export default function ActiveTasks() {
           searchOpen={searchOpen}
           searchHasQuery={hasSearch}
           onToggleSearch={toggleSearch}
+          sortMode={sortMode}
+          onOpenSort={openSortSheet}
         />
       ),
     });
   }, [
     navigation,
+    isMobile,
+    hasFilters,
     categories,
     tags,
     validCategoryIds,
@@ -209,6 +240,8 @@ export default function ActiveTasks() {
     searchOpen,
     hasSearch,
     toggleSearch,
+    sortMode,
+    openSortSheet,
   ]);
 
   const persistOrder = useCallback(
@@ -366,46 +399,48 @@ export default function ActiveTasks() {
 
   const listContentStyle = [
     styles.tasksContent,
-    styles.tasksContentInset,
+    styles.tasksContentPad,
     filteredTasks.length === 0 && styles.tasksContentEmpty,
   ];
 
   return (
     <View style={styles.container}>
-      <TaskSearchBar
-        visible={searchOpen}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-      {loading ? (
-        <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading tasks…</Text>
-        </View>
-      ) : isWeb ? (
-        <FlatList
-          style={styles.tasksList}
-          contentContainerStyle={listContentStyle}
-          data={filteredTasks}
-          keyExtractor={(item) => String(item.id)}
-          ListEmptyComponent={emptyComponent}
-          renderItem={renderWebItem}
-          keyboardShouldPersistTaps="handled"
+      <View style={styles.contentInset}>
+        <TaskSearchBar
+          visible={searchOpen}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
-      ) : (
-        <DraggableFlatList
-          style={styles.tasksList}
-          containerStyle={styles.tasksList}
-          contentContainerStyle={listContentStyle}
-          data={filteredTasks}
-          keyExtractor={(item) => String(item.id)}
-          onDragEnd={handleDragEnd}
-          activationDistance={canReorder ? 8 : 9999}
-          ListEmptyComponent={emptyComponent}
-          renderItem={renderNativeItem}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
+        {loading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading tasks…</Text>
+          </View>
+        ) : isWeb ? (
+          <FlatList
+            style={styles.tasksList}
+            contentContainerStyle={listContentStyle}
+            data={filteredTasks}
+            keyExtractor={(item) => String(item.id)}
+            ListEmptyComponent={emptyComponent}
+            renderItem={renderWebItem}
+            keyboardShouldPersistTaps="handled"
+          />
+        ) : (
+          <DraggableFlatList
+            style={styles.tasksList}
+            containerStyle={styles.tasksList}
+            contentContainerStyle={listContentStyle}
+            data={filteredTasks}
+            keyExtractor={(item) => String(item.id)}
+            onDragEnd={handleDragEnd}
+            activationDistance={canReorder ? 8 : 9999}
+            ListEmptyComponent={emptyComponent}
+            renderItem={renderNativeItem}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+      </View>
 
       <View style={styles.activeFooter}>
         <CreateTaskButton onPress={() => setShowCreateModal(true)} />
@@ -433,6 +468,13 @@ export default function ActiveTasks() {
         onClear={clearFilters}
         onClose={() => setShowFilterSheet(false)}
       />
+
+      <TaskSortSheet
+        visible={showSortSheet}
+        mode={sortMode}
+        onSelect={handleSelectSort}
+        onClose={() => setShowSortSheet(false)}
+      />
     </View>
   );
 }
@@ -444,6 +486,12 @@ function createStyles(colors: AppColors) {
       minHeight: 0,
       overflow: 'visible',
     },
+    contentInset: {
+      flex: 1,
+      minHeight: 0,
+      paddingHorizontal: TASK_LIST_INSET,
+      paddingTop: TASK_LIST_INSET,
+    },
     tasksList: {
       flex: 1,
       minHeight: 0,
@@ -452,16 +500,13 @@ function createStyles(colors: AppColors) {
     tasksContent: {
       flexGrow: 1,
     },
-    tasksContentInset: {
-      paddingHorizontal: 10,
-      paddingTop: 10,
+    tasksContentPad: {
       paddingBottom: 14,
     },
     tasksContentEmpty: {
       flexGrow: 1,
     },
     itemWrap: {
-      marginBottom: 6,
       overflow: 'visible',
     },
     itemDragging: {
