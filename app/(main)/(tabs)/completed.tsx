@@ -1,5 +1,12 @@
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, FlatList, Keyboard } from 'react-native';
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  SectionList,
+  Keyboard,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useTasks } from '@/context/TasksContext';
@@ -8,7 +15,9 @@ import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
 import TaskSearchBar, { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
 import ScreenBackground from '@/components/ui/ScreenBackground';
+import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
+import { groupCompletedTasks } from '@/lib/completedGroups';
 import { toastForError } from '@/lib/networkError';
 import { filterTasksBySearch } from '@/lib/taskSearch';
 
@@ -25,7 +34,9 @@ export default function CompletedTasksScreen() {
     () => filterTasksBySearch(completedTasks, searchQuery),
     [completedTasks, searchQuery]
   );
+  const sections = useMemo(() => groupCompletedTasks(visibleTasks), [visibleTasks]);
   const hasSearch = searchQuery.trim().length > 0;
+  const isEmpty = visibleTasks.length === 0;
 
   const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
 
@@ -83,15 +94,13 @@ export default function CompletedTasksScreen() {
             <Text style={styles.loadingText}>Loading tasks…</Text>
           </View>
         ) : (
-          <FlatList
+          <SectionList
             style={styles.list}
-            data={visibleTasks}
+            sections={sections}
             keyExtractor={(item) => String(item.id)}
+            stickySectionHeadersEnabled
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.listContent,
-              visibleTasks.length === 0 && styles.listEmpty,
-            ]}
+            contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
             ListEmptyComponent={
               <View style={styles.empty}>
                 <View style={styles.emptyIcon}>
@@ -107,15 +116,19 @@ export default function CompletedTasksScreen() {
                 </Text>
               </View>
             }
-            renderItem={({ item, index }) => (
-              <View style={styles.itemWrap}>
-                <ToDoItem
-                  task={item}
-                  index={index}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                />
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionCount}>{section.data.length}</Text>
               </View>
+            )}
+            renderItem={({ item, index }) => (
+              <ToDoItem
+                task={item}
+                index={index}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+              />
             )}
           />
         )}
@@ -124,7 +137,7 @@ export default function CompletedTasksScreen() {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
+function createStyles(colors: AppColors) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',
@@ -151,8 +164,25 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
     listEmpty: {
       flexGrow: 1,
     },
-    itemWrap: {
-      marginBottom: 6,
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      paddingTop: 4,
+      paddingBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+      color: colors.textSecondary,
+    },
+    sectionCount: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
     },
     loadingState: {
       flex: 1,

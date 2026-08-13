@@ -35,7 +35,7 @@ export type AppColors = {
 };
 
 export const lightColors: AppColors = {
-  // Soft Mist — fog/sage atmosphere (must read clearly vs old white+neon mint)
+  // Soft Mist — fog/sage atmosphere 
   primary: '#0d9488',
   primaryHover: '#0f766e',
   primaryLight: 'rgba(13, 148, 136, 0.18)',
@@ -65,7 +65,7 @@ export const lightColors: AppColors = {
 };
 
 export const darkColors: AppColors = {
-  // Deep Ocean — night version of Ocean Flow (not NextTodo slate)
+  // Deep Ocean — night version of Ocean Flow
   primary: '#2dd4bf',
   primaryHover: '#14b8a6',
   primaryLight: 'rgba(45, 212, 191, 0.2)',
