@@ -7,6 +7,14 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import {
+  COMPLETED_PAGE_SIZE,
+  completedKeysetOrFilter,
+  getCompletedCursor,
+  mergeCompletedTasks,
+  sortCompletedTasks,
+  type CompletedCursor,
+} from '@/lib/completedPagination';
 import { seedDemoData } from '@/lib/seedDemoData';
 import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
 import { supabase } from '@/supabase/client';
@@ -36,10 +44,14 @@ interface TasksContextValue {
   tasks: Task[];
   activeTasks: Task[];
   completedTasks: Task[];
+  completedCount: number;
+  hasMoreCompleted: boolean;
+  loadingMoreCompleted: boolean;
   categories: Category[];
   tags: Tag[];
   loading: boolean;
   refetch: () => Promise<void>;
+  loadMoreCompleted: () => Promise<void>;
   addTask: (input: AddTaskInput) => Promise<void>;
   updateTask: (id: number, input: UpdateTaskInput) => Promise<void>;
   setTaskScheduled: (id: number, scheduled: string | null) => Promise<void>;
@@ -72,59 +84,104 @@ const TASK_SELECT = `
 
 const TasksContext = createContext<TasksContextValue | null>(null);
 
+function mapTaskRows(rows: TaskQueryRow[] | null | undefined): Task[] {
+  return (rows ?? []).map(mapTask);
+}
+
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [completedCursor, setCompletedCursor] = useState<CompletedCursor | null>(null);
+  const [hasMoreCompleted, setHasMoreCompleted] = useState(false);
+  const [loadingMoreCompleted, setLoadingMoreCompleted] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const activeTasks = useMemo(
-    () => tasks.filter((t) => !t.done).sort((a, b) => a.sortOrder - b.sortOrder),
-    [tasks]
+  const tasks = useMemo(
+    () => [...activeTasks, ...completedTasks],
+    [activeTasks, completedTasks]
   );
 
-  const completedTasks = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.done)
-        .sort((a, b) => {
-          const aAt = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-          const bAt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-          return bAt - aAt;
-        }),
-    [tasks]
-  );
-
-  const refresh = useCallback(async (userId: string) => {
-    const [categoriesRes, tagsRes, tasksRes] = await Promise.all([
-      supabase.from('categories').select('*').eq('user_id', userId).order('name'),
-      supabase.from('tags').select('*').eq('user_id', userId).order('name'),
-      supabase
+  const fetchCompletedPage = useCallback(
+    async (userId: string, cursor: CompletedCursor | null) => {
+      let query = supabase
         .from('tasks')
         .select(TASK_SELECT)
         .eq('user_id', userId)
-        .order('sort_order', { ascending: true }),
-    ]);
+        .eq('done', true)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(COMPLETED_PAGE_SIZE + 1);
 
-    if (categoriesRes.error) throw categoriesRes.error;
-    if (tagsRes.error) throw tagsRes.error;
-    if (tasksRes.error) throw tasksRes.error;
+      if (cursor) {
+        query = query.or(completedKeysetOrFilter(cursor));
+      }
 
-    const nextCategories = (categoriesRes.data ?? []).map(mapCategory);
-    const nextTags = (tagsRes.data ?? []).map(mapTag);
-    const nextTasks = ((tasksRes.data ?? []) as TaskQueryRow[]).map(mapTask);
+      const { data, error } = await query;
+      if (error) throw error;
 
-    setCategories(nextCategories);
-    setTags(nextTags);
-    setTasks(nextTasks);
+      const rows = mapTaskRows(data as TaskQueryRow[] | null);
+      const hasMore = rows.length > COMPLETED_PAGE_SIZE;
+      const page = hasMore ? rows.slice(0, COMPLETED_PAGE_SIZE) : rows;
+      const nextCursor =
+        page.length > 0 ? getCompletedCursor(page[page.length - 1]) : null;
 
-    return {
-      categories: nextCategories,
-      tags: nextTags,
-      tasks: nextTasks,
-    };
-  }, []);
+      return { page, hasMore, nextCursor };
+    },
+    []
+  );
+
+  const refresh = useCallback(
+    async (userId: string) => {
+      const [categoriesRes, tagsRes, activeRes, countRes, completedPage] =
+        await Promise.all([
+          supabase.from('categories').select('*').eq('user_id', userId).order('name'),
+          supabase.from('tags').select('*').eq('user_id', userId).order('name'),
+          supabase
+            .from('tasks')
+            .select(TASK_SELECT)
+            .eq('user_id', userId)
+            .eq('done', false)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('done', true),
+          fetchCompletedPage(userId, null),
+        ]);
+
+      if (categoriesRes.error) throw categoriesRes.error;
+      if (tagsRes.error) throw tagsRes.error;
+      if (activeRes.error) throw activeRes.error;
+      if (countRes.error) throw countRes.error;
+
+      const nextCategories = (categoriesRes.data ?? []).map(mapCategory);
+      const nextTags = (tagsRes.data ?? []).map(mapTag);
+      const nextActive = mapTaskRows(activeRes.data as TaskQueryRow[] | null);
+      const nextCompleted = sortCompletedTasks(completedPage.page);
+
+      setCategories(nextCategories);
+      setTags(nextTags);
+      setActiveTasks(nextActive);
+      setCompletedTasks(nextCompleted);
+      setCompletedCount(countRes.count ?? nextCompleted.length);
+      setCompletedCursor(completedPage.nextCursor);
+      setHasMoreCompleted(completedPage.hasMore);
+
+      return {
+        categories: nextCategories,
+        tags: nextTags,
+        activeTasks: nextActive,
+        completedTasks: nextCompleted,
+      };
+    },
+    [fetchCompletedPage]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +192,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!user) {
-      setTasks([]);
+      setActiveTasks([]);
+      setCompletedTasks([]);
+      setCompletedCount(0);
+      setCompletedCursor(null);
+      setHasMoreCompleted(false);
       setCategories([]);
       setTags([]);
       setLoading(false);
@@ -153,7 +214,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const isEmpty =
           snapshot.categories.length === 0 &&
           snapshot.tags.length === 0 &&
-          snapshot.tasks.length === 0;
+          snapshot.activeTasks.length === 0 &&
+          snapshot.completedTasks.length === 0;
 
         if (isEmpty) {
           await seedDemoData(userId);
@@ -180,6 +242,32 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
     }
   }, [user, refresh]);
+
+  const loadMoreCompleted = useCallback(async () => {
+    if (!user || !hasMoreCompleted || loadingMoreCompleted || !completedCursor) return;
+
+    setLoadingMoreCompleted(true);
+    try {
+      const { page, hasMore, nextCursor } = await fetchCompletedPage(
+        user.id,
+        completedCursor
+      );
+      setCompletedTasks((prev) => mergeCompletedTasks(prev, page));
+      setCompletedCursor(nextCursor);
+      setHasMoreCompleted(hasMore);
+    } catch (err) {
+      console.warn('Failed to load more completed:', (err as Error)?.message ?? err);
+      throw err;
+    } finally {
+      setLoadingMoreCompleted(false);
+    }
+  }, [
+    user,
+    hasMoreCompleted,
+    loadingMoreCompleted,
+    completedCursor,
+    fetchCompletedPage,
+  ]);
 
   const requireUserId = () => {
     if (!user) throw new Error('Not signed in');
@@ -248,6 +336,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     await refresh(userId);
   };
 
+  const patchTaskLocal = (id: number, patch: Partial<Task>) => {
+    setActiveTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
+    );
+    setCompletedTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
+    );
+  };
+
   const setTaskScheduled = async (id: number, scheduled: string | null) => {
     const userId = requireUserId();
     const { error } = await supabase
@@ -257,7 +354,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId);
     if (error) throw error;
 
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, scheduled } : t)));
+    patchTaskLocal(id, { scheduled });
   };
 
   const addCategory = async ({ name, color, icon }: AddCategoryInput): Promise<Category> => {
@@ -303,9 +400,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
 
     setCategories((prev) => prev.filter((c) => c.id !== id));
-    setTasks((prev) =>
-      prev.map((t) => (t.categoryId === id ? { ...t, categoryId: null, category: null } : t))
-    );
+    const clearCategory = (t: Task): Task =>
+      t.categoryId === id ? { ...t, categoryId: null, category: null } : t;
+    setActiveTasks((prev) => prev.map(clearCategory));
+    setCompletedTasks((prev) => prev.map(clearCategory));
   };
 
   const deleteTag = async (id: number) => {
@@ -314,26 +412,39 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
 
     setTags((prev) => prev.filter((t) => t.id !== id));
-    setTasks((prev) =>
-      prev.map((t) => ({
-        ...t,
-        tags: (t.tags ?? []).filter((tag) => tag.id !== id),
-      }))
-    );
+    const stripTag = (t: Task): Task => ({
+      ...t,
+      tags: (t.tags ?? []).filter((tag) => tag.id !== id),
+    });
+    setActiveTasks((prev) => prev.map(stripTag));
+    setCompletedTasks((prev) => prev.map(stripTag));
   };
 
   const toggleTask = async (id: number) => {
     const userId = requireUserId();
-    const current = tasks.find((t) => t.id === id);
+    const current =
+      activeTasks.find((t) => t.id === id) ?? completedTasks.find((t) => t.id === id);
     if (!current) return;
 
     const nextDone = !current.done;
     const nextCompletedAt = nextDone ? new Date().toISOString() : null;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, done: nextDone, completedAt: nextCompletedAt } : t
-      )
-    );
+    const nextTask: Task = {
+      ...current,
+      done: nextDone,
+      completedAt: nextCompletedAt,
+    };
+
+    if (nextDone) {
+      setActiveTasks((prev) => prev.filter((t) => t.id !== id));
+      setCompletedTasks((prev) => mergeCompletedTasks([nextTask], prev));
+      setCompletedCount((n) => n + 1);
+    } else {
+      setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
+      setActiveTasks((prev) =>
+        [...prev, nextTask].sort((a, b) => a.sortOrder - b.sortOrder)
+      );
+      setCompletedCount((n) => Math.max(0, n - 1));
+    }
 
     const { error } = await supabase
       .from('tasks')
@@ -342,20 +453,29 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId);
 
     if (error) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id ? { ...t, done: current.done, completedAt: current.completedAt } : t
-        )
-      );
+      if (nextDone) {
+        setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
+        setActiveTasks((prev) =>
+          [...prev, current].sort((a, b) => a.sortOrder - b.sortOrder)
+        );
+        setCompletedCount((n) => Math.max(0, n - 1));
+      } else {
+        setActiveTasks((prev) => prev.filter((t) => t.id !== id));
+        setCompletedTasks((prev) => mergeCompletedTasks([current], prev));
+        setCompletedCount((n) => n + 1);
+      }
       throw error;
     }
   };
 
   const deleteTask = async (id: number) => {
     const userId = requireUserId();
+    const wasCompleted = completedTasks.some((t) => t.id === id);
     const { error } = await supabase.from('tasks').delete().eq('id', id).eq('user_id', userId);
     if (error) throw error;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setActiveTasks((prev) => prev.filter((t) => t.id !== id));
+    setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
+    if (wasCompleted) setCompletedCount((n) => Math.max(0, n - 1));
   };
 
   const deleteAllActive = async () => {
@@ -366,7 +486,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId)
       .eq('done', false);
     if (error) throw error;
-    setTasks((prev) => prev.filter((t) => t.done));
+    setActiveTasks([]);
   };
 
   const deleteAllCompleted = async () => {
@@ -377,16 +497,19 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId)
       .eq('done', true);
     if (error) throw error;
-    setTasks((prev) => prev.filter((t) => !t.done));
+    setCompletedTasks([]);
+    setCompletedCount(0);
+    setCompletedCursor(null);
+    setHasMoreCompleted(false);
   };
 
   const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
     if (items.length === 0) return;
     const userId = requireUserId();
-    const previous = tasks;
+    const previous = activeTasks;
     const orderMap = new Map(items.map((item) => [item.id, item.sortOrder]));
 
-    setTasks((current) =>
+    setActiveTasks((current) =>
       current.map((task) =>
         orderMap.has(task.id) ? { ...task, sortOrder: orderMap.get(task.id)! } : task
       )
@@ -400,7 +523,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
     const failed = results.find((result) => result.error);
     if (failed?.error) {
-      setTasks(previous);
+      setActiveTasks(previous);
       throw failed.error;
     }
   };
@@ -411,10 +534,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         tasks,
         activeTasks,
         completedTasks,
+        completedCount,
+        hasMoreCompleted,
+        loadingMoreCompleted,
         categories,
         tags,
         loading,
         refetch,
+        loadMoreCompleted,
         addTask,
         updateTask,
         setTaskScheduled,

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SectionList,
   Keyboard,
+  Pressable,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
@@ -23,10 +24,19 @@ import { tokens } from '@/constants/theme';
 import { groupCompletedTasks } from '@/lib/completedGroups';
 import { toastForError } from '@/lib/networkError';
 import { filterTasksBySearch } from '@/lib/taskSearch';
+import { webInteractive } from '@/utils/pressableWeb';
 
 export default function CompletedTasksScreen() {
   const navigation = useNavigation();
-  const { completedTasks, loading, toggleTask, deleteTask } = useTasks();
+  const {
+    completedTasks,
+    loading,
+    hasMoreCompleted,
+    loadingMoreCompleted,
+    loadMoreCompleted,
+    toggleTask,
+    deleteTask,
+  } = useTasks();
   const { colors } = useTheme();
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -40,6 +50,7 @@ export default function CompletedTasksScreen() {
   const sections = useMemo(() => groupCompletedTasks(visibleTasks), [visibleTasks]);
   const hasSearch = searchQuery.trim().length > 0;
   const isEmpty = visibleTasks.length === 0;
+  const showLoadMore = hasMoreCompleted && !hasSearch;
 
   const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
 
@@ -83,6 +94,14 @@ export default function CompletedTasksScreen() {
     [deleteTask, showToast]
   );
 
+  const handleLoadMore = useCallback(async () => {
+    try {
+      await loadMoreCompleted();
+    } catch (err) {
+      showToast(toastForError(err, 'Could not load more tasks.'), 'error');
+    }
+  }, [loadMoreCompleted, showToast]);
+
   return (
     <ScreenBackground style={styles.container}>
       <View style={styles.panel}>
@@ -119,6 +138,32 @@ export default function CompletedTasksScreen() {
                       : 'Mark a task as done to see it here'}
                   </Text>
                 </View>
+              }
+              ListFooterComponent={
+                showLoadMore ? (
+                  <View style={styles.footer}>
+                    <Pressable
+                      onPress={() => void handleLoadMore()}
+                      disabled={loadingMoreCompleted}
+                      style={({ pressed, hovered }) => [
+                        styles.loadMoreBtn,
+                        (hovered || pressed) && styles.loadMoreBtnPressed,
+                        loadingMoreCompleted && styles.loadMoreBtnDisabled,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Load more completed tasks">
+                      {loadingMoreCompleted ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Text style={styles.loadMoreText}>Load more</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                ) : hasSearch && hasMoreCompleted ? (
+                  <Text style={styles.searchHint}>
+                    Search covers loaded tasks only. Clear search to load more.
+                  </Text>
+                ) : null
               }
               renderSectionHeader={({ section }) => (
                 <View style={styles.sectionHeader}>
@@ -192,6 +237,43 @@ function createStyles(colors: AppColors) {
     sectionCount: {
       fontSize: 12,
       fontWeight: '600',
+      color: colors.textMuted,
+    },
+    footer: {
+      paddingTop: 8,
+      paddingBottom: 4,
+      alignItems: 'center',
+    },
+    loadMoreBtn: {
+      minWidth: 140,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...webInteractive,
+    },
+    loadMoreBtnPressed: {
+      backgroundColor: colors.todoHighlight,
+      borderColor: colors.primary,
+    },
+    loadMoreBtnDisabled: {
+      opacity: 0.7,
+    },
+    loadMoreText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    searchHint: {
+      marginTop: 8,
+      marginBottom: 4,
+      textAlign: 'center',
+      fontSize: 12,
+      fontWeight: '500',
       color: colors.textMuted,
     },
     loadingState: {
