@@ -55,7 +55,7 @@ export default function SettingsScreen() {
   const { showToast } = useToast();
   const {
     activeTasks,
-    completedTasks,
+    completedCount,
     categories,
     tags,
     addCategory,
@@ -199,13 +199,13 @@ export default function SettingsScreen() {
   };
 
   const confirmDeleteAllCompleted = () => {
-    if (completedTasks.length === 0) {
+    if (completedCount === 0) {
       Alert.alert('Nothing to delete', 'There are no completed tasks.');
       return;
     }
     Alert.alert(
       'Delete all completed tasks?',
-      `This will remove ${completedTasks.length} completed task(s).`,
+      `This will remove ${completedCount} completed task(s).`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -622,7 +622,7 @@ export default function SettingsScreen() {
               onPress={confirmDeleteAllCompleted}>
               <Trash2 size={16} color={colors.red} />
               <Text style={styles.dangerBtnText}>
-                Delete all completed ({completedTasks.length})
+                Delete all completed ({completedCount})
               </Text>
             </Pressable>
           </View>
