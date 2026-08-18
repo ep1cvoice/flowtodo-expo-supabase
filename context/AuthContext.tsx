@@ -5,6 +5,9 @@ import {
 } from '@/constants/filterLimits';
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { supabase } from '@/supabase/client';
+import { withRetry } from '@/lib/retry';
+import { generateEncryptionMaterial } from '@/lib/crypto';
+
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -113,12 +116,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username } },
     });
-    return { error: error?.message ?? null };
+
+    if (error || !data.user) {
+      return { error: error?.message ?? 'Sign up failed' };
+    }
+
+    const { salt, encryptedDek, dekIv } = await generateEncryptionMaterial(password);
+
+    try {
+      await withRetry(
+        async () => {
+          const { error: updateError, data: updated } = await supabase
+            .from('profiles')
+            .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv })
+            .eq('id', data.user!.id)
+            .select('id');
+
+          if (updateError) throw updateError;
+          if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+        },
+        { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+      );
+    } catch (err) {
+      console.warn('Failed to save encryption material after retries:', err);
+      return {
+        error:
+          'Konto utworzone, ale nie udało się zapisać kluczy szyfrowania. Spróbuj zalogować się ponownie.',
+      };
+    }
+
+    return { error: null };
   };
 
   const logout = async () => {
