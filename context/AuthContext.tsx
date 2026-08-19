@@ -8,6 +8,7 @@ import { supabase } from '@/supabase/client';
 import { generateEncryptionMaterial, encryptDekWithPassword, decryptDek } from '@/lib/crypto';
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { withRetry } from '@/lib/retry';
+import { migrateUserEncryption } from '@/lib/migrateEncryption';
 
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
@@ -136,11 +137,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      setDek(decryptDek(password, salt, encrypted_dek, dek_iv));
+      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv);
+      setDek(decryptedDek);
+      void migrateUserEncryption(data.user.id, decryptedDek).catch((err) =>
+        console.warn('Background encryption migration failed:', err)
+      );
     } catch (err) {
       console.warn('Failed to decrypt DEK:', err);
       return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
-    }
+      }
 
     return { error: null };
   };
@@ -166,7 +171,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      setDek(decryptDek(password, salt, encrypted_dek, dek_iv));
+      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv);
+      setDek(decryptedDek);
+      void migrateUserEncryption(user.id, decryptedDek).catch((err) =>
+        console.warn('Background encryption migration failed:', err)
+      );
     } catch (err) {
       console.warn('Failed to unlock DEK:', err);
       return { error: 'Nieprawidłowe hasło' };
