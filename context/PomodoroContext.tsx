@@ -12,6 +12,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { mapActivePomo, mapPomoRecord } from '@/lib/pomoMappers';
 import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoroLogoutBridge';
+import { encryptField } from '@/lib/crypto';
+import { requireDek } from '@/lib/taskDek';
 import { supabase } from '@/supabase/client';
 
 const MAX_HISTORY = 5;
@@ -42,7 +44,7 @@ function computeElapsedMs(pomo: PomoData, now = Date.now()): number {
 }
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, dek } = useAuth();
   const { tasks } = useTasks();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);
@@ -86,7 +88,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     if (activeRes.error) throw activeRes.error;
     if (historyRes.error) throw historyRes.error;
 
-    setHistory((historyRes.data ?? []).map(mapPomoRecord));
+    setHistory((historyRes.data ?? []).map((row) => mapPomoRecord(row, dek)));
 
     if (!activeRes.data) {
       setActivePomo(null);
@@ -115,7 +117,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     }
 
     setActivePomo(active);
-  }, []);
+  }, [dek]);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,10 +166,14 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     async (taskId: number) => {
       if (activePomo) return;
       const userId = requireUserId();
+      const activeDek = requireDek(dek);
+
       const minutes = Number(user?.settings?.pomodoroTime);
       const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
       const taskName = tasks.find((t) => t.id === taskId)?.title ?? 'Task';
       const now = new Date().toISOString();
+
+      const taskNameEnc = await encryptField(activeDek, taskName);
 
       const { data, error } = await supabase
         .from('pomodoros')
@@ -175,6 +181,8 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
           user_id: userId,
           task_id: taskId,
           task_name: taskName,
+          task_name_enc: taskNameEnc.ciphertext,
+          task_name_iv: taskNameEnc.iv,
           duration: durationSec,
           elapsed: 0,
           started_at: now,
@@ -187,7 +195,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       setActivePomo(mapActivePomo(data));
     },
-    [activePomo, tasks, user]
+    [activePomo, tasks, user, dek]
   );
 
   const pausePomo = useCallback(async () => {
@@ -230,14 +238,19 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activePomo, user]);
 
+
   const endPomo = useCallback(async () => {
     if (!activePomo) return;
     const userId = requireUserId();
+    const activeDek = requireDek(dek);
+
     const elapsed = computeElapsedMs(activePomo);
     const endedAt = new Date().toISOString();
     const taskName =
       tasks.find((t) => t.id === activePomo.taskId)?.title ??
       'Deleted task';
+
+    const taskNameEnc = await encryptField(activeDek, taskName);
 
     const { error } = await supabase
       .from('pomodoros')
@@ -246,6 +259,8 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         ended_at: endedAt,
         paused_at: null,
         task_name: taskName,
+        task_name_enc: taskNameEnc.ciphertext,
+        task_name_iv: taskNameEnc.iv,
       })
       .eq('id', activePomo.id)
       .eq('user_id', userId);
@@ -264,7 +279,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
     setHistory((h) => [record, ...h].slice(0, MAX_HISTORY));
     setActivePomo(null);
-  }, [activePomo, tasks, user]);
+  }, [activePomo, tasks, user, dek]);
 
   const deleteHistoryRecord = useCallback(
     async (id: number) => {

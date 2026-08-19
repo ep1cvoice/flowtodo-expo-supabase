@@ -188,19 +188,35 @@ export default function ToDoItem({
 
   const handleStartPomodoro = () => {
     if (!canStart || task.done) return;
-    void startPomo(task.id);
+    startPomo(task.id).catch((err) => {
+      showToast(toastForError(err, 'Could not start pomodoro.'), 'error');
+    });
   };
 
-  const handleToggleDone = () => {
-    if (isPomoActive) void endPomo();
+  const handleToggleDone = async () => {
+    if (isPomoActive) {
+      try {
+        await endPomo();
+      } catch (err) {
+        showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
+        return; // nie kontynuuj toggle, jeśli endPomo zawiodło
+      }
+    }
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     onToggle(task.id);
   };
 
-  const handleDelete = () => {
-    if (isPomoActive) void endPomo();
+  const handleDelete = async () => {
+    if (isPomoActive) {
+      try {
+        await endPomo();
+      } catch (err) {
+        showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
+        return;
+      }
+    }
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }

@@ -3,10 +3,11 @@ import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
 } from '@/constants/filterLimits';
-import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
+
 import { supabase } from '@/supabase/client';
+import { generateEncryptionMaterial, encryptDekWithPassword, decryptDek } from '@/lib/crypto';
+import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { withRetry } from '@/lib/retry';
-import { generateEncryptionMaterial } from '@/lib/crypto';
 
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
@@ -81,6 +82,7 @@ function toProfileRow(updates: ProfileUpdates) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dek, setDek] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -110,9 +112,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error || !data.user) {
+      return { error: error?.message ?? 'Sign in failed' };
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('salt, encrypted_dek, dek_iv')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !profileData) {
+      return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+    }
+
+    const { salt, encrypted_dek, dek_iv } = profileData;
+    if (!salt || !encrypted_dek || !dek_iv) {
+      return { error: 'Profil nie ma skonfigurowanego szyfrowania. Skontaktuj się z pomocą.' };
+    }
+
+    try {
+      setDek(decryptDek(password, salt, encrypted_dek, dek_iv));
+    } catch (err) {
+      console.warn('Failed to decrypt DEK:', err);
+      return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
+    }
+
+    return { error: null };
+  };
+
+  const unlock = async (password: string) => {
+    if (!user?.id) {
+      return { error: 'Brak aktywnej sesji.' };
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('salt, encrypted_dek, dek_iv')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profileData) {
+      return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+    }
+
+    const { salt, encrypted_dek, dek_iv } = profileData;
+    if (!salt || !encrypted_dek || !dek_iv) {
+      return { error: 'Profil nie ma skonfigurowanego szyfrowania. Skontaktuj się z pomocą.' };
+    }
+
+    try {
+      setDek(decryptDek(password, salt, encrypted_dek, dek_iv));
+    } catch (err) {
+      console.warn('Failed to unlock DEK:', err);
+      return { error: 'Nieprawidłowe hasło' };
+    }
+
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, username: string) => {
@@ -156,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await pausePomodoroBeforeLogout();
     await supabase.auth.signOut();
+    setDek(null); // clear DEK from memory after logout
   };
 
   const updateProfile = async (updates: ProfileUpdates) => {
@@ -198,6 +259,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Please sign in to update your password.' };
     }
 
+    if (!dek) {
+      return { error: 'Brak odszyfrowanego klucza. Zaloguj się ponownie przed zmianą hasła.' };
+    }
+
     const { error: reauthError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: currentPassword,
@@ -206,10 +271,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Current password is incorrect' };
     }
 
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      return { error: error.message };
+    // Pobierz obecne salt/encrypted_dek/dek_iv, żeby mieć co zbackupować
+    const { data: currentProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('salt, encrypted_dek, dek_iv')
+      .eq('id', user.id)
+      .single();
+
+    if (fetchError || !currentProfile?.salt || !currentProfile?.encrypted_dek || !currentProfile?.dek_iv) {
+      return { error: 'Nie udało się odczytać obecnych danych szyfrowania.' };
     }
+
+    const { salt, encryptedDek, dekIv } = await encryptDekWithPassword(dek, newPassword);
+
+    // Zapisz nowe wartości + backup starych w jednym update
+    try {
+      await withRetry(
+        async () => {
+          const { error: updateError, data: updated } = await supabase
+            .from('profiles')
+            .update({
+              salt,
+              encrypted_dek: encryptedDek,
+              dek_iv: dekIv,
+              salt_backup: currentProfile.salt,
+              encrypted_dek_backup: currentProfile.encrypted_dek,
+              dek_iv_backup: currentProfile.dek_iv,
+            })
+            .eq('id', user.id)
+            .select('id');
+
+          if (updateError) throw updateError;
+          if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+        },
+        { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+      );
+    } catch (err) {
+      console.warn('Failed to re-encrypt DEK:', err);
+      return { error: 'Nie udało się zaktualizować szyfrowania. Hasło NIE zostało zmienione — spróbuj ponownie.' };
+    }
+
+    // Zmień hasło w Supabase Auth
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      // Auth się nie zmieniło — przywróć stare salt/encrypted_dek/dek_iv z backupu,
+      // żeby stary DEK dalej dawał się odszyfrować starym hasłem
+      console.error('Auth password update failed, rolling back encrypted_dek:', error);
+
+      try {
+        await withRetry(
+          async () => {
+            const { error: rollbackError } = await supabase
+              .from('profiles')
+              .update({
+                salt: currentProfile.salt,
+                encrypted_dek: currentProfile.encrypted_dek,
+                dek_iv: currentProfile.dek_iv,
+                salt_backup: null,
+                encrypted_dek_backup: null,
+                dek_iv_backup: null,
+              })
+              .eq('id', user.id);
+
+            if (rollbackError) throw rollbackError;
+          },
+          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+        );
+      } catch (rollbackErr) {
+        // Najgorszy scenariusz: rollback też zawiódł. Backup w bazie zostaje
+        // to pozwoli na ręczne odzyskanie danych po stronie admina, ale user jest zablokowany.
+        console.error('CRITICAL: rollback of encrypted_dek also failed:', rollbackErr);
+        return {
+          error:
+            'Krytyczny błąd zmiany hasła. Skontaktuj się z pomocą — Twoje dane są bezpieczne, ale wymagają ręcznego odzyskania.',
+        };
+      }
+
+      return { error: 'Błąd podczas zmiany hasła. Spróbuj ponownie.' };
+    }
+
+    // Sukces wyczyść backup, nie jest już potrzebny
+    await supabase
+      .from('profiles')
+      .update({ salt_backup: null, encrypted_dek_backup: null, dek_iv_backup: null })
+      .eq('id', user.id);
 
     return { error: null };
   };
@@ -234,10 +380,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        dek,
         loading,
         signIn,
         signUp,
         logout,
+        unlock,
         updateProfile,
         updatePassword,
         deleteAccount,

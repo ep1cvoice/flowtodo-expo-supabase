@@ -17,6 +17,8 @@ import {
 } from '@/lib/completedPagination';
 import { seedDemoData } from '@/lib/seedDemoData';
 import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
+import { encryptField, hashForUniqueness } from '@/lib/crypto';
+import { requireDek } from '@/lib/taskDek';
 import { supabase } from '@/supabase/client';
 import type { Category, CategoryIcon, Tag, Task } from '@/types';
 
@@ -70,7 +72,11 @@ const TASK_SELECT = `
   id,
   user_id,
   title,
+  title_enc,
+  title_iv,
   description,
+  description_enc,
+  description_iv,
   done,
   scheduled,
   completed_at,
@@ -78,18 +84,18 @@ const TASK_SELECT = `
   category_id,
   created_at,
   updated_at,
-  categories ( id, user_id, name, color, icon, created_at ),
-  task_tags ( tags ( id, user_id, name, color, created_at ) )
+  categories ( id, user_id, name, name_enc, name_iv, name_hash, color, icon, created_at ),
+  task_tags ( tags ( id, user_id, name, name_enc, name_iv, name_hash, color, created_at ) )
 `;
 
 const TasksContext = createContext<TasksContextValue | null>(null);
 
-function mapTaskRows(rows: TaskQueryRow[] | null | undefined): Task[] {
-  return (rows ?? []).map(mapTask);
+function mapTaskRows(rows: TaskQueryRow[] | null | undefined, dek: Uint8Array | null): Task[] {
+  return (rows ?? []).map((row) => mapTask(row, dek));
 }
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, dek } = useAuth();
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
@@ -124,7 +130,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = mapTaskRows(data as TaskQueryRow[] | null);
+      const rows = mapTaskRows(data as TaskQueryRow[] | null, dek);
       const hasMore = rows.length > COMPLETED_PAGE_SIZE;
       const page = hasMore ? rows.slice(0, COMPLETED_PAGE_SIZE) : rows;
       const nextCursor =
@@ -132,7 +138,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
       return { page, hasMore, nextCursor };
     },
-    []
+    [dek]
   );
 
   const refresh = useCallback(
@@ -160,9 +166,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       if (activeRes.error) throw activeRes.error;
       if (countRes.error) throw countRes.error;
 
-      const nextCategories = (categoriesRes.data ?? []).map(mapCategory);
-      const nextTags = (tagsRes.data ?? []).map(mapTag);
-      const nextActive = mapTaskRows(activeRes.data as TaskQueryRow[] | null);
+      const nextCategories = (categoriesRes.data ?? []).map((row) => mapCategory(row, dek));
+      const nextTags = (tagsRes.data ?? []).map((row) => mapTag(row, dek));
+      const nextActive = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek);
       const nextCompleted = sortCompletedTasks(completedPage.page);
 
       setCategories(nextCategories);
@@ -180,7 +186,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         completedTasks: nextCompleted,
       };
     },
-    [fetchCompletedPage]
+    [fetchCompletedPage, dek]
   );
 
   useEffect(() => {
@@ -276,19 +282,37 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const addTask = async ({ title, description, categoryId, tagIds }: AddTaskInput) => {
     const userId = requireUserId();
+    const activeDek = requireDek(dek);
+
     const minSort = activeTasks.length
       ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
       : 0;
+
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    const titleEnc = await encryptField(activeDek, trimmedTitle);
+    let descriptionEncFields: { description_enc: string | null; description_iv: string | null } = {
+      description_enc: null,
+      description_iv: null,
+    };
+    if (trimmedDescription) {
+      const descEnc = await encryptField(activeDek, trimmedDescription);
+      descriptionEncFields = { description_enc: descEnc.ciphertext, description_iv: descEnc.iv };
+    }
 
     const { data, error } = await supabase
       .from('tasks')
       .insert({
         user_id: userId,
-        title: title.trim(),
-        description: description.trim(),
+        title: trimmedTitle,
+        description: trimmedDescription,
         category_id: categoryId,
         sort_order: minSort,
         done: false,
+        title_enc: titleEnc.ciphertext,
+        title_iv: titleEnc.iv,
+        ...descriptionEncFields,
       })
       .select('id')
       .single();
@@ -310,13 +334,30 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     { title, description, categoryId, tagIds }: UpdateTaskInput
   ) => {
     const userId = requireUserId();
+    const activeDek = requireDek(dek);
+
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    const titleEnc = await encryptField(activeDek, trimmedTitle);
+    let descriptionEncFields: { description_enc: string | null; description_iv: string | null } = {
+      description_enc: null,
+      description_iv: null,
+    };
+    if (trimmedDescription) {
+      const descEnc = await encryptField(activeDek, trimmedDescription);
+      descriptionEncFields = { description_enc: descEnc.ciphertext, description_iv: descEnc.iv };
+    }
 
     const { error } = await supabase
       .from('tasks')
       .update({
-        title: title.trim(),
-        description: description.trim(),
+        title: trimmedTitle,
+        description: trimmedDescription,
         category_id: categoryId,
+        title_enc: titleEnc.ciphertext,
+        title_iv: titleEnc.iv,
+        ...descriptionEncFields,
       })
       .eq('id', id)
       .eq('user_id', userId);
@@ -359,37 +400,55 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const addCategory = async ({ name, color, icon }: AddCategoryInput): Promise<Category> => {
     const userId = requireUserId();
+    const activeDek = requireDek(dek);
+    const trimmedName = name.trim();
+
+    const nameEnc = await encryptField(activeDek, trimmedName);
+    const nameHash = hashForUniqueness(activeDek, trimmedName);
+
     const { data, error } = await supabase
       .from('categories')
       .insert({
         user_id: userId,
-        name: name.trim(),
+        name: trimmedName,
         color,
         icon: String(icon),
+        name_enc: nameEnc.ciphertext,
+        name_iv: nameEnc.iv,
+        name_hash: nameHash,
       })
       .select('*')
       .single();
 
     if (error) throw error;
-    const category = mapCategory(data);
+    const category = mapCategory(data, dek);
     setCategories((prev) => [...prev, category]);
     return category;
   };
 
   const addTag = async ({ name, color }: AddTagInput): Promise<Tag> => {
     const userId = requireUserId();
+    const activeDek = requireDek(dek);
+    const trimmedName = name.trim();
+
+    const nameEnc = await encryptField(activeDek, trimmedName);
+    const nameHash = hashForUniqueness(activeDek, trimmedName);
+
     const { data, error } = await supabase
       .from('tags')
       .insert({
         user_id: userId,
-        name: name.trim(),
+        name: trimmedName,
         color,
+        name_enc: nameEnc.ciphertext,
+        name_iv: nameEnc.iv,
+        name_hash: nameHash,
       })
       .select('*')
       .single();
 
     if (error) throw error;
-    const tag = mapTag(data);
+    const tag = mapTag(data, dek);
     setTags((prev) => [...prev, tag]);
     return tag;
   };

@@ -5,6 +5,8 @@ const baseRow = {
   user_id: 'u1',
   task_id: 42,
   task_name: 'Focus block',
+  task_name_enc: null,
+  task_name_iv: null,
   duration: 25,
   elapsed: 120000,
   started_at: '2026-01-02T10:00:00Z',
@@ -33,7 +35,7 @@ describe('pomo mappers', () => {
         ended_at: '2026-01-02T10:25:00Z',
         task_id: null,
         task_name: '',
-      })
+      }, null)
     ).toEqual({
       id: 7,
       taskId: 0,

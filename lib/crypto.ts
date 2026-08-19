@@ -2,6 +2,12 @@ import * as ExpoCrypto from 'expo-crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { gcm } from '@noble/ciphers/aes';
+import { hmac } from '@noble/hashes/hmac.js';
+
+export interface EncryptedField {
+  ciphertext: string; // Base64
+  iv: string;         // Base64
+}
 
 const SALT_BYTES = 16;
 const DEK_BYTES = 32; // AES-256
@@ -62,7 +68,29 @@ export async function generateEncryptionMaterial(password: string): Promise<Encr
 }
 
 /**
- * Odszyfrowuje DEK przy logowaniu — potrzebne hasło, salt i dekIv z profilu.
+ * Szyfruje istniejący (już odszyfrowany) DEK nowym hasłem.
+ * Używane przy zmianie hasła - nie generuje nowego DEK, tylko re-wrapuje istniejący.
+ */
+export async function encryptDekWithPassword(
+  dek: Uint8Array,
+  password: string
+): Promise<EncryptionMaterial> {
+  const saltBytes = await randomBytes(SALT_BYTES);
+  const ivBytes = await randomBytes(IV_BYTES);
+
+  const kek = deriveKeyFromPassword(password, saltBytes);
+  const cipher = gcm(kek, ivBytes);
+  const encryptedDekBytes = cipher.encrypt(dek);
+
+  return {
+    salt: toBase64(saltBytes),
+    encryptedDek: toBase64(encryptedDekBytes),
+    dekIv: toBase64(ivBytes),
+  };
+}
+
+/**
+ * Odszyfrowuje DEK przy logowaniu - potrzebne hasło, salt i dekIv z profilu.
  */
 export function decryptDek(
   password: string,
@@ -78,4 +106,46 @@ export function decryptDek(
   const cipher = gcm(kek, iv);
 
   return cipher.decrypt(encryptedDek); // returns error when password/tag is not matching
+}
+
+/**
+ * Szyfruje pojedyncze pole tekstowe (np. tytuł, opis, nazwę) kluczem DEK.
+ * Każde wywołanie generuje nowy losowy IV - nigdy nie reużywaj IV.
+ */
+export async function encryptField(dek: Uint8Array, plaintext: string): Promise<EncryptedField> {
+  const ivBytes = await randomBytes(IV_BYTES);
+  const cipher = gcm(dek, ivBytes);
+  const plaintextBytes = new TextEncoder().encode(plaintext);
+  const ciphertextBytes = cipher.encrypt(plaintextBytes);
+
+  return {
+    ciphertext: toBase64(ciphertextBytes),
+    iv: toBase64(ivBytes),
+  };
+}
+
+/**
+ * Odszyfrowuje pole zaszyfrowane przez encryptField.
+ * Rzuca błąd jeśli DEK się nie zgadza lub dane są uszkodzone (tag GCM nie pasuje).
+ */
+export function decryptField(dek: Uint8Array, ciphertextB64: string, ivB64: string): string {
+  const ciphertext = fromBase64(ciphertextB64);
+  const iv = fromBase64(ivB64);
+  const cipher = gcm(dek, iv);
+  const plaintextBytes = cipher.decrypt(ciphertext);
+
+  return new TextDecoder().decode(plaintextBytes);
+}
+
+/**
+ * Deterministyczny hash pola do sprawdzania unikalności/duplikatów bez odszyfrowywania
+ * (np. czy user już ma tag o takiej nazwie). HMAC z DEK jako kluczem -
+ * ten sam plaintext zawsze da ten sam hash, ale hash nie zdradza treści
+ * i nie da się go policzyć bez znajomości DEK (chroni przed rainbow table).
+ */
+export function hashForUniqueness(dek: Uint8Array, plaintext: string): string {
+  const normalized = plaintext.trim().toLowerCase();
+  const plaintextBytes = new TextEncoder().encode(normalized);
+  const hashBytes = hmac(sha256, dek, plaintextBytes);
+  return toBase64(hashBytes);
 }

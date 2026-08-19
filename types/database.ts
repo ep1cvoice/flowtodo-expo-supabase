@@ -21,6 +21,9 @@ export type Database = {
           icon: string
           id: number
           name: string
+          name_enc: string | null
+          name_hash: string | null
+          name_iv: string | null
           user_id: string
         }
         Insert: {
@@ -29,6 +32,9 @@ export type Database = {
           icon?: string
           id?: number
           name: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
           user_id: string
         }
         Update: {
@@ -37,6 +43,9 @@ export type Database = {
           icon?: string
           id?: number
           name?: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
           user_id?: string
         }
         Relationships: [
@@ -60,6 +69,8 @@ export type Database = {
           started_at: string
           task_id: number | null
           task_name: string
+          task_name_enc: string | null
+          task_name_iv: string | null
           user_id: string
         }
         Insert: {
@@ -72,6 +83,8 @@ export type Database = {
           started_at?: string
           task_id?: number | null
           task_name?: string
+          task_name_enc?: string | null
+          task_name_iv?: string | null
           user_id: string
         }
         Update: {
@@ -84,6 +97,8 @@ export type Database = {
           started_at?: string
           task_id?: number | null
           task_name?: string
+          task_name_enc?: string | null
+          task_name_iv?: string | null
           user_id?: string
         }
         Relationships: [
@@ -107,12 +122,15 @@ export type Database = {
         Row: {
           created_at: string | null
           dek_iv: string | null
+          dek_iv_backup: string | null
           encrypted_dek: string | null
+          encrypted_dek_backup: string | null
           id: string
           max_filter_selections: number
           notification_type: string | null
           pomodoro_time: number | null
           salt: string | null
+          salt_backup: string | null
           theme: string | null
           username: string
           view: string | null
@@ -120,12 +138,15 @@ export type Database = {
         Insert: {
           created_at?: string | null
           dek_iv?: string | null
+          dek_iv_backup?: string | null
           encrypted_dek?: string | null
+          encrypted_dek_backup?: string | null
           id: string
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
           salt?: string | null
+          salt_backup?: string | null
           theme?: string | null
           username: string
           view?: string | null
@@ -133,12 +154,15 @@ export type Database = {
         Update: {
           created_at?: string | null
           dek_iv?: string | null
+          dek_iv_backup?: string | null
           encrypted_dek?: string | null
+          encrypted_dek_backup?: string | null
           id?: string
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
           salt?: string | null
+          salt_backup?: string | null
           theme?: string | null
           username?: string
           view?: string | null
@@ -151,6 +175,9 @@ export type Database = {
           created_at: string
           id: number
           name: string
+          name_enc: string | null
+          name_hash: string | null
+          name_iv: string | null
           user_id: string
         }
         Insert: {
@@ -158,6 +185,9 @@ export type Database = {
           created_at?: string
           id?: number
           name: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
           user_id: string
         }
         Update: {
@@ -165,6 +195,9 @@ export type Database = {
           created_at?: string
           id?: number
           name?: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
           user_id?: string
         }
         Relationships: [
@@ -213,11 +246,15 @@ export type Database = {
           completed_at: string | null
           created_at: string
           description: string
+          description_enc: string | null
+          description_iv: string | null
           done: boolean
           id: number
           scheduled: string | null
           sort_order: number
           title: string
+          title_enc: string | null
+          title_iv: string | null
           updated_at: string
           user_id: string
         }
@@ -226,11 +263,15 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string
+          description_enc?: string | null
+          description_iv?: string | null
           done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
           title: string
+          title_enc?: string | null
+          title_iv?: string | null
           updated_at?: string
           user_id: string
         }
@@ -239,11 +280,15 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string
+          description_enc?: string | null
+          description_iv?: string | null
           done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
           title?: string
+          title_enc?: string | null
+          title_iv?: string | null
           updated_at?: string
           user_id?: string
         }
