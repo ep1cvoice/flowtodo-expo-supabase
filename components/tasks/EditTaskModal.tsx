@@ -150,7 +150,6 @@ export default function EditTaskModal({
                   onChangeText={handleTitleChange}
                   placeholder="Enter task title..."
                   placeholderTextColor={colors.textMuted}
-                  autoFocus
                   style={[styles.input, inputError ? styles.inputError : null]}
                 />
                 {!!inputError && <Text style={styles.inputErrorMsg}>{inputError}</Text>}

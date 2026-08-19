@@ -11,23 +11,13 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import {
+  WEEKDAY_LABELS,
+  buildMonthWeeks,
+  sameDay,
+  startOfDay,
+} from '@/lib/calendarDate';
 import { webInteractive } from '@/utils/pressableWeb';
-
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
 
 interface CalendarModalProps {
   visible: boolean;
@@ -63,25 +53,7 @@ export default function CalendarModal({
     setMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
   }, [visible, selected, today]);
 
-  const weeks = useMemo(() => {
-    const year = monthCursor.getFullYear();
-    const month = monthCursor.getMonth();
-    const firstDow = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells: (Date | null)[] = [];
-
-    for (let i = 0; i < firstDow; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push(new Date(year, month, d));
-    }
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    const rows: (Date | null)[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-      rows.push(cells.slice(i, i + 7));
-    }
-    return rows;
-  }, [monthCursor]);
+  const weeks = useMemo(() => buildMonthWeeks(monthCursor), [monthCursor]);
 
   const monthLabel = monthCursor.toLocaleDateString('en-US', {
     month: 'long',
@@ -124,7 +96,7 @@ export default function CalendarModal({
           </View>
 
           <View style={styles.weekRow}>
-            {WEEKDAYS.map((d) => (
+            {WEEKDAY_LABELS.map((d) => (
               <View key={d} style={styles.weekdayCell}>
                 <Text style={styles.weekday}>{d}</Text>
               </View>

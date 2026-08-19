@@ -22,6 +22,7 @@ import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { toastForError } from '@/lib/networkError';
+import { toScheduledIso } from '@/lib/calendarDate';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface AddTaskModalProps {
@@ -31,12 +32,14 @@ interface AddTaskModalProps {
     description: string;
     categoryId: number | null;
     tagIds: number[];
+    scheduled?: string | null;
   }) => void | Promise<void>;
   onClose: () => void;
   categories: Category[];
   tags: Tag[];
   defaultCategoryId?: number | null;
   defaultTagIds?: number[];
+  defaultScheduled?: Date | null;
 }
 
 export default function AddTaskModal({
@@ -47,6 +50,7 @@ export default function AddTaskModal({
   tags,
   defaultCategoryId = null,
   defaultTagIds = [],
+  defaultScheduled = null,
 }: AddTaskModalProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 480;
@@ -108,7 +112,13 @@ export default function AddTaskModal({
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      await onAdd({ title, description, categoryId, tagIds });
+      await onAdd({
+        title,
+        description,
+        categoryId,
+        tagIds,
+        scheduled: defaultScheduled ? toScheduledIso(defaultScheduled) : null,
+      });
       showToast('Task created.');
       reset();
       onClose();
@@ -147,7 +157,6 @@ export default function AddTaskModal({
                   onChangeText={handleTitleChange}
                   placeholder="Enter task title..."
                   placeholderTextColor={colors.textMuted}
-                  autoFocus
                   style={[styles.input, inputError ? styles.inputError : null]}
                 />
                 {!!inputError && <Text style={styles.inputErrorMsg}>{inputError}</Text>}
