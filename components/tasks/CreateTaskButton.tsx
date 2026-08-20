@@ -1,59 +1,55 @@
 import { useMemo } from 'react';
-import { Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
+export const CREATE_TASK_FAB_CLEARANCE = 88;
+
 interface CreateTaskButtonProps {
   onPress: () => void;
-  label?: string;
 }
 
-export default function CreateTaskButton({
-  onPress,
-  label = 'Create New Task',
-}: CreateTaskButtonProps) {
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= tokens.desktopBreakpoint;
+export default function CreateTaskButton({ onPress }: CreateTaskButtonProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Pressable
       style={({ pressed, hovered }) => [
-        styles.button,
-        isDesktop && styles.buttonDesktop,
+        styles.fab,
         hovered && styles.hovered,
         pressed && styles.pressed,
       ]}
-      onPress={onPress}>
-      <Plus size={20} color="#fff" />
-      <Text style={styles.label}>{label}</Text>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Create new task">
+      <Plus size={28} color="#fff" strokeWidth={2} />
     </Pressable>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    button: {
-      flexDirection: 'row',
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+      zIndex: 9000,
+      elevation: 9000,
+      width: 60,
+      height: 60,
+      borderRadius: 50,
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      height: 48,
-      paddingVertical: 12,
-      paddingHorizontal: 26,
-      backgroundColor: colors.primary,
-      borderRadius: tokens.borderRadius,
-      gap: 8,
-      width: '100%',
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
       ...webInteractive,
-    },
-    buttonDesktop: {
-      width: '100%',
-      maxWidth: 320,
-      alignSelf: 'flex-end',
     },
     hovered: {
       backgroundColor: colors.primaryHover,
@@ -61,11 +57,6 @@ function createStyles(colors: AppColors) {
     pressed: {
       backgroundColor: colors.primaryHover,
       opacity: 0.92,
-    },
-    label: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
     },
   });
 }

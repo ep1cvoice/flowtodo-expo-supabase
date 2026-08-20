@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
+import { useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Mail, Lock, User } from 'lucide-react-native';
 import Heading from '@/components/ui/Heading';
@@ -7,7 +6,6 @@ import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
 import Linking from '@/components/ui/Linking';
 import AuthLayout from '@/components/ui/AuthLayout';
-import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { validateRegister } from '@/lib/authValidation';
@@ -24,9 +22,7 @@ export default function RegisterScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
-  const { colors } = useTheme();
   const { showToast } = useToast();
-  const styles = useMemo(() => createStyles(), [colors]);
   const { signUp } = useAuth();
 
   const setField = (key: keyof typeof values, text: string) => {
@@ -55,72 +51,51 @@ export default function RegisterScreen() {
 
   return (
     <AuthLayout gap={32}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <Heading title="Create Account" text="Sign up to get started" />
+      <Heading title="Create Account" text="Sign up to get started" />
 
-        <Field
-          innerText="Enter your email"
-          Icon={Mail}
-          type="email"
-          label="Email"
-          value={values.email}
-          onChangeText={(t) => setField('email', t)}
-          error={submitted ? errors.email : ''}
-        />
+      <Field
+        innerText="Enter your email"
+        Icon={Mail}
+        type="email"
+        label="Email"
+        value={values.email}
+        onChangeText={(t) => setField('email', t)}
+        error={submitted ? errors.email : ''}
+      />
 
-        <Field
-          innerText="Enter your username"
-          Icon={User}
-          type="text"
-          label="Username"
-          value={values.username}
-          onChangeText={(t) => setField('username', t)}
-          error={submitted ? errors.username : ''}
-          autoCapitalize="none"
-        />
+      <Field
+        innerText="Enter your username"
+        Icon={User}
+        type="text"
+        label="Username"
+        value={values.username}
+        onChangeText={(t) => setField('username', t)}
+        error={submitted ? errors.username : ''}
+        autoCapitalize="none"
+      />
 
-        <Field
-          innerText="Enter your password"
-          Icon={Lock}
-          type="password"
-          label="Password"
-          value={values.password}
-          onChangeText={(t) => setField('password', t)}
-          error={submitted ? errors.password : ''}
-        />
+      <Field
+        innerText="Enter your password"
+        Icon={Lock}
+        type="password"
+        label="Password"
+        value={values.password}
+        onChangeText={(t) => setField('password', t)}
+        error={submitted ? errors.password : ''}
+      />
 
-        <Field
-          innerText="Confirm your password"
-          Icon={Lock}
-          type="password"
-          label="Confirm password"
-          value={values.confirmPassword}
-          onChangeText={(t) => setField('confirmPassword', t)}
-          error={submitted ? errors.confirmPassword : ''}
-        />
+      <Field
+        innerText="Confirm your password"
+        Icon={Lock}
+        type="password"
+        label="Confirm password"
+        value={values.confirmPassword}
+        onChangeText={(t) => setField('confirmPassword', t)}
+        error={submitted ? errors.confirmPassword : ''}
+      />
 
-        <Button inner={submitting ? 'Creating…' : 'Create account'} onPress={handleSubmit} />
-        <Linking to={'/(auth)/login' as Href} innerText="Already have an account? Sign in" />
-      </ScrollView>
+      <Button inner={submitting ? 'Creating…' : 'Create account'} onPress={handleSubmit} />
+      <Linking to={'/(auth)/login' as Href} innerText="Already have an account? Sign in" />
     </AuthLayout>
   );
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    scrollView: {
-      flex: 1,
-      width: '100%',
-    },
-    scroll: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      gap: 32,
-      paddingBottom: 24,
-    },
-  });
 }

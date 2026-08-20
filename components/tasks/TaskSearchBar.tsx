@@ -13,7 +13,6 @@ import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-/** Same as list content inset / ToDoItem outer spacing. Parent must provide this pad. */
 export const TASK_LIST_INSET = 10;
 const OPEN_HEIGHT = 40;
 
@@ -71,7 +70,7 @@ export default function TaskSearchBar({
     inputRange: [0, 1],
     outputRange: [0, OPEN_HEIGHT],
   });
-  // Gap under search = same as ToDoItem marginBottom when open.
+  
   const marginBottom = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, TASK_LIST_INSET],

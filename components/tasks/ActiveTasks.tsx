@@ -22,18 +22,25 @@ import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/ToDoItem';
-import CreateTaskButton from '@/components/tasks/CreateTaskButton';
+import CreateTaskButton, {
+  CREATE_TASK_FAB_CLEARANCE,
+} from '@/components/tasks/CreateTaskButton';
 import AddTaskModal from '@/components/tasks/AddTaskModal';
 import TaskFilterBar from '@/components/tasks/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
 import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/TaskSearchBar';
 import TaskSortSheet from '@/components/tasks/TaskSortMenu';
+import ActiveDayCalendar from '@/components/tasks/ActiveDayCalendar';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
 } from '@/constants/filterLimits';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
+import {
+  collectMarkedDayKeys,
+  taskMatchesScheduledDay,
+} from '@/lib/calendarDate';
 import { toastForError } from '@/lib/networkError';
 import { applyFilteredReorder } from '@/lib/taskReorder';
 import { filterTasksBySearch } from '@/lib/taskSearch';
@@ -67,6 +74,7 @@ export default function ActiveTasks() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<TaskSortMode>('manual');
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
@@ -161,8 +169,11 @@ export default function ActiveTasks() {
   );
   const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
   const hasSearch = searchQuery.trim().length > 0;
-  const hasListConstraints = hasFilters || hasSearch;
+  const hasDayFilter = selectedDay != null;
+  const hasListConstraints = hasFilters || hasSearch || hasDayFilter;
   const isManualSort = sortMode === 'manual';
+
+  const markedDays = useMemo(() => collectMarkedDayKeys(activeTasks), [activeTasks]);
 
   const filteredTasks = useMemo(() => {
     const sorted = sortTasks(activeTasks, sortMode);
@@ -179,8 +190,10 @@ export default function ActiveTasks() {
       }
       return true;
     });
-    return filterTasksBySearch(byLabels, searchQuery);
-  }, [activeTasks, sortMode, validCategoryIds, validTagIds, searchQuery]);
+    const bySearch = filterTasksBySearch(byLabels, searchQuery);
+    if (!selectedDay) return bySearch;
+    return bySearch.filter((task) => taskMatchesScheduledDay(task, selectedDay));
+  }, [activeTasks, sortMode, validCategoryIds, validTagIds, searchQuery, selectedDay]);
 
   const canReorder = isManualSort && filteredTasks.length > 1;
 
@@ -349,6 +362,12 @@ export default function ActiveTasks() {
   );
 
   const emptyCopy = (() => {
+    if (hasDayFilter && !hasSearch && !hasFilters) {
+      return {
+        title: 'No tasks on this day',
+        text: 'Create a task or pick another day',
+      };
+    }
     if (hasSearch && !hasFilters) {
       return {
         title: 'No matching tasks',
@@ -411,40 +430,47 @@ export default function ActiveTasks() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <ActiveDayCalendar
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
+          markedDays={markedDays}
+        />
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading tasks…</Text>
           </View>
-        ) : isWeb ? (
-          <FlatList
-            style={styles.tasksList}
-            contentContainerStyle={listContentStyle}
-            data={filteredTasks}
-            keyExtractor={(item) => String(item.id)}
-            ListEmptyComponent={emptyComponent}
-            renderItem={renderWebItem}
-            keyboardShouldPersistTaps="handled"
-          />
         ) : (
-          <DraggableFlatList
-            style={styles.tasksList}
-            containerStyle={styles.tasksList}
-            contentContainerStyle={listContentStyle}
-            data={filteredTasks}
-            keyExtractor={(item) => String(item.id)}
-            onDragEnd={handleDragEnd}
-            activationDistance={canReorder ? 8 : 9999}
-            ListEmptyComponent={emptyComponent}
-            renderItem={renderNativeItem}
-            keyboardShouldPersistTaps="handled"
-          />
+          <View style={styles.listArea}>
+            {isWeb ? (
+              <FlatList
+                style={styles.tasksList}
+                contentContainerStyle={listContentStyle}
+                data={filteredTasks}
+                keyExtractor={(item) => String(item.id)}
+                ListEmptyComponent={emptyComponent}
+                renderItem={renderWebItem}
+                keyboardShouldPersistTaps="handled"
+              />
+            ) : (
+              <DraggableFlatList
+                style={styles.tasksList}
+                containerStyle={styles.tasksList}
+                contentContainerStyle={listContentStyle}
+                data={filteredTasks}
+                keyExtractor={(item) => String(item.id)}
+                onDragEnd={handleDragEnd}
+                activationDistance={canReorder ? 8 : 9999}
+                ListEmptyComponent={emptyComponent}
+                renderItem={renderNativeItem}
+                keyboardShouldPersistTaps="handled"
+              />
+            )}
+          </View>
         )}
       </View>
 
-      <View style={styles.activeFooter}>
-        <CreateTaskButton onPress={() => setShowCreateModal(true)} />
-      </View>
+      <CreateTaskButton onPress={() => setShowCreateModal(true)} />
 
       <AddTaskModal
         visible={showCreateModal}
@@ -452,6 +478,7 @@ export default function ActiveTasks() {
         onAdd={addTask}
         categories={categories}
         tags={tags}
+        defaultScheduled={selectedDay}
       />
 
       <TaskFilterSheet
@@ -484,7 +511,6 @@ function createStyles(colors: AppColors) {
     container: {
       flex: 1,
       minHeight: 0,
-      overflow: 'visible',
     },
     contentInset: {
       flex: 1,
@@ -492,19 +518,24 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: TASK_LIST_INSET,
       paddingTop: TASK_LIST_INSET,
     },
+    listArea: {
+      flex: 1,
+      minHeight: 0,
+      overflow: 'hidden',
+    },
     tasksList: {
       flex: 1,
       minHeight: 0,
-      overflow: 'visible',
     },
     tasksContent: {
       flexGrow: 1,
     },
     tasksContentPad: {
-      paddingBottom: 14,
+      paddingBottom: CREATE_TASK_FAB_CLEARANCE,
     },
     tasksContentEmpty: {
       flexGrow: 1,
+      justifyContent: 'center',
     },
     itemWrap: {
       overflow: 'visible',
@@ -531,7 +562,7 @@ function createStyles(colors: AppColors) {
       color: colors.textMuted,
     },
     emptyState: {
-      flex: 1,
+      flexGrow: 1,
       justifyContent: 'center',
       alignItems: 'center',
       paddingVertical: 40,
@@ -560,11 +591,6 @@ function createStyles(colors: AppColors) {
       fontSize: 14,
       color: colors.textMuted,
       textAlign: 'center',
-    },
-    activeFooter: {
-      width: '100%',
-      alignItems: 'stretch',
-      paddingTop: 10,
     },
   });
 }

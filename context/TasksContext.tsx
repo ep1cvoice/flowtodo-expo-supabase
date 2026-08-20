@@ -25,6 +25,7 @@ export interface AddTaskInput {
   description: string;
   categoryId: number | null;
   tagIds: number[];
+  scheduled?: string | null;
 }
 
 export type UpdateTaskInput = AddTaskInput;
@@ -274,7 +275,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return user.id;
   };
 
-  const addTask = async ({ title, description, categoryId, tagIds }: AddTaskInput) => {
+  const addTask = async ({
+    title,
+    description,
+    categoryId,
+    tagIds,
+    scheduled = null,
+  }: AddTaskInput) => {
     const userId = requireUserId();
     const minSort = activeTasks.length
       ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
@@ -289,6 +296,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         category_id: categoryId,
         sort_order: minSort,
         done: false,
+        scheduled: scheduled ?? null,
       })
       .select('id')
       .single();
