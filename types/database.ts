@@ -126,6 +126,7 @@ export type Database = {
           encrypted_dek: string | null
           encrypted_dek_backup: string | null
           id: string
+          kdf_iterations: number
           max_filter_selections: number
           notification_type: string | null
           pomodoro_time: number | null
@@ -142,6 +143,7 @@ export type Database = {
           encrypted_dek?: string | null
           encrypted_dek_backup?: string | null
           id: string
+          kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
@@ -158,6 +160,7 @@ export type Database = {
           encrypted_dek?: string | null
           encrypted_dek_backup?: string | null
           id?: string
+          kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null

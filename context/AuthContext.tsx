@@ -5,7 +5,12 @@ import {
 } from '@/constants/filterLimits';
 
 import { supabase } from '@/supabase/client';
-import { generateEncryptionMaterial, encryptDekWithPassword, decryptDek } from '@/lib/crypto';
+import {
+  generateEncryptionMaterial,
+  encryptDekWithPassword,
+  decryptDek,
+  CURRENT_PBKDF2_ITERATIONS,
+} from '@/lib/crypto';
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { withRetry } from '@/lib/retry';
 import { migrateUserEncryption } from '@/lib/migrateEncryption';
@@ -16,6 +21,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const PROFILE_RETRY_ATTEMPTS = 3;
 const PROFILE_RETRY_DELAY_MS = 500;
+const LEGACY_KDF_ITERATIONS = 50_000; // wartość używana przed wprowadzeniem kolumny kdf_iterations
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -80,6 +86,38 @@ function toProfileRow(updates: ProfileUpdates) {
   return row;
 }
 
+/**
+ * Re-wrapuje DEK nową (silniejszą) liczbą iteracji PBKDF2, w tle, bez blokowania UI.
+ * Wywoływane po udanym odszyfrowaniu, jeśli profil ma jeszcze starą wartość kdf_iterations.
+ */
+async function upgradeKdfIterationsInBackground(
+  userId: string,
+  decryptedDek: Uint8Array,
+  password: string,
+  currentIterations: number
+) {
+  if (currentIterations >= CURRENT_PBKDF2_ITERATIONS) return;
+
+  try {
+    const rewrapped = await encryptDekWithPassword(decryptedDek, password);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        salt: rewrapped.salt,
+        encrypted_dek: rewrapped.encryptedDek,
+        dek_iv: rewrapped.dekIv,
+        kdf_iterations: rewrapped.kdfIterations,
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.warn('KDF iterations upgrade failed:', error.message);
+    }
+  } catch (err) {
+    console.warn('KDF iterations upgrade threw:', err);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('salt, encrypted_dek, dek_iv')
+      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
       .eq('id', data.user.id)
       .single();
 
@@ -130,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
     }
 
-    let { salt, encrypted_dek, dek_iv } = profileData;
+    let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
 
     // Stare konto sprzed wdrożenia szyfrowania - brak salt/DEK. Wygeneruj teraz.
     if (!salt || !encrypted_dek || !dek_iv) {
@@ -145,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 salt: generated.salt,
                 encrypted_dek: generated.encryptedDek,
                 dek_iv: generated.dekIv,
+                kdf_iterations: generated.kdfIterations,
               })
               .eq('id', data.user!.id)
               .select('id');
@@ -162,11 +201,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       salt = generated.salt;
       encrypted_dek = generated.encryptedDek;
       dek_iv = generated.dekIv;
+      kdf_iterations = generated.kdfIterations;
     }
 
     try {
-      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv);
+      const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
       setDek(decryptedDek);
+
+      void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
       void migrateUserEncryption(data.user.id, decryptedDek).catch((err) =>
         console.warn('Background encryption migration failed:', err)
       );
@@ -185,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('salt, encrypted_dek, dek_iv')
+      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
       .eq('id', user.id)
       .single();
 
@@ -193,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
     }
 
-    let { salt, encrypted_dek, dek_iv } = profileData;
+    let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
 
     // Stare konto bez DEK - zweryfikuj hasło przez Auth i wygeneruj DEK teraz
     if (!salt || !encrypted_dek || !dek_iv) {
@@ -216,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 salt: generated.salt,
                 encrypted_dek: generated.encryptedDek,
                 dek_iv: generated.dekIv,
+                kdf_iterations: generated.kdfIterations,
               })
               .eq('id', user.id)
               .select('id');
@@ -233,11 +277,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       salt = generated.salt;
       encrypted_dek = generated.encryptedDek;
       dek_iv = generated.dekIv;
+      kdf_iterations = generated.kdfIterations;
     }
 
     try {
-      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv);
+      const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
       setDek(decryptedDek);
+
+      void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
       void migrateUserEncryption(user.id, decryptedDek).catch((err) =>
         console.warn('Background encryption migration failed:', err)
       );
@@ -260,14 +308,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: error?.message ?? 'Sign up failed' };
     }
 
-    const { salt, encryptedDek, dekIv } = await generateEncryptionMaterial(password);
+    const { salt, encryptedDek, dekIv, kdfIterations } = await generateEncryptionMaterial(password);
 
     try {
       await withRetry(
         async () => {
           const { error: updateError, data: updated } = await supabase
             .from('profiles')
-            .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv })
+            .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv, kdf_iterations: kdfIterations })
             .eq('id', data.user!.id)
             .select('id');
 
@@ -345,10 +393,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Current password is incorrect' };
     }
 
-    // Pobierz obecne salt/encrypted_dek/dek_iv, żeby mieć co zbackupować
+    // Pobierz obecne salt/encrypted_dek/dek_iv/kdf_iterations, żeby mieć co zbackupować
     const { data: currentProfile, error: fetchError } = await supabase
       .from('profiles')
-      .select('salt, encrypted_dek, dek_iv')
+      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
       .eq('id', user.id)
       .single();
 
@@ -356,7 +404,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Nie udało się odczytać obecnych danych szyfrowania.' };
     }
 
-    const { salt, encryptedDek, dekIv } = await encryptDekWithPassword(dek, newPassword);
+    const { salt, encryptedDek, dekIv, kdfIterations } = await encryptDekWithPassword(dek, newPassword);
 
     // Zapisz nowe wartości + backup starych w jednym update
     try {
@@ -368,6 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               salt,
               encrypted_dek: encryptedDek,
               dek_iv: dekIv,
+              kdf_iterations: kdfIterations,
               salt_backup: currentProfile.salt,
               encrypted_dek_backup: currentProfile.encrypted_dek,
               dek_iv_backup: currentProfile.dek_iv,
@@ -389,7 +438,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
 
     if (error) {
-      // Auth się nie zmieniło — przywróć stare salt/encrypted_dek/dek_iv z backupu,
+      // Auth się nie zmieniło — przywróć stare salt/encrypted_dek/dek_iv/kdf_iterations z backupu,
       // żeby stary DEK dalej dawał się odszyfrować starym hasłem
       console.error('Auth password update failed, rolling back encrypted_dek:', error);
 
@@ -402,6 +451,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 salt: currentProfile.salt,
                 encrypted_dek: currentProfile.encrypted_dek,
                 dek_iv: currentProfile.dek_iv,
+                kdf_iterations: currentProfile.kdf_iterations,
                 salt_backup: null,
                 encrypted_dek_backup: null,
                 dek_iv_backup: null,

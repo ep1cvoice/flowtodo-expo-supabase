@@ -13,7 +13,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import DragFlatList from 'react-native-drag-flatlist';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -44,8 +43,27 @@ import { filterTasksBySearch } from '@/lib/taskSearch';
 import { isTaskSortMode, sortTasks, type TaskSortMode } from '@/lib/taskSort';
 import type { Task } from '@/types';
 
+// Potrzebne do ominięcia błędów
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const DragFlatList = require('react-native-drag-flatlist').default as React.ComponentType<{
+  data: Task[];
+  keyExtractor: (item: Task) => string;
+  onMoveEnd?: (data: Task[]) => void;
+  renderItem: (info: DragFlatListRenderItemInfo<Task>) => React.ReactElement | null;
+  style?: any;
+  contentContainerStyle?: any;
+  ListEmptyComponent?: React.ReactElement;
+  keyboardShouldPersistTaps?: string;
+}>;
+
 const isWeb = Platform.OS === 'web';
 const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
+
+interface DragFlatListRenderItemInfo<T> {
+  item: T;
+  index: number;
+  drag: () => void;
+}
 
 export default function ActiveTasks() {
   const navigation = useNavigation();
