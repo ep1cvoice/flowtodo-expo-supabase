@@ -13,10 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import DraggableFlatList, {
-  ScaleDecorator,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
+import DragFlatList from 'react-native-drag-flatlist';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -69,6 +66,7 @@ export default function ActiveTasks() {
   const [sortMode, setSortMode] = useState<TaskSortMode>('manual');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
@@ -266,8 +264,10 @@ export default function ActiveTasks() {
     [activeTasks, hasListConstraints, persistOrder]
   );
 
-  const handleDragEnd = useCallback(
-    ({ data }: { data: Task[] }) => {
+  // react-native-drag-flatlist calls onMoveEnd with the reordered data array directly.
+  const handleMoveEnd = useCallback(
+    (data: Task[]) => {
+      setDraggingTaskId(null);
       if (!canReorder || isWeb) return;
       const orderChanged = data.some((task, i) => task.id !== filteredTasks[i]?.id);
       if (!orderChanged) return;
@@ -277,8 +277,9 @@ export default function ActiveTasks() {
     [canReorder, filteredTasks, persistVisibleOrder]
   );
 
-  const beginDrag = useCallback((drag: () => void) => {
+  const beginDrag = useCallback((taskId: number, drag: () => void) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setDraggingTaskId(taskId);
     drag();
   }, []);
 
@@ -299,22 +300,25 @@ export default function ActiveTasks() {
   );
 
   const renderNativeItem = useCallback(
-    ({ item, drag, getIndex, isActive }: RenderItemParams<Task>) => (
-      <ScaleDecorator activeScale={1.05}>
-        <View style={[styles.itemWrap, isActive && styles.itemDragging]}>
-          <ToDoItem
-            task={item}
-            index={getIndex() ?? 0}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
-            drag={canReorder ? () => beginDrag(drag) : undefined}
-          />
-        </View>
-      </ScaleDecorator>
+    ({ item, index, drag }: { item: Task; index: number; drag: () => void }) => (
+      <View
+        style={[
+          styles.itemWrap,
+          draggingTaskId === item.id && styles.itemDragging,
+        ]}>
+        <ToDoItem
+          task={item}
+          index={index}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          drag={canReorder ? () => beginDrag(item.id, drag) : undefined}
+        />
+      </View>
     ),
     [
       beginDrag,
       canReorder,
+      draggingTaskId,
       handleDelete,
       handleToggle,
       styles.itemDragging,
@@ -427,14 +431,12 @@ export default function ActiveTasks() {
             keyboardShouldPersistTaps="handled"
           />
         ) : (
-          <DraggableFlatList
+          <DragFlatList
             style={styles.tasksList}
-            containerStyle={styles.tasksList}
             contentContainerStyle={listContentStyle}
             data={filteredTasks}
             keyExtractor={(item) => String(item.id)}
-            onDragEnd={handleDragEnd}
-            activationDistance={canReorder ? 8 : 9999}
+            onMoveEnd={handleMoveEnd}
             ListEmptyComponent={emptyComponent}
             renderItem={renderNativeItem}
             keyboardShouldPersistTaps="handled"

@@ -12,7 +12,7 @@ export interface EncryptedField {
 const SALT_BYTES = 16;
 const DEK_BYTES = 32; // AES-256
 const IV_BYTES = 12;  // standard dla GCM
-const PBKDF2_ITERATIONS = 210_000; // zalecenie OWASP 2024 dla SHA-256
+const PBKDF2_ITERATIONS = 50_000; // for mobile
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';

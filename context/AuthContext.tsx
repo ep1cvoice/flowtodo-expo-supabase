@@ -113,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -131,9 +130,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
     }
 
-    const { salt, encrypted_dek, dek_iv } = profileData;
+    let { salt, encrypted_dek, dek_iv } = profileData;
+
+    // Stare konto sprzed wdrożenia szyfrowania - brak salt/DEK. Wygeneruj teraz.
     if (!salt || !encrypted_dek || !dek_iv) {
-      return { error: 'Profil nie ma skonfigurowanego szyfrowania. Skontaktuj się z pomocą.' };
+      const generated = await generateEncryptionMaterial(password);
+
+      try {
+        await withRetry(
+          async () => {
+            const { error: updateError, data: updated } = await supabase
+              .from('profiles')
+              .update({
+                salt: generated.salt,
+                encrypted_dek: generated.encryptedDek,
+                dek_iv: generated.dekIv,
+              })
+              .eq('id', data.user!.id)
+              .select('id');
+
+            if (updateError) throw updateError;
+            if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+          },
+          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+        );
+      } catch (err) {
+        console.warn('Failed to backfill encryption material:', err);
+        return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+      }
+
+      salt = generated.salt;
+      encrypted_dek = generated.encryptedDek;
+      dek_iv = generated.dekIv;
     }
 
     try {
@@ -145,13 +173,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('Failed to decrypt DEK:', err);
       return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
-      }
+    }
 
     return { error: null };
   };
 
   const unlock = async (password: string) => {
-    if (!user?.id) {
+    if (!user?.id || !user?.email) {
       return { error: 'Brak aktywnej sesji.' };
     }
 
@@ -165,9 +193,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
     }
 
-    const { salt, encrypted_dek, dek_iv } = profileData;
+    let { salt, encrypted_dek, dek_iv } = profileData;
+
+    // Stare konto bez DEK - zweryfikuj hasło przez Auth i wygeneruj DEK teraz
     if (!salt || !encrypted_dek || !dek_iv) {
-      return { error: 'Profil nie ma skonfigurowanego szyfrowania. Skontaktuj się z pomocą.' };
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password,
+      });
+      if (reauthError) {
+        return { error: 'Nieprawidłowe hasło' };
+      }
+
+      const generated = await generateEncryptionMaterial(password);
+
+      try {
+        await withRetry(
+          async () => {
+            const { error: updateError, data: updated } = await supabase
+              .from('profiles')
+              .update({
+                salt: generated.salt,
+                encrypted_dek: generated.encryptedDek,
+                dek_iv: generated.dekIv,
+              })
+              .eq('id', user.id)
+              .select('id');
+
+            if (updateError) throw updateError;
+            if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+          },
+          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+        );
+      } catch (err) {
+        console.warn('Failed to backfill encryption material:', err);
+        return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+      }
+
+      salt = generated.salt;
+      encrypted_dek = generated.encryptedDek;
+      dek_iv = generated.dekIv;
     }
 
     try {
