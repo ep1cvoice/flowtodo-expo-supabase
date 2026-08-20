@@ -1,5 +1,14 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  useWindowDimensions,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AppColors } from '@/constants/theme';
@@ -27,14 +36,26 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
       style={styles.gradient}>
       <SafeAreaView style={styles.authLayout}>
         {overlay}
-        <View
-          style={[
-            styles.card,
-            { gap },
-            isDesktop ? styles.cardDesktop : styles.cardMobile,
-          ]}>
-          {children}
-        </View>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}>
+            <View
+              style={[
+                styles.card,
+                { gap },
+                isDesktop ? styles.cardDesktop : styles.cardMobile,
+              ]}>
+              {children}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -59,29 +80,45 @@ function createStyles(colors: AppColors) {
     },
     authLayout: {
       flex: 1,
-      alignItems: 'center',
+    },
+    keyboardView: {
+      flex: 1,
+      width: '100%',
+    },
+    scroll: {
+      flex: 1,
+      width: '100%',
+    },
+    scrollContent: {
+      flexGrow: 1,
       justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 16,
     },
     card: {
       flexDirection: 'column',
       justifyContent: 'center',
+      width: '100%',
+      alignItems: 'center',
     },
     cardMobile: {
-      flex: 1,
       width: '100%',
       paddingHorizontal: 20,
       paddingVertical: 32,
       backgroundColor: 'transparent',
       borderWidth: 0,
+      alignItems: 'stretch',
     },
     cardDesktop: {
       width: '100%',
       maxWidth: tokens.authCardMaxWidth,
+      marginVertical: 24,
       padding: 32,
       backgroundColor: colors.bgTodoItem,
       borderWidth: 1,
       borderColor: colors.borderColor,
       borderRadius: tokens.borderRadius,
+      alignItems: 'stretch',
       ...tokens.shadow,
     },
     loggingInOverlay: {

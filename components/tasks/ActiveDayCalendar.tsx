@@ -1,0 +1,455 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react-native';
+import type { AppColors } from '@/constants/theme';
+import { useTheme } from '@/context/ThemeContext';
+import {
+  WEEKDAY_LABELS,
+  buildDayStrip,
+  buildMonthWeeks,
+  sameDay,
+  startOfDay,
+  toDayKey,
+} from '@/lib/calendarDate';
+import { webInteractive } from '@/utils/pressableWeb';
+
+interface ActiveDayCalendarProps {
+  selectedDay: Date | null;
+  onSelectDay: (day: Date | null) => void;
+  markedDays: Set<string>;
+}
+
+export default function ActiveDayCalendar({
+  selectedDay,
+  onSelectDay,
+  markedDays,
+}: ActiveDayCalendarProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const stripDays = useMemo(() => buildDayStrip(today), [today]);
+  const stripRef = useRef<ScrollView>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [monthCursor, setMonthCursor] = useState(
+    () => new Date(today.getFullYear(), today.getMonth(), 1)
+  );
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      stripRef.current?.scrollTo({ x: Math.max(0, 6 * 46 - 40), animated: false });
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    setMonthCursor(new Date(selectedDay.getFullYear(), selectedDay.getMonth(), 1));
+  }, [selectedDay]);
+
+  const weeks = useMemo(() => buildMonthWeeks(monthCursor), [monthCursor]);
+  const monthLabel = monthCursor.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const handleSelect = (day: Date) => {
+    if (selectedDay && sameDay(day, selectedDay)) {
+      onSelectDay(null);
+      return;
+    }
+    onSelectDay(startOfDay(day));
+  };
+
+  return (
+    <View style={styles.wrap}>
+      <View style={styles.topRow}>
+        <Pressable
+          onPress={() => onSelectDay(null)}
+          style={({ pressed, hovered }) => [
+            styles.allChip,
+            !selectedDay && styles.allChipActive,
+            (hovered || pressed) && styles.allChipPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Show all days"
+          accessibilityState={{ selected: !selectedDay }}>
+          <Text style={[styles.allChipText, !selectedDay && styles.allChipTextActive]}>All</Text>
+        </Pressable>
+
+        {!expanded ? (
+          <ScrollView
+            ref={stripRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.stripContent}
+            style={styles.strip}>
+            {stripDays.map((day) => {
+              const key = toDayKey(day);
+              const selected = selectedDay ? sameDay(day, selectedDay) : false;
+              const isToday = sameDay(day, today);
+              const marked = markedDays.has(key);
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => handleSelect(day)}
+                  style={({ pressed, hovered }) => [
+                    styles.stripDay,
+                    selected && styles.stripDaySelected,
+                    isToday && !selected && styles.stripDayToday,
+                    (hovered || pressed) && !selected && styles.stripDayPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={day.toDateString()}
+                  accessibilityState={{ selected }}>
+                  <Text
+                    style={[
+                      styles.stripWeekday,
+                      selected && styles.stripTextSelected,
+                      isToday && !selected && styles.stripTodayAccent,
+                    ]}>
+                    {WEEKDAY_LABELS[day.getDay()]}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.stripDate,
+                      selected && styles.stripTextSelected,
+                      isToday && !selected && styles.stripTodayAccent,
+                    ]}>
+                    {day.getDate()}
+                  </Text>
+                  <View
+                    style={[
+                      styles.dot,
+                      marked ? styles.dotMarked : styles.dotEmpty,
+                      selected && marked && styles.dotOnSelected,
+                    ]}
+                  />
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : (
+          <View style={styles.monthNavRow}>
+            <Pressable
+              onPress={() =>
+                setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))
+              }
+              hitSlop={8}
+              style={({ pressed, hovered }) => [
+                styles.navBtn,
+                (hovered || pressed) && styles.navBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Previous month">
+              <ChevronLeft size={18} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={styles.monthLabel} numberOfLines={1}>
+              {monthLabel}
+            </Text>
+            <Pressable
+              onPress={() =>
+                setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))
+              }
+              hitSlop={8}
+              style={({ pressed, hovered }) => [
+                styles.navBtn,
+                (hovered || pressed) && styles.navBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Next month">
+              <ChevronRight size={18} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          style={({ pressed, hovered }) => [
+            styles.expandBtn,
+            (hovered || pressed) && styles.expandBtnPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Collapse calendar' : 'Expand calendar'}
+          accessibilityState={{ expanded }}>
+          {expanded ? (
+            <ChevronUp size={18} color={colors.textSecondary} />
+          ) : (
+            <ChevronDown size={18} color={colors.textSecondary} />
+          )}
+        </Pressable>
+      </View>
+
+      {expanded ? (
+        <View style={styles.monthPanel}>
+          <View style={styles.weekRow}>
+            {WEEKDAY_LABELS.map((d) => (
+              <View key={d} style={styles.weekdayCell}>
+                <Text style={styles.weekday}>{d}</Text>
+              </View>
+            ))}
+          </View>
+
+          {weeks.map((week, wi) => (
+            <View key={`w-${wi}`} style={styles.weekRow}>
+              {week.map((day, di) => {
+                if (!day) {
+                  return <View key={`e-${wi}-${di}`} style={styles.cell} />;
+                }
+                const key = toDayKey(day);
+                const selected = selectedDay ? sameDay(day, selectedDay) : false;
+                const isToday = sameDay(day, today);
+                const marked = markedDays.has(key);
+                const otherMonth = day.getMonth() !== monthCursor.getMonth();
+
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => handleSelect(day)}
+                    style={styles.cell}
+                    accessibilityRole="button"
+                    accessibilityLabel={day.toDateString()}
+                    accessibilityState={{ selected }}>
+                    <View
+                      style={[
+                        styles.dayInner,
+                        selected && styles.daySelected,
+                        isToday && !selected && styles.dayToday,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.dayText,
+                          otherMonth && styles.dayTextMuted,
+                          selected && styles.dayTextSelected,
+                        ]}>
+                        {day.getDate()}
+                      </Text>
+                      <View
+                        style={[
+                          styles.dot,
+                          styles.monthDot,
+                          marked ? styles.dotMarked : styles.dotEmpty,
+                          selected && marked && styles.dotOnSelected,
+                        ]}
+                      />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: 8,
+      gap: 8,
+      zIndex: 2,
+    },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minHeight: 36,
+    },
+    monthNavRow: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    allChip: {
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      minHeight: 36,
+      justifyContent: 'center',
+      ...webInteractive,
+    },
+    allChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
+    },
+    allChipPressed: {
+      backgroundColor: colors.todoHighlight,
+    },
+    allChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    allChipTextActive: {
+      color: colors.primary,
+    },
+    strip: {
+      flex: 1,
+    },
+    stripContent: {
+      gap: 6,
+      alignItems: 'center',
+      paddingRight: 4,
+    },
+    stripDay: {
+      width: 40,
+      height: 40,
+      paddingVertical: 4,
+      paddingHorizontal: 2,
+      borderRadius: 50,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 0,
+      ...webInteractive,
+    },
+    stripDaySelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
+    },
+    stripDayToday: {
+      borderColor: colors.primary,
+    },
+    stripDayPressed: {
+      backgroundColor: colors.todoHighlight,
+    },
+    stripWeekday: {
+      fontSize: 9,
+      fontWeight: '600',
+      lineHeight: 11,
+      color: colors.textMuted,
+    },
+    stripDate: {
+      fontSize: 12,
+      fontWeight: '700',
+      lineHeight: 14,
+      color: colors.textPrimary,
+    },
+    stripTextSelected: {
+      color: '#fff',
+    },
+    stripTodayAccent: {
+      color: colors.primary,
+    },
+    dot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      marginTop: 1,
+    },
+    monthDot: {
+      position: 'absolute',
+      bottom: 3,
+    },
+    dotMarked: {
+      backgroundColor: colors.primary,
+    },
+    dotEmpty: {
+      backgroundColor: 'transparent',
+    },
+    dotOnSelected: {
+      backgroundColor: '#fff',
+    },
+    expandBtn: {
+      padding: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      minHeight: 36,
+      minWidth: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...webInteractive,
+    },
+    expandBtnPressed: {
+      backgroundColor: colors.todoHighlight,
+    },
+    monthPanel: {
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      padding: 10,
+      gap: 4,
+    },
+    navBtn: {
+      padding: 6,
+      borderRadius: 8,
+      ...webInteractive,
+    },
+    navBtnPressed: {
+      backgroundColor: colors.todoHighlight,
+    },
+    monthLabel: {
+      flexShrink: 1,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    weekdayCell: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    weekday: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    cell: {
+      flex: 1,
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayInner: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...webInteractive,
+    },
+    daySelected: {
+      backgroundColor: colors.primary,
+    },
+    dayToday: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    dayText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    dayTextMuted: {
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    dayTextSelected: {
+      color: '#fff',
+      fontWeight: '700',
+    },
+  });
+}

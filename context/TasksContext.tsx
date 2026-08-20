@@ -27,6 +27,7 @@ export interface AddTaskInput {
   description: string;
   categoryId: number | null;
   tagIds: number[];
+  scheduled?: string | null;
 }
 
 export type UpdateTaskInput = AddTaskInput;
@@ -280,7 +281,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return user.id;
   };
 
-  const addTask = async ({ title, description, categoryId, tagIds }: AddTaskInput) => {
+  const addTask = async ({
+    title,
+    description,
+    categoryId,
+    tagIds,
+    scheduled = null,
+  }: AddTaskInput) => {
     const userId = requireUserId();
     const activeDek = requireDek(dek);
 
@@ -312,6 +319,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         done: false,
         title_enc: titleEnc.ciphertext,
         title_iv: titleEnc.iv,
+        scheduled: scheduled ?? null,
         ...descriptionEncFields,
       })
       .select('id')
