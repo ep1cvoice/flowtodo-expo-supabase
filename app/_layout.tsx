@@ -1,6 +1,12 @@
-import 'react-native-gesture-handler';
+import { Buffer } from 'buffer';
+
+if (typeof global.Buffer === 'undefined') {
+  global.Buffer = Buffer;
+}
+
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

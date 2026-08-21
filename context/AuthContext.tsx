@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
 
-      // Stare konto sprzed wdrożenia szyfrowania - brak salt/DEK. Wygeneruj teraz.
+      // Brak salt/DEK. Generowanie.
       if (!salt || !encrypted_dek || !dek_iv) {
         const generated = await generateEncryptionMaterial(password);
 
@@ -324,31 +324,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error?.message ?? 'Sign up failed' };
       }
 
-      const { salt, encryptedDek, dekIv, kdfIterations } = await generateEncryptionMaterial(password);
-
-      try {
-        await withRetry(
-          async () => {
-            const { error: updateError, data: updated } = await supabase
-              .from('profiles')
-              .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv, kdf_iterations: kdfIterations })
-              .eq('id', data.user!.id)
-              .select('id');
-
-            if (updateError) throw updateError;
-            if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
-          },
-          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
-        );
-      } catch (err) {
-        console.warn('Failed to save encryption material after retries:', err);
-        return {
-          error:
-            'Konto utworzone, ale nie udało się zapisać kluczy szyfrowania. Spróbuj zalogować się ponownie.',
-        };
-      }
-
       return { error: null };
+    } catch (unexpectedError) {
+      console.error('Nieoczekiwany błąd signUp:', unexpectedError);
+      return { error: 'Nieoczekiwany błąd podczas rejestracji.' };
     } finally {
       setIsAuthenticating(false);
     }
