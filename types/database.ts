@@ -16,28 +16,37 @@ export type Database = {
     Tables: {
       categories: {
         Row: {
-          id: number
-          user_id: string
-          name: string
           color: string
-          icon: string
           created_at: string
+          icon: string
+          id: number
+          name: string
+          name_enc: string | null
+          name_hash: string | null
+          name_iv: string | null
+          user_id: string
         }
         Insert: {
-          id?: number
-          user_id: string
-          name: string
           color?: string
-          icon?: string
           created_at?: string
+          icon?: string
+          id?: number
+          name: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
+          user_id: string
         }
         Update: {
-          id?: number
-          user_id?: string
-          name?: string
           color?: string
-          icon?: string
           created_at?: string
+          icon?: string
+          id?: number
+          name?: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -51,49 +60,48 @@ export type Database = {
       }
       pomodoros: {
         Row: {
-          id: number
-          user_id: string
-          task_id: number | null
-          task_name: string
+          created_at: string
           duration: number
           elapsed: number
-          started_at: string
-          paused_at: string | null
           ended_at: string | null
-          created_at: string
+          id: number
+          paused_at: string | null
+          started_at: string
+          task_id: number | null
+          task_name: string
+          task_name_enc: string | null
+          task_name_iv: string | null
+          user_id: string
         }
         Insert: {
-          id?: number
-          user_id: string
-          task_id?: number | null
-          task_name?: string
+          created_at?: string
           duration: number
           elapsed?: number
-          started_at?: string
-          paused_at?: string | null
           ended_at?: string | null
-          created_at?: string
-        }
-        Update: {
           id?: number
-          user_id?: string
+          paused_at?: string | null
+          started_at?: string
           task_id?: number | null
           task_name?: string
+          task_name_enc?: string | null
+          task_name_iv?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
           duration?: number
           elapsed?: number
-          started_at?: string
-          paused_at?: string | null
           ended_at?: string | null
-          created_at?: string
+          id?: number
+          paused_at?: string | null
+          started_at?: string
+          task_id?: number | null
+          task_name?: string
+          task_name_enc?: string | null
+          task_name_iv?: string | null
+          user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "pomodoros_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "pomodoros_task_id_fkey"
             columns: ["task_id"]
@@ -101,35 +109,63 @@ export type Database = {
             referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pomodoros_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
         Row: {
           created_at: string | null
+          dek_iv: string | null
+          dek_iv_backup: string | null
+          encrypted_dek: string | null
+          encrypted_dek_backup: string | null
           id: string
+          kdf_iterations: number
           max_filter_selections: number
           notification_type: string | null
           pomodoro_time: number | null
+          salt: string | null
+          salt_backup: string | null
           theme: string | null
           username: string
           view: string | null
         }
         Insert: {
           created_at?: string | null
+          dek_iv?: string | null
+          dek_iv_backup?: string | null
+          encrypted_dek?: string | null
+          encrypted_dek_backup?: string | null
           id: string
+          kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
+          salt?: string | null
+          salt_backup?: string | null
           theme?: string | null
           username: string
           view?: string | null
         }
         Update: {
           created_at?: string | null
+          dek_iv?: string | null
+          dek_iv_backup?: string | null
+          encrypted_dek?: string | null
+          encrypted_dek_backup?: string | null
           id?: string
+          kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
           pomodoro_time?: number | null
+          salt?: string | null
+          salt_backup?: string | null
           theme?: string | null
           username?: string
           view?: string | null
@@ -138,25 +174,34 @@ export type Database = {
       }
       tags: {
         Row: {
-          id: number
-          user_id: string
-          name: string
           color: string
           created_at: string
+          id: number
+          name: string
+          name_enc: string | null
+          name_hash: string | null
+          name_iv: string | null
+          user_id: string
         }
         Insert: {
-          id?: number
-          user_id: string
-          name: string
           color?: string
           created_at?: string
+          id?: number
+          name: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
+          user_id: string
         }
         Update: {
-          id?: number
-          user_id?: string
-          name?: string
           color?: string
           created_at?: string
+          id?: number
+          name?: string
+          name_enc?: string | null
+          name_hash?: string | null
+          name_iv?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -170,25 +215,18 @@ export type Database = {
       }
       task_tags: {
         Row: {
-          task_id: number
           tag_id: number
+          task_id: number
         }
         Insert: {
-          task_id: number
           tag_id: number
+          task_id: number
         }
         Update: {
-          task_id?: number
           tag_id?: number
+          task_id?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "task_tags_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "task_tags_tag_id_fkey"
             columns: ["tag_id"]
@@ -196,61 +234,80 @@ export type Database = {
             referencedRelation: "tags"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "task_tags_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tasks: {
         Row: {
-          id: number
-          user_id: string
-          title: string
-          description: string
-          done: boolean
-          scheduled: string | null
-          completed_at: string | null
-          sort_order: number
           category_id: number | null
+          completed_at: string | null
           created_at: string
+          description: string
+          description_enc: string | null
+          description_iv: string | null
+          done: boolean
+          id: number
+          scheduled: string | null
+          sort_order: number
+          title: string
+          title_enc: string | null
+          title_iv: string | null
           updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: number
-          user_id: string
-          title: string
-          description?: string
-          done?: boolean
-          scheduled?: string | null
-          completed_at?: string | null
-          sort_order?: number
           category_id?: number | null
+          completed_at?: string | null
           created_at?: string
+          description?: string
+          description_enc?: string | null
+          description_iv?: string | null
+          done?: boolean
+          id?: number
+          scheduled?: string | null
+          sort_order?: number
+          title: string
+          title_enc?: string | null
+          title_iv?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: number
-          user_id?: string
-          title?: string
-          description?: string
-          done?: boolean
-          scheduled?: string | null
-          completed_at?: string | null
-          sort_order?: number
           category_id?: number | null
+          completed_at?: string | null
           created_at?: string
+          description?: string
+          description_enc?: string | null
+          description_iv?: string | null
+          done?: boolean
+          id?: number
+          scheduled?: string | null
+          sort_order?: number
+          title?: string
+          title_enc?: string | null
+          title_iv?: string | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "tasks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "tasks_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -260,10 +317,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      delete_own_account: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      delete_own_account: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

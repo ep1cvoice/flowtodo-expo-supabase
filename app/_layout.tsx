@@ -1,6 +1,12 @@
-import 'react-native-gesture-handler';
+import { Buffer } from 'buffer';
+
+if (typeof global.Buffer === 'undefined') {
+  global.Buffer = Buffer;
+}
+
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +22,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ReconnectRefresh from '@/components/network/ReconnectRefresh';
 import AppSplash from '@/components/ui/AppSplash';
 import ToastHost from '@/components/ui/ToastHost';
+import { UnlockGate } from '@/components/ui/UnlockGate';
 import { AuthProvider } from '@/context/AuthContext';
 import { NetworkProvider } from '@/context/NetworkContext';
 import { PomodoroProvider } from '@/context/PomodoroContext';
@@ -51,6 +58,7 @@ export default function RootLayout() {
         <NetworkProvider>
           {/* Auth outside Theme so theme loading never remounts the session */}
           <AuthProvider>
+            <UnlockGate>
             <ThemeProvider>
               <ToastProvider>
                 <TasksProvider>
@@ -60,7 +68,8 @@ export default function RootLayout() {
                   </PomodoroProvider>
                 </TasksProvider>
               </ToastProvider>
-            </ThemeProvider>
+              </ThemeProvider>
+            </UnlockGate>
           </AuthProvider>
         </NetworkProvider>
       </SafeAreaProvider>

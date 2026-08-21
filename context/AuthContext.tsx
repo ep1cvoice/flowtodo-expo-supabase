@@ -3,14 +3,25 @@ import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
 } from '@/constants/filterLimits';
-import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
+
 import { supabase } from '@/supabase/client';
+import {
+  generateEncryptionMaterial,
+  encryptDekWithPassword,
+  decryptDek,
+  CURRENT_PBKDF2_ITERATIONS,
+} from '@/lib/crypto';
+import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
+import { withRetry } from '@/lib/retry';
+import { migrateUserEncryption } from '@/lib/migrateEncryption';
+
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const PROFILE_RETRY_ATTEMPTS = 3;
 const PROFILE_RETRY_DELAY_MS = 500;
+const LEGACY_KDF_ITERATIONS = 50_000; // wartość używana przed wprowadzeniem kolumny kdf_iterations
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,9 +86,46 @@ function toProfileRow(updates: ProfileUpdates) {
   return row;
 }
 
+/**
+ * Re-wrapuje DEK nową (silniejszą) liczbą iteracji PBKDF2, w tle, bez blokowania UI.
+ * Wywoływane po udanym odszyfrowaniu, jeśli profil ma jeszcze starą wartość kdf_iterations.
+ */
+async function upgradeKdfIterationsInBackground(
+  userId: string,
+  decryptedDek: Uint8Array,
+  password: string,
+  currentIterations: number
+) {
+  if (currentIterations >= CURRENT_PBKDF2_ITERATIONS) return;
+
+  try {
+    const rewrapped = await encryptDekWithPassword(decryptedDek, password);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        salt: rewrapped.salt,
+        encrypted_dek: rewrapped.encryptedDek,
+        dek_iv: rewrapped.dekIv,
+        kdf_iterations: rewrapped.kdfIterations,
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.warn('KDF iterations upgrade failed:', error.message);
+    }
+  } catch (err) {
+    console.warn('KDF iterations upgrade threw:', err);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dek, setDek] = useState<Uint8Array | null>(null);
+  // Zapobiega migotnięciu UnlockGate w oknie między ustawieniem `user`
+  // (przez onAuthStateChange) a ustawieniem `dek` (w signIn/unlock) —
+  // te dwa stany aktualizują się z różnych, niepowiązanych źródeł asynchronicznych.
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -108,22 +156,187 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error || !data.user) {
+        return { error: error?.message ?? 'Sign in failed' };
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+      }
+
+      let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+
+      // Brak salt/DEK. Generowanie.
+      if (!salt || !encrypted_dek || !dek_iv) {
+        const generated = await generateEncryptionMaterial(password);
+
+        try {
+          await withRetry(
+            async () => {
+              const { error: updateError, data: updated } = await supabase
+                .from('profiles')
+                .update({
+                  salt: generated.salt,
+                  encrypted_dek: generated.encryptedDek,
+                  dek_iv: generated.dekIv,
+                  kdf_iterations: generated.kdfIterations,
+                })
+                .eq('id', data.user!.id)
+                .select('id');
+
+              if (updateError) throw updateError;
+              if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+            },
+            { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+          );
+        } catch (err) {
+          console.warn('Failed to backfill encryption material:', err);
+          return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+        }
+
+        salt = generated.salt;
+        encrypted_dek = generated.encryptedDek;
+        dek_iv = generated.dekIv;
+        kdf_iterations = generated.kdfIterations;
+      }
+
+      try {
+        const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        setDek(decryptedDek);
+
+        void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
+        void migrateUserEncryption(data.user.id, decryptedDek).catch((err) =>
+          console.warn('Background encryption migration failed:', err)
+        );
+      } catch (err) {
+        console.warn('Failed to decrypt DEK:', err);
+        return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
+      }
+
+      return { error: null };
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const unlock = async (password: string) => {
+    if (!user?.id || !user?.email) {
+      return { error: 'Brak aktywnej sesji.' };
+    }
+
+    setIsAuthenticating(true);
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+      }
+
+      let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+
+      // Stare konto bez DEK - zweryfikuj hasło przez Auth i wygeneruj DEK teraz
+      if (!salt || !encrypted_dek || !dek_iv) {
+        const { error: reauthError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password,
+        });
+        if (reauthError) {
+          return { error: 'Nieprawidłowe hasło' };
+        }
+
+        const generated = await generateEncryptionMaterial(password);
+
+        try {
+          await withRetry(
+            async () => {
+              const { error: updateError, data: updated } = await supabase
+                .from('profiles')
+                .update({
+                  salt: generated.salt,
+                  encrypted_dek: generated.encryptedDek,
+                  dek_iv: generated.dekIv,
+                  kdf_iterations: generated.kdfIterations,
+                })
+                .eq('id', user.id)
+                .select('id');
+
+              if (updateError) throw updateError;
+              if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+            },
+            { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+          );
+        } catch (err) {
+          console.warn('Failed to backfill encryption material:', err);
+          return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+        }
+
+        salt = generated.salt;
+        encrypted_dek = generated.encryptedDek;
+        dek_iv = generated.dekIv;
+        kdf_iterations = generated.kdfIterations;
+      }
+
+      try {
+        const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        setDek(decryptedDek);
+
+        void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
+        void migrateUserEncryption(user.id, decryptedDek).catch((err) =>
+          console.warn('Background encryption migration failed:', err)
+        );
+      } catch (err) {
+        console.warn('Failed to unlock DEK:', err);
+        return { error: 'Nieprawidłowe hasło' };
+      }
+
+      return { error: null };
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { username } },
-    });
-    return { error: error?.message ?? null };
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
+
+      if (error || !data.user) {
+        return { error: error?.message ?? 'Sign up failed' };
+      }
+
+      return { error: null };
+    } catch (unexpectedError) {
+      console.error('Nieoczekiwany błąd signUp:', unexpectedError);
+      return { error: 'Nieoczekiwany błąd podczas rejestracji.' };
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   const logout = async () => {
     await pausePomodoroBeforeLogout();
     await supabase.auth.signOut();
+    setDek(null); // clear DEK from memory after logout
   };
 
   const updateProfile = async (updates: ProfileUpdates) => {
@@ -166,6 +379,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Please sign in to update your password.' };
     }
 
+    if (!dek) {
+      return { error: 'Brak odszyfrowanego klucza. Zaloguj się ponownie przed zmianą hasła.' };
+    }
+
     const { error: reauthError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: currentPassword,
@@ -174,10 +391,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Current password is incorrect' };
     }
 
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      return { error: error.message };
+    // Pobierz obecne salt/encrypted_dek/dek_iv/kdf_iterations, żeby mieć co zbackupować
+    const { data: currentProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+      .eq('id', user.id)
+      .single();
+
+    if (fetchError || !currentProfile?.salt || !currentProfile?.encrypted_dek || !currentProfile?.dek_iv) {
+      return { error: 'Nie udało się odczytać obecnych danych szyfrowania.' };
     }
+
+    const { salt, encryptedDek, dekIv, kdfIterations } = await encryptDekWithPassword(dek, newPassword);
+
+    // Zapisz nowe wartości + backup starych w jednym update
+    try {
+      await withRetry(
+        async () => {
+          const { error: updateError, data: updated } = await supabase
+            .from('profiles')
+            .update({
+              salt,
+              encrypted_dek: encryptedDek,
+              dek_iv: dekIv,
+              kdf_iterations: kdfIterations,
+              salt_backup: currentProfile.salt,
+              encrypted_dek_backup: currentProfile.encrypted_dek,
+              dek_iv_backup: currentProfile.dek_iv,
+            })
+            .eq('id', user.id)
+            .select('id');
+
+          if (updateError) throw updateError;
+          if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+        },
+        { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+      );
+    } catch (err) {
+      console.warn('Failed to re-encrypt DEK:', err);
+      return { error: 'Nie udało się zaktualizować szyfrowania. Hasło NIE zostało zmienione — spróbuj ponownie.' };
+    }
+
+    // Zmień hasło w Supabase Auth
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      // Auth się nie zmieniło — przywróć stare salt/encrypted_dek/dek_iv/kdf_iterations z backupu,
+      // żeby stary DEK dalej dawał się odszyfrować starym hasłem
+      console.error('Auth password update failed, rolling back encrypted_dek:', error);
+
+      try {
+        await withRetry(
+          async () => {
+            const { error: rollbackError } = await supabase
+              .from('profiles')
+              .update({
+                salt: currentProfile.salt,
+                encrypted_dek: currentProfile.encrypted_dek,
+                dek_iv: currentProfile.dek_iv,
+                kdf_iterations: currentProfile.kdf_iterations,
+                salt_backup: null,
+                encrypted_dek_backup: null,
+                dek_iv_backup: null,
+              })
+              .eq('id', user.id);
+
+            if (rollbackError) throw rollbackError;
+          },
+          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+        );
+      } catch (rollbackErr) {
+        // Najgorszy scenariusz: rollback też zawiódł. Backup w bazie zostaje
+        // to pozwoli na ręczne odzyskanie danych po stronie admina, ale user jest zablokowany.
+        console.error('CRITICAL: rollback of encrypted_dek also failed:', rollbackErr);
+        return {
+          error:
+            'Krytyczny błąd zmiany hasła. Skontaktuj się z pomocą — Twoje dane są bezpieczne, ale wymagają ręcznego odzyskania.',
+        };
+      }
+
+      return { error: 'Błąd podczas zmiany hasła. Spróbuj ponownie.' };
+    }
+
+    // Sukces wyczyść backup, nie jest już potrzebny
+    await supabase
+      .from('profiles')
+      .update({ salt_backup: null, encrypted_dek_backup: null, dek_iv_backup: null })
+      .eq('id', user.id);
 
     return { error: null };
   };
@@ -202,10 +502,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        dek,
         loading,
+        isAuthenticating,
         signIn,
         signUp,
         logout,
+        unlock,
         updateProfile,
         updatePassword,
         deleteAccount,

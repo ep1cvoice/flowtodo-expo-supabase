@@ -19,6 +19,8 @@ export interface User {
 export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
+  isAuthenticating: boolean;
+  dek: Uint8Array | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
@@ -29,6 +31,7 @@ export interface AuthContextValue {
     newPassword: string
   ) => Promise<{ error: string | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
+  unlock: (password: string) => Promise<{ error: string | null }>;
 }
 
 export interface Task {
