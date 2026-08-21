@@ -312,8 +312,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .from('tasks')
       .insert({
         user_id: userId,
-        title: trimmedTitle,
-        description: trimmedDescription,
+        title: '', // plaintext no longer written — real value in title_enc
+        description: '', // plaintext no longer written — real value in description_enc
         category_id: categoryId,
         sort_order: minSort,
         done: false,
@@ -360,8 +360,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase
       .from('tasks')
       .update({
-        title: trimmedTitle,
-        description: trimmedDescription,
+        title: '', // plaintext no longer written — real value in title_enc
+        description: '', // plaintext no longer written — real value in description_enc
         category_id: categoryId,
         title_enc: titleEnc.ciphertext,
         title_iv: titleEnc.iv,
@@ -418,7 +418,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .from('categories')
       .insert({
         user_id: userId,
-        name: trimmedName,
+        name: '', // plaintext no longer written — real value in name_enc
         color,
         icon: String(icon),
         name_enc: nameEnc.ciphertext,
@@ -446,7 +446,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       .from('tags')
       .insert({
         user_id: userId,
-        name: trimmedName,
+        name: '', // plaintext no longer written — real value in name_enc
         color,
         name_enc: nameEnc.ciphertext,
         name_iv: nameEnc.iv,

@@ -180,7 +180,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         .insert({
           user_id: userId,
           task_id: taskId,
-          task_name: taskName,
+          task_name: '', // plaintext no longer written — real value in task_name_enc
           task_name_enc: taskNameEnc.ciphertext,
           task_name_iv: taskNameEnc.iv,
           duration: durationSec,
@@ -238,7 +238,6 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activePomo, user]);
 
-
   const endPomo = useCallback(async () => {
     if (!activePomo) return;
     const userId = requireUserId();
@@ -258,7 +257,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         elapsed,
         ended_at: endedAt,
         paused_at: null,
-        task_name: taskName,
+        task_name: '', // plaintext no longer written — real value in task_name_enc
         task_name_enc: taskNameEnc.ciphertext,
         task_name_iv: taskNameEnc.iv,
       })
