@@ -122,6 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [dek, setDek] = useState<Uint8Array | null>(null);
+  // Zapobiega migotnięciu UnlockGate w oknie między ustawieniem `user`
+  // (przez onAuthStateChange) a ustawieniem `dek` (w signIn/unlock) —
+  // te dwa stany aktualizują się z różnych, niepowiązanych źródeł asynchronicznych.
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -152,39 +156,182 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error || !data.user) {
-      return { error: error?.message ?? 'Sign in failed' };
+      if (error || !data.user) {
+        return { error: error?.message ?? 'Sign in failed' };
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+      }
+
+      let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+
+      // Stare konto sprzed wdrożenia szyfrowania - brak salt/DEK. Wygeneruj teraz.
+      if (!salt || !encrypted_dek || !dek_iv) {
+        const generated = await generateEncryptionMaterial(password);
+
+        try {
+          await withRetry(
+            async () => {
+              const { error: updateError, data: updated } = await supabase
+                .from('profiles')
+                .update({
+                  salt: generated.salt,
+                  encrypted_dek: generated.encryptedDek,
+                  dek_iv: generated.dekIv,
+                  kdf_iterations: generated.kdfIterations,
+                })
+                .eq('id', data.user!.id)
+                .select('id');
+
+              if (updateError) throw updateError;
+              if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+            },
+            { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+          );
+        } catch (err) {
+          console.warn('Failed to backfill encryption material:', err);
+          return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+        }
+
+        salt = generated.salt;
+        encrypted_dek = generated.encryptedDek;
+        dek_iv = generated.dekIv;
+        kdf_iterations = generated.kdfIterations;
+      }
+
+      try {
+        const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        setDek(decryptedDek);
+
+        void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
+        void migrateUserEncryption(data.user.id, decryptedDek).catch((err) =>
+          console.warn('Background encryption migration failed:', err)
+        );
+      } catch (err) {
+        console.warn('Failed to decrypt DEK:', err);
+        return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
+      }
+
+      return { error: null };
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const unlock = async (password: string) => {
+    if (!user?.id || !user?.email) {
+      return { error: 'Brak aktywnej sesji.' };
     }
 
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
-      .eq('id', data.user.id)
-      .single();
+    setIsAuthenticating(true);
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+        .eq('id', user.id)
+        .single();
 
-    if (profileError || !profileData) {
-      return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+      if (profileError || !profileData) {
+        return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
+      }
+
+      let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+
+      // Stare konto bez DEK - zweryfikuj hasło przez Auth i wygeneruj DEK teraz
+      if (!salt || !encrypted_dek || !dek_iv) {
+        const { error: reauthError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password,
+        });
+        if (reauthError) {
+          return { error: 'Nieprawidłowe hasło' };
+        }
+
+        const generated = await generateEncryptionMaterial(password);
+
+        try {
+          await withRetry(
+            async () => {
+              const { error: updateError, data: updated } = await supabase
+                .from('profiles')
+                .update({
+                  salt: generated.salt,
+                  encrypted_dek: generated.encryptedDek,
+                  dek_iv: generated.dekIv,
+                  kdf_iterations: generated.kdfIterations,
+                })
+                .eq('id', user.id)
+                .select('id');
+
+              if (updateError) throw updateError;
+              if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+            },
+            { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
+          );
+        } catch (err) {
+          console.warn('Failed to backfill encryption material:', err);
+          return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+        }
+
+        salt = generated.salt;
+        encrypted_dek = generated.encryptedDek;
+        dek_iv = generated.dekIv;
+        kdf_iterations = generated.kdfIterations;
+      }
+
+      try {
+        const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        setDek(decryptedDek);
+
+        void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
+        void migrateUserEncryption(user.id, decryptedDek).catch((err) =>
+          console.warn('Background encryption migration failed:', err)
+        );
+      } catch (err) {
+        console.warn('Failed to unlock DEK:', err);
+        return { error: 'Nieprawidłowe hasło' };
+      }
+
+      return { error: null };
+    } finally {
+      setIsAuthenticating(false);
     }
+  };
 
-    let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+  const signUp = async (email: string, password: string, username: string) => {
+    setIsAuthenticating(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
 
-    // Stare konto sprzed wdrożenia szyfrowania - brak salt/DEK. Wygeneruj teraz.
-    if (!salt || !encrypted_dek || !dek_iv) {
-      const generated = await generateEncryptionMaterial(password);
+      if (error || !data.user) {
+        return { error: error?.message ?? 'Sign up failed' };
+      }
+
+      const { salt, encryptedDek, dekIv, kdfIterations } = await generateEncryptionMaterial(password);
 
       try {
         await withRetry(
           async () => {
             const { error: updateError, data: updated } = await supabase
               .from('profiles')
-              .update({
-                salt: generated.salt,
-                encrypted_dek: generated.encryptedDek,
-                dek_iv: generated.dekIv,
-                kdf_iterations: generated.kdfIterations,
-              })
+              .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv, kdf_iterations: kdfIterations })
               .eq('id', data.user!.id)
               .select('id');
 
@@ -194,145 +341,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
         );
       } catch (err) {
-        console.warn('Failed to backfill encryption material:', err);
-        return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
+        console.warn('Failed to save encryption material after retries:', err);
+        return {
+          error:
+            'Konto utworzone, ale nie udało się zapisać kluczy szyfrowania. Spróbuj zalogować się ponownie.',
+        };
       }
 
-      salt = generated.salt;
-      encrypted_dek = generated.encryptedDek;
-      dek_iv = generated.dekIv;
-      kdf_iterations = generated.kdfIterations;
+      return { error: null };
+    } finally {
+      setIsAuthenticating(false);
     }
-
-    try {
-      const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
-      setDek(decryptedDek);
-
-      void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
-      void migrateUserEncryption(data.user.id, decryptedDek).catch((err) =>
-        console.warn('Background encryption migration failed:', err)
-      );
-    } catch (err) {
-      console.warn('Failed to decrypt DEK:', err);
-      return { error: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania' };
-    }
-
-    return { error: null };
-  };
-
-  const unlock = async (password: string) => {
-    if (!user?.id || !user?.email) {
-      return { error: 'Brak aktywnej sesji.' };
-    }
-
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profileData) {
-      return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
-    }
-
-    let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
-
-    // Stare konto bez DEK - zweryfikuj hasło przez Auth i wygeneruj DEK teraz
-    if (!salt || !encrypted_dek || !dek_iv) {
-      const { error: reauthError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password,
-      });
-      if (reauthError) {
-        return { error: 'Nieprawidłowe hasło' };
-      }
-
-      const generated = await generateEncryptionMaterial(password);
-
-      try {
-        await withRetry(
-          async () => {
-            const { error: updateError, data: updated } = await supabase
-              .from('profiles')
-              .update({
-                salt: generated.salt,
-                encrypted_dek: generated.encryptedDek,
-                dek_iv: generated.dekIv,
-                kdf_iterations: generated.kdfIterations,
-              })
-              .eq('id', user.id)
-              .select('id');
-
-            if (updateError) throw updateError;
-            if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
-          },
-          { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
-        );
-      } catch (err) {
-        console.warn('Failed to backfill encryption material:', err);
-        return { error: 'Nie udało się skonfigurować szyfrowania. Spróbuj ponownie.' };
-      }
-
-      salt = generated.salt;
-      encrypted_dek = generated.encryptedDek;
-      dek_iv = generated.dekIv;
-      kdf_iterations = generated.kdfIterations;
-    }
-
-    try {
-      const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-      const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
-      setDek(decryptedDek);
-
-      void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
-      void migrateUserEncryption(user.id, decryptedDek).catch((err) =>
-        console.warn('Background encryption migration failed:', err)
-      );
-    } catch (err) {
-      console.warn('Failed to unlock DEK:', err);
-      return { error: 'Nieprawidłowe hasło' };
-    }
-
-    return { error: null };
-  };
-
-  const signUp = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { username } },
-    });
-
-    if (error || !data.user) {
-      return { error: error?.message ?? 'Sign up failed' };
-    }
-
-    const { salt, encryptedDek, dekIv, kdfIterations } = await generateEncryptionMaterial(password);
-
-    try {
-      await withRetry(
-        async () => {
-          const { error: updateError, data: updated } = await supabase
-            .from('profiles')
-            .update({ salt, encrypted_dek: encryptedDek, dek_iv: dekIv, kdf_iterations: kdfIterations })
-            .eq('id', data.user!.id)
-            .select('id');
-
-          if (updateError) throw updateError;
-          if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
-        },
-        { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
-      );
-    } catch (err) {
-      console.warn('Failed to save encryption material after retries:', err);
-      return {
-        error:
-          'Konto utworzone, ale nie udało się zapisać kluczy szyfrowania. Spróbuj zalogować się ponownie.',
-      };
-    }
-
-    return { error: null };
   };
 
   const logout = async () => {
@@ -506,6 +525,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         dek,
         loading,
+        isAuthenticating,
         signIn,
         signUp,
         logout,

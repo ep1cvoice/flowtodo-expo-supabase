@@ -19,6 +19,7 @@ export interface User {
 export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
+  isAuthenticating: boolean;
   dek: Uint8Array | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;

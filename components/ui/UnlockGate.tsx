@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 
 import { useAuth } from '@/context/AuthContext';
 
 export function UnlockGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, dek, loading, unlock } = useAuth();
+  const { isAuthenticated, dek, loading, unlock, logout, isAuthenticating } = useAuth();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -16,8 +16,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const needsUnlock = isAuthenticated && dek === null;
-
+  const needsUnlock = isAuthenticated && dek === null && !isAuthenticating;
   if (!needsUnlock) {
     return <>{children}</>;
   }
@@ -26,9 +25,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
     if (!password) return;
     setSubmitting(true);
     setError(null);
-
     const { error } = await unlock(password);
-
     if (error) {
       setError(error);
     } else {
@@ -37,30 +34,41 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
     setSubmitting(false);
   };
 
+  const handleLogout = async () => {
+    setPassword('');
+    setError(null);
+    await logout();
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Odblokuj FlowTodo</Text>
       <Text style={styles.subtitle}>Podaj hasło, aby odszyfrować swoje dane</Text>
-
       <TextInput
         style={styles.input}
         secureTextEntry
         autoFocus
+        autoCapitalize="none"
+        autoCorrect={false}
+        spellCheck={false}
+        textContentType="password"
+        importantForAutofill="no"
         value={password}
         onChangeText={setPassword}
         onSubmitEditing={handleUnlock}
         placeholder="Hasło"
         editable={!submitting}
       />
-
       {error && <Text style={styles.error}>{error}</Text>}
-
       <Pressable
         style={[styles.button, submitting && styles.buttonDisabled]}
         onPress={handleUnlock}
         disabled={submitting || !password}
       >
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Odblokuj</Text>}
+      </Pressable>
+      <Pressable style={styles.logoutButton} onPress={handleLogout} disabled={submitting}>
+        <Text style={styles.logoutText}>Wyloguj się</Text>
       </Pressable>
     </View>
   );
@@ -87,4 +95,14 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  logoutButton: {
+    marginTop: 4,
+    padding: 10,
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '500',
+  },
 });
