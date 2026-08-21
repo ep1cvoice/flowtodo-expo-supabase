@@ -21,6 +21,7 @@ import {
   LogOut,
   Plus,
   AlertTriangle,
+  Lock
 } from 'lucide-react-native';
 import ChangePasswordModal from '@/components/settings/ChangePasswordModal';
 import CategoryModal from '@/components/tasks/CategoryModal';
@@ -600,6 +601,18 @@ export default function SettingsScreen() {
         </Pressable>
         {openSection === 'data' && (
           <View style={styles.sectionBody}>
+            <View style={styles.encryptionInfo}>
+              <View style={styles.encryptionInfoHeader}>
+                <Lock size={16} color={colors.primary} />
+                <Text style={styles.encryptionInfoTitle}>End-to-end encrypted</Text>
+              </View>
+              <Text style={styles.encryptionInfoText}>
+                Your task titles, descriptions, tags, and categories are encrypted on your
+                device before being stored. Only you can read them — not even we can access
+                the contents.
+              </Text>
+            </View>
+
             <Text style={styles.description}>
               Bulk delete data.
             </Text>
@@ -1085,6 +1098,30 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       color: colors.sidebarLogoutText,
       fontSize: 16,
       fontWeight: '600',
+    },
+    encryptionInfo: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+      backgroundColor: colors.bgSurface,
+      gap: 6,
+      marginBottom: 4,
+    },
+    encryptionInfoHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    encryptionInfoTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    encryptionInfoText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
     },
   });
 }
