@@ -95,7 +95,8 @@ async function randomBytes(length: number): Promise<Uint8Array> {
   return ExpoCrypto.getRandomBytesAsync(length);
 }
 
-function deriveKeyFromPassword(password: string, salt: Uint8Array, iterations: number): Uint8Array {
+async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  // Jeśli kod jest natywny (szybka ścieżka C++)
   if (QuickCrypto) {
     const derived = QuickCrypto.pbkdf2Sync(
       password,
@@ -106,6 +107,16 @@ function deriveKeyFromPassword(password: string, salt: Uint8Array, iterations: n
     );
     return new Uint8Array(derived);
   }
+
+  // Jeśli w Expo Go i jest dostęp do mostu WebView
+  if ((global as any).deriveKeyViaWebView) {
+    const saltBase64 = toBase64(salt);
+    const keyBase64 = await (global as any).deriveKeyViaWebView(password, saltBase64, iterations);
+    return fromBase64(keyBase64);
+  }
+
+  // Całkowity fallback (zablokuje wątek JS, ale uratuje sytuację, gdyby WebView jeszcze nie wstało)
+  console.warn('[crypto] WebView is not ready. Using @noble.');
   const passBytes = new TextEncoder().encode(password);
   return pbkdf2(sha256, passBytes, salt, { c: iterations, dkLen: DEK_BYTES });
 }
@@ -149,7 +160,7 @@ export async function generateEncryptionMaterial(password: string): Promise<Encr
   const dekBytes = await randomBytes(DEK_BYTES);
   const ivBytes = await randomBytes(IV_BYTES);
 
-  const kek = deriveKeyFromPassword(password, saltBytes, PBKDF2_ITERATIONS);
+  const kek = await deriveKeyFromPassword(password, saltBytes, PBKDF2_ITERATIONS);
   const encryptedDekBytes = gcmEncrypt(kek, ivBytes, dekBytes);
 
   return {
@@ -167,7 +178,7 @@ export async function encryptDekWithPassword(
   const saltBytes = await randomBytes(SALT_BYTES);
   const ivBytes = await randomBytes(IV_BYTES);
 
-  const kek = deriveKeyFromPassword(password, saltBytes, PBKDF2_ITERATIONS);
+  const kek = await deriveKeyFromPassword(password, saltBytes, PBKDF2_ITERATIONS);
   const encryptedDekBytes = gcmEncrypt(kek, ivBytes, dek);
 
   return {
@@ -189,7 +200,7 @@ export async function decryptDek(
   const iv = fromBase64(dekIvB64);
   const encryptedDek = fromBase64(encryptedDekB64);
 
-  const kek = deriveKeyFromPassword(password, salt, kdfIterations);
+  const kek = await deriveKeyFromPassword(password, salt, kdfIterations);
   return gcmDecrypt(kek, iv, encryptedDek);
 }
 
