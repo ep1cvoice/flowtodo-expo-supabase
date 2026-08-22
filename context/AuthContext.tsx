@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        const decryptedDek = await decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
         setDek(decryptedDek);
 
         void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
@@ -293,7 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        const decryptedDek = await decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
         setDek(decryptedDek);
 
         void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
