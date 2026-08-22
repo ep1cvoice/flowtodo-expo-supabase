@@ -109,7 +109,7 @@ export const tokens = {
     elevation: 4,
   },
   authCardMaxWidth: 448,
-  contentMaxWidth: 1200,
+  contentMaxWidth: 760,
   desktopBreakpoint: 768,
 } as const;
 
