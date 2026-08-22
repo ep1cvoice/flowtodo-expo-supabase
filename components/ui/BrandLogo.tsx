@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { Waves } from 'lucide-react-native';
+import { WavesHorizontal } from 'lucide-react-native';
 import { brand } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -14,7 +14,7 @@ export default function BrandLogo({ size = 'sm' }: BrandLogoProps) {
 
   return (
     <View style={styles.row}>
-      <Waves size={iconSize} strokeWidth={2.2} color={colors.primary} />
+      <WavesHorizontal size={iconSize} strokeWidth={2.2} color={colors.primary} />
       <Text style={[styles.name, { color: colors.primary, fontSize }]}>{brand.name}</Text>
     </View>
   );
