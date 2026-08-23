@@ -14,9 +14,11 @@ import { mapActivePomo, mapPomoRecord } from '@/lib/pomoMappers';
 import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoroLogoutBridge';
 import { encryptField } from '@/lib/crypto';
 import { requireDek } from '@/lib/taskDek';
+import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
 
 const MAX_HISTORY = 5;
+const POMO_REFRESH_TIMEOUT_MS = 12_000;
 
 interface PomodoroContextValue {
   activeTaskId: number | null;
@@ -130,7 +132,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoading(true);
-    refresh(user.id, { resumeIfPaused: true })
+    withTimeout(refresh(user.id, { resumeIfPaused: true }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
       .catch((err) => {
         console.warn('Failed to load pomodoros:', err?.message ?? err);
       })
@@ -146,7 +148,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const refetch = useCallback(async () => {
     if (!user) return;
     try {
-      await refresh(user.id);
+      await withTimeout(refresh(user.id), POMO_REFRESH_TIMEOUT_MS, 'refetchPomodoro');
     } catch (err) {
       console.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
     }

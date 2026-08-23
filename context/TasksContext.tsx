@@ -19,8 +19,11 @@ import { seedDemoData } from '@/lib/seedDemoData';
 import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
 import { encryptField, hashForUniqueness } from '@/lib/crypto';
 import { requireDek } from '@/lib/taskDek';
+import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
 import type { Category, CategoryIcon, Tag, Task } from '@/types';
+
+const TASKS_REFRESH_TIMEOUT_MS = 15_000;
 
 export interface AddTaskInput {
   title: string;
@@ -215,7 +218,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const snapshot = await refresh(userId);
+        const snapshot = await withTimeout(
+          refresh(userId),
+          TASKS_REFRESH_TIMEOUT_MS,
+          'refreshTasks'
+        );
         if (cancelled) return;
 
         const isEmpty =
@@ -225,9 +232,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           snapshot.completedTasks.length === 0;
 
         if (isEmpty) {
-          await seedDemoData(userId);
+          await withTimeout(seedDemoData(userId), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
           if (cancelled) return;
-          await refresh(userId);
+          await withTimeout(refresh(userId), TASKS_REFRESH_TIMEOUT_MS, 'refreshTasksAfterSeed');
         }
       } catch (err) {
         console.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
@@ -244,7 +251,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const refetch = useCallback(async () => {
     if (!user) return;
     try {
-      await refresh(user.id);
+      await withTimeout(refresh(user.id), TASKS_REFRESH_TIMEOUT_MS, 'refetchTasks');
     } catch (err) {
       console.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
     }
