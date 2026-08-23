@@ -70,5 +70,8 @@
       "^@/(.*)$": "<rootDir>/$1"
     }
   },
+  "overrides": {
+    "react-native-worklets": "0.5.1"
+  },
   "private": true
 }
