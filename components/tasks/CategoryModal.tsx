@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Modal,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
@@ -40,6 +39,7 @@ import type { Category, CategoryIcon } from '@/types';
 import { CATEGORY_ICONS, PALETTE_COLORS } from '@/constants/palette';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
+import AppModal from '@/components/ui/AppModal';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
@@ -122,7 +122,7 @@ export default function CategoryModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -231,7 +231,7 @@ export default function CategoryModal({
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -240,7 +240,6 @@ function createStyles(colors: AppColors) {
     flex: { flex: 1 },
     overlay: {
       flex: 1,
-      backgroundColor: colors.overlayBg,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,

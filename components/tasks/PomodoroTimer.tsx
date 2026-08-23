@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Modal, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { AlarmClock, Pause, Play, X } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { useTheme } from '@/context/ThemeContext';
 import { playPomodoroAlarm, stopPomodoroAlarm } from '@/utils/pomodoroAlarm';
+import AppModal from '@/components/ui/AppModal';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface PomodoroTimerProps {
@@ -118,7 +119,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
         </Pressable>
       </View>
 
-      <Modal visible={showAlarm} transparent animationType="fade" onRequestClose={handleDismissAlarm}>
+      <AppModal visible={showAlarm} onClose={handleDismissAlarm}>
         <Pressable style={styles.alarmOverlay} onPress={handleDismissAlarm}>
           <Pressable style={styles.alarmModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.alarmHeader}>
@@ -136,7 +137,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </AppModal>
     </>
   );
 }
@@ -176,7 +177,6 @@ function createStyles(colors: AppColors) {
     },
     alarmOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
       alignItems: 'center',
       justifyContent: 'center',
       padding: 16,

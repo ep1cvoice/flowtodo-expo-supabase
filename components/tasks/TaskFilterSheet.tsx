@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Modal,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -13,6 +12,7 @@ import type { Category, Tag } from '@/types';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import AppModal from '@/components/ui/AppModal';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TaskFilterSheetProps {
@@ -55,7 +55,7 @@ export default function TaskFilterSheet({
   const atSharedLimit = selectedCount >= maxFilterSelections;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
         <Pressable
           style={[styles.modal, isMobile && styles.modalMobile]}
@@ -179,7 +179,7 @@ export default function TaskFilterSheet({
           </View>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -187,7 +187,6 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,

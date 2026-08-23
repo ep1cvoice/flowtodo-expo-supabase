@@ -43,6 +43,7 @@ import type { ThemeMode } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
 import { webInteractive } from '@/utils/pressableWeb';
+import { useKeyboardBottomInset } from '@/lib/useKeyboardBottomInset';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -68,6 +69,7 @@ export default function SettingsScreen() {
   } = useTasks();
   const router = useRouter();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const keyboardInset = useKeyboardBottomInset();
 
   const [openSection, setOpenSection] = useState<SectionKey | null>(null);
   const [pomodoroTime, setPomodoroTime] = useState<string>(
@@ -279,7 +281,8 @@ export default function SettingsScreen() {
     <ScreenBackground>
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: 32 + keyboardInset }]}
+      keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}>
       <View style={styles.panel}>
       {/* PROFILE */}

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import { useKeyboardHeight } from '@/lib/useKeyboardBottomInset';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,8 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
   const isDesktop = width >= tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const keyboardInset = useKeyboardHeight();
+  const keyboardOpen = keyboardInset > 0;
 
   return (
     <LinearGradient
@@ -42,7 +45,11 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
           keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              keyboardOpen && styles.scrollContentKeyboard,
+              keyboardOpen && { paddingBottom: keyboardInset + 16 },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             bounces={false}>
@@ -94,6 +101,10 @@ function createStyles(colors: AppColors) {
       justifyContent: 'center',
       alignItems: 'center',
       paddingVertical: 16,
+    },
+    scrollContentKeyboard: {
+      flexGrow: 0,
+      justifyContent: 'flex-start',
     },
     card: {
       flexDirection: 'column',
