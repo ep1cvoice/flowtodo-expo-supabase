@@ -131,7 +131,12 @@ export default function MainTabsLayout() {
                 elevation: 0,
                 shadowOpacity: 0,
               }
-            : null),
+            : {
+                // React Navigation's default bar can be too short for the icon
+                // and label in browser device previews or Android variants with
+                // no reported bottom inset.
+                minHeight: isCompactTabBar ? 56 : 64,
+              }),
         },
         tabBarItemStyle: isDesktop
           ? {
