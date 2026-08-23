@@ -13,6 +13,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -43,27 +47,8 @@ import { filterTasksBySearch } from '@/lib/taskSearch';
 import { isTaskSortMode, sortTasks, type TaskSortMode } from '@/lib/taskSort';
 import type { Task } from '@/types';
 
-// Potrzebne do ominięcia błędów
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const DragFlatList = require('react-native-drag-flatlist').default as React.ComponentType<{
-  data: Task[];
-  keyExtractor: (item: Task) => string;
-  onMoveEnd?: (data: Task[]) => void;
-  renderItem: (info: DragFlatListRenderItemInfo<Task>) => React.ReactElement | null;
-  style?: any;
-  contentContainerStyle?: any;
-  ListEmptyComponent?: React.ReactElement;
-  keyboardShouldPersistTaps?: string;
-}>;
-
 const isWeb = Platform.OS === 'web';
 const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
-
-interface DragFlatListRenderItemInfo<T> {
-  item: T;
-  index: number;
-  drag: () => void;
-}
 
 export default function ActiveTasks() {
   const navigation = useNavigation();
@@ -92,7 +77,6 @@ export default function ActiveTasks() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
@@ -295,10 +279,8 @@ export default function ActiveTasks() {
     [activeTasks, hasListConstraints, persistOrder]
   );
 
-  // react-native-drag-flatlist calls onMoveEnd with the reordered data array directly.
-  const handleMoveEnd = useCallback(
-    (data: Task[]) => {
-      setDraggingTaskId(null);
+  const handleDragEnd = useCallback(
+    ({ data }: { data: Task[] }) => {
       if (!canReorder || isWeb) return;
       const orderChanged = data.some((task, i) => task.id !== filteredTasks[i]?.id);
       if (!orderChanged) return;
@@ -308,9 +290,8 @@ export default function ActiveTasks() {
     [canReorder, filteredTasks, persistVisibleOrder]
   );
 
-  const beginDrag = useCallback((taskId: number, drag: () => void) => {
+  const beginDrag = useCallback((drag: () => void) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setDraggingTaskId(taskId);
     drag();
   }, []);
 
@@ -331,30 +312,20 @@ export default function ActiveTasks() {
   );
 
   const renderNativeItem = useCallback(
-    ({ item, index, drag }: { item: Task; index: number; drag: () => void }) => (
-      <View
-        style={[
-          styles.itemWrap,
-          draggingTaskId === item.id && styles.itemDragging,
-        ]}>
-        <ToDoItem
-          task={item}
-          index={index}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          drag={canReorder ? () => beginDrag(item.id, drag) : undefined}
-        />
-      </View>
+    ({ item, drag, getIndex, isActive }: RenderItemParams<Task>) => (
+      <ScaleDecorator activeScale={1.04}>
+        <View style={[styles.itemWrap, isActive && styles.itemDragging]}>
+          <ToDoItem
+            task={item}
+            index={getIndex() ?? 0}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            drag={canReorder ? () => beginDrag(drag) : undefined}
+          />
+        </View>
+      </ScaleDecorator>
     ),
-    [
-      beginDrag,
-      canReorder,
-      draggingTaskId,
-      handleDelete,
-      handleToggle,
-      styles.itemDragging,
-      styles.itemWrap,
-    ]
+    [beginDrag, canReorder, handleDelete, handleToggle, styles.itemDragging, styles.itemWrap]
   );
 
   const renderWebItem = useCallback(
@@ -441,6 +412,7 @@ export default function ActiveTasks() {
   const listContentStyle = [
     styles.tasksContent,
     styles.tasksContentPad,
+    !isWeb && styles.tasksContentDragPad,
     filteredTasks.length === 0 && styles.tasksContentEmpty,
   ];
 
@@ -475,12 +447,14 @@ export default function ActiveTasks() {
                 keyboardShouldPersistTaps="handled"
               />
             ) : (
-              <DragFlatList
+              <DraggableFlatList
                 style={styles.tasksList}
+                containerStyle={styles.tasksList}
                 contentContainerStyle={listContentStyle}
                 data={filteredTasks}
                 keyExtractor={(item) => String(item.id)}
-                onMoveEnd={handleMoveEnd}
+                onDragEnd={handleDragEnd}
+                activationDistance={canReorder ? 8 : 9999}
                 ListEmptyComponent={emptyComponent}
                 renderItem={renderNativeItem}
                 keyboardShouldPersistTaps="handled"
@@ -531,27 +505,33 @@ function createStyles(colors: AppColors) {
     container: {
       flex: 1,
       minHeight: 0,
+      overflow: 'visible',
     },
     contentInset: {
       flex: 1,
       minHeight: 0,
       paddingHorizontal: TASK_LIST_INSET,
       paddingTop: TASK_LIST_INSET,
+      overflow: 'visible',
     },
     listArea: {
       flex: 1,
       minHeight: 0,
-      overflow: 'hidden',
+      overflow: 'visible',
     },
     tasksList: {
       flex: 1,
       minHeight: 0,
+      overflow: 'visible',
     },
     tasksContent: {
       flexGrow: 1,
     },
     tasksContentPad: {
       paddingBottom: CREATE_TASK_FAB_CLEARANCE,
+    },
+    tasksContentDragPad: {
+      paddingTop: 6,
     },
     tasksContentEmpty: {
       flexGrow: 1,
@@ -561,13 +541,13 @@ function createStyles(colors: AppColors) {
       overflow: 'visible',
     },
     itemDragging: {
-      zIndex: 20,
+      zIndex: 30,
       overflow: 'visible',
       shadowColor: '#0f172a',
-      shadowOpacity: 0.16,
-      shadowRadius: 10,
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
-      elevation: 8,
+      elevation: 12,
     },
     loadingState: {
       flex: 1,

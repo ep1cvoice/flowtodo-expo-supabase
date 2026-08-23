@@ -5,9 +5,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
+import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import {
   WEEKDAY_LABELS,
@@ -30,22 +32,25 @@ export default function ActiveDayCalendar({
   onSelectDay,
   markedDays,
 }: ActiveDayCalendarProps) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= tokens.desktopBreakpoint;
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, isDesktop), [colors, isDesktop]);
   const today = useMemo(() => startOfDay(new Date()), []);
   const stripDays = useMemo(() => buildDayStrip(today), [today]);
   const stripRef = useRef<ScrollView>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => width >= tokens.desktopBreakpoint);
   const [monthCursor, setMonthCursor] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1)
   );
 
   useEffect(() => {
+    if (expanded || isDesktop) return;
     const id = requestAnimationFrame(() => {
       stripRef.current?.scrollTo({ x: Math.max(0, 6 * 46 - 40), animated: false });
     });
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [expanded, isDesktop]);
 
   useEffect(() => {
     if (!selectedDay) return;
@@ -66,9 +71,59 @@ export default function ActiveDayCalendar({
     onSelectDay(startOfDay(day));
   };
 
+  const renderStripDay = (day: Date) => {
+    const key = toDayKey(day);
+    const selected = selectedDay ? sameDay(day, selectedDay) : false;
+    const isToday = sameDay(day, today);
+    const marked = markedDays.has(key);
+    return (
+      <Pressable
+        key={key}
+        onPress={() => handleSelect(day)}
+        style={({ pressed, hovered }) => [
+          styles.stripDay,
+          selected && styles.stripDaySelected,
+          isToday && !selected && styles.stripDayToday,
+          (hovered || pressed) && !selected && styles.stripDayPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={day.toDateString()}
+        accessibilityState={{ selected }}>
+        <Text
+          style={[
+            styles.stripWeekday,
+            selected && styles.stripTextSelected,
+            isToday && !selected && styles.stripTodayAccent,
+          ]}>
+          {WEEKDAY_LABELS[day.getDay()]}
+        </Text>
+        <Text
+          style={[
+            styles.stripDate,
+            selected && styles.stripTextSelected,
+            isToday && !selected && styles.stripTodayAccent,
+          ]}>
+          {day.getDate()}
+        </Text>
+        <View
+          style={[
+            styles.dot,
+            marked ? styles.dotMarked : styles.dotEmpty,
+            selected && marked && styles.dotOnSelected,
+          ]}
+        />
+      </Pressable>
+    );
+  };
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.topRow}>
+      <View
+        style={[
+          styles.topRow,
+          isDesktop && styles.topRowDesktop,
+          isDesktop && expanded && styles.topRowDesktopExpanded,
+        ]}>
         <Pressable
           onPress={() => onSelectDay(null)}
           style={({ pressed, hovered }) => [
@@ -83,57 +138,18 @@ export default function ActiveDayCalendar({
         </Pressable>
 
         {!expanded ? (
-          <ScrollView
-            ref={stripRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.stripContent}
-            style={styles.strip}>
-            {stripDays.map((day) => {
-              const key = toDayKey(day);
-              const selected = selectedDay ? sameDay(day, selectedDay) : false;
-              const isToday = sameDay(day, today);
-              const marked = markedDays.has(key);
-              return (
-                <Pressable
-                  key={key}
-                  onPress={() => handleSelect(day)}
-                  style={({ pressed, hovered }) => [
-                    styles.stripDay,
-                    selected && styles.stripDaySelected,
-                    isToday && !selected && styles.stripDayToday,
-                    (hovered || pressed) && !selected && styles.stripDayPressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={day.toDateString()}
-                  accessibilityState={{ selected }}>
-                  <Text
-                    style={[
-                      styles.stripWeekday,
-                      selected && styles.stripTextSelected,
-                      isToday && !selected && styles.stripTodayAccent,
-                    ]}>
-                    {WEEKDAY_LABELS[day.getDay()]}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.stripDate,
-                      selected && styles.stripTextSelected,
-                      isToday && !selected && styles.stripTodayAccent,
-                    ]}>
-                    {day.getDate()}
-                  </Text>
-                  <View
-                    style={[
-                      styles.dot,
-                      marked ? styles.dotMarked : styles.dotEmpty,
-                      selected && marked && styles.dotOnSelected,
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          isDesktop ? (
+            <View style={styles.stripDesktopRow}>{stripDays.map(renderStripDay)}</View>
+          ) : (
+            <ScrollView
+              ref={stripRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.stripContent}
+              style={styles.strip}>
+              {stripDays.map(renderStripDay)}
+            </ScrollView>
+          )
         ) : (
           <View style={styles.monthNavRow}>
             <Pressable
@@ -249,7 +265,7 @@ export default function ActiveDayCalendar({
   );
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(colors: AppColors, isDesktop: boolean) {
   return StyleSheet.create({
     wrap: {
       marginBottom: 8,
@@ -261,6 +277,13 @@ function createStyles(colors: AppColors) {
       alignItems: 'center',
       gap: 6,
       minHeight: 36,
+    },
+    topRowDesktop: {
+      width: '100%',
+      alignSelf: 'center',
+    },
+    topRowDesktopExpanded: {
+      maxWidth: 380,
     },
     monthNavRow: {
       flex: 1,
@@ -298,6 +321,12 @@ function createStyles(colors: AppColors) {
     },
     strip: {
       flex: 1,
+    },
+    stripDesktopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
     },
     stripContent: {
       gap: 6,
@@ -387,6 +416,13 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.bgSurface,
       padding: 10,
       gap: 4,
+      ...(isDesktop
+        ? {
+            maxWidth: 380,
+            width: '100%',
+            alignSelf: 'center',
+          }
+        : null),
     },
     navBtn: {
       padding: 6,

@@ -59,15 +59,15 @@ export default function RootLayout() {
           {/* Auth outside Theme so theme loading never remounts the session */}
           <AuthProvider>
             <UnlockGate>
-            <ThemeProvider>
-              <ToastProvider>
-                <TasksProvider>
-                  <PomodoroProvider>
-                    <ReconnectRefresh />
-                    <RootNavigation />
-                  </PomodoroProvider>
-                </TasksProvider>
-              </ToastProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <TasksProvider>
+                    <PomodoroProvider>
+                      <ReconnectRefresh />
+                      <RootNavigation />
+                    </PomodoroProvider>
+                  </TasksProvider>
+                </ToastProvider>
               </ThemeProvider>
             </UnlockGate>
           </AuthProvider>

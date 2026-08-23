@@ -95,8 +95,9 @@ function DesktopConstrainedHeader({
 
 export default function MainTabsLayout() {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isDesktop = width >= tokens.desktopBreakpoint;
+  const isCompactTabBar = !isDesktop && height < 700;
 
   return (
     <Tabs
@@ -113,7 +114,9 @@ export default function MainTabsLayout() {
         ),
         headerShown: true,
         tabBarLabelPosition: isDesktop ? 'beside-icon' : 'below-icon',
-        tabBarShowLabel: true,
+        // Keep labels on normal phone screens so the iOS home-indicator inset
+        // feels intentional. Only hide them when the viewport is too short.
+        tabBarShowLabel: !isCompactTabBar,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
@@ -128,7 +131,12 @@ export default function MainTabsLayout() {
                 elevation: 0,
                 shadowOpacity: 0,
               }
-            : null),
+            : {
+                // React Navigation's default bar can be too short for the icon
+                // and label in browser device previews or Android variants with
+                // no reported bottom inset.
+                minHeight: isCompactTabBar ? 56 : 64,
+              }),
         },
         tabBarItemStyle: isDesktop
           ? {

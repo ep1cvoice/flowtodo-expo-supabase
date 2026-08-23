@@ -14,6 +14,8 @@ import {
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { withRetry } from '@/lib/retry';
 import { migrateUserEncryption } from '@/lib/migrateEncryption';
+import { toastForError } from '@/lib/networkError';
+import { withTimeout } from '@/lib/withTimeout';
 
 import type { AuthContextValue, ProfileUpdates, User } from '@/types';
 
@@ -21,10 +23,23 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const PROFILE_RETRY_ATTEMPTS = 3;
 const PROFILE_RETRY_DELAY_MS = 500;
+const PROFILE_FETCH_TIMEOUT_MS = 8_000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 10_000;
 const LEGACY_KDF_ITERATIONS = 50_000; // wartość używana przed wprowadzeniem kolumny kdf_iterations
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function minimalUserFromSession(userId: string, email: string | undefined): User {
+  return {
+    id: userId,
+    email: email ?? '',
+    username: '',
+    settings: {
+      maxFilterSelections: FILTER_LIMIT_DEFAULT,
+    },
+  };
 }
 
 async function fetchProfile(
@@ -32,38 +47,51 @@ async function fetchProfile(
   email: string | undefined,
   attempt = 1
 ): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(
-      'username, theme, notification_type, pomodoro_time, view, max_filter_selections'
-    )
-    .eq('id', userId)
-    .single();
+  try {
+    const { data, error } = await withTimeout(
+      supabase
+        .from('profiles')
+        .select(
+          'username, theme, notification_type, pomodoro_time, view, max_filter_selections'
+        )
+        .eq('id', userId)
+        .single(),
+      PROFILE_FETCH_TIMEOUT_MS,
+      'fetchProfile'
+    );
 
-  if (error || !data) {
+    if (error || !data) {
+      if (attempt < PROFILE_RETRY_ATTEMPTS) {
+        await wait(PROFILE_RETRY_DELAY_MS * attempt);
+        return fetchProfile(userId, email, attempt + 1);
+      }
+      console.warn('fetchProfile failed after retries:', error?.message);
+      return null;
+    }
+
+    return {
+      id: userId,
+      email: email ?? '',
+      username: data.username ?? '',
+      settings: {
+        theme: data.theme ?? undefined,
+        notificationType: data.notification_type ?? undefined,
+        pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
+        view: data.view ?? undefined,
+        maxFilterSelections:
+          data.max_filter_selections != null
+            ? clampFilterLimit(Number(data.max_filter_selections))
+            : FILTER_LIMIT_DEFAULT,
+      },
+    };
+  } catch (err) {
     if (attempt < PROFILE_RETRY_ATTEMPTS) {
       await wait(PROFILE_RETRY_DELAY_MS * attempt);
       return fetchProfile(userId, email, attempt + 1);
     }
-    console.warn('fetchProfile failed after retries:', error?.message);
+    console.warn('fetchProfile threw after retries:', (err as Error)?.message ?? err);
     return null;
   }
-
-  return {
-    id: userId,
-    email: email ?? '',
-    username: data.username ?? '',
-    settings: {
-      theme: data.theme ?? undefined,
-      notificationType: data.notification_type ?? undefined,
-      pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
-      view: data.view ?? undefined,
-      maxFilterSelections:
-        data.max_filter_selections != null
-          ? clampFilterLimit(Number(data.max_filter_selections))
-          : FILTER_LIMIT_DEFAULT,
-    },
-  };
 }
 
 function toProfileRow(updates: ProfileUpdates) {
@@ -130,22 +158,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id, session.user.email);
-        if (isMounted) setUserState(profile);
+    (async () => {
+      try {
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_BOOTSTRAP_TIMEOUT_MS,
+          'getSession'
+        );
+        const session = data.session;
+        if (session?.user) {
+          const profile =
+            (await fetchProfile(session.user.id, session.user.email)) ??
+            minimalUserFromSession(session.user.id, session.user.email);
+          if (isMounted) setUserState(profile);
+        }
+      } catch (err) {
+        console.warn('Session bootstrap failed:', (err as Error)?.message ?? err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      if (isMounted) setLoading(false);
-    });
+    })();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id, session.user.email);
-        if (isMounted) setUserState(profile);
-      } else {
-        if (isMounted) setUserState(null);
+      try {
+        if (session?.user) {
+          const profile =
+            (await fetchProfile(session.user.id, session.user.email)) ??
+            minimalUserFromSession(session.user.id, session.user.email);
+          if (isMounted) setUserState(profile);
+        } else {
+          if (isMounted) {
+            setUserState(null);
+            setDek(null);
+          }
+        }
+      } catch (err) {
+        console.warn('onAuthStateChange profile load failed:', (err as Error)?.message ?? err);
+        if (session?.user && isMounted) {
+          setUserState(minimalUserFromSession(session.user.id, session.user.email));
+        }
       }
     });
 
@@ -158,17 +211,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setIsAuthenticating(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        AUTH_BOOTSTRAP_TIMEOUT_MS,
+        'signIn'
+      );
 
       if (error || !data.user) {
         return { error: error?.message ?? 'Sign in failed' };
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
-        .eq('id', data.user.id)
-        .single();
+      const { data: profileData, error: profileError } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+          .eq('id', data.user.id)
+          .single(),
+        PROFILE_FETCH_TIMEOUT_MS,
+        'signInProfile'
+      );
 
       if (profileError || !profileData) {
         return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
@@ -212,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        const decryptedDek = await decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
         setDek(decryptedDek);
 
         void upgradeKdfIterationsInBackground(data.user.id, decryptedDek, password, iterations);
@@ -225,6 +286,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null };
+    } catch (err) {
+      console.warn('signIn failed:', (err as Error)?.message ?? err);
+      return { error: toastForError(err, 'Sign in failed') };
     } finally {
       setIsAuthenticating(false);
     }
@@ -237,11 +301,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setIsAuthenticating(true);
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('salt, encrypted_dek, dek_iv, kdf_iterations')
-        .eq('id', user.id)
-        .single();
+      const { data: profileData, error: profileError } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+          .eq('id', user.id)
+          .single(),
+        PROFILE_FETCH_TIMEOUT_MS,
+        'unlockProfile'
+      );
 
       if (profileError || !profileData) {
         return { error: 'Nie udało się pobrać danych szyfrowania profilu' };
@@ -293,7 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
-        const decryptedDek = decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
+        const decryptedDek = await decryptDek(password, salt, encrypted_dek, dek_iv, iterations);
         setDek(decryptedDek);
 
         void upgradeKdfIterationsInBackground(user.id, decryptedDek, password, iterations);
@@ -306,6 +374,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null };
+    } catch (err) {
+      console.warn('unlock failed:', (err as Error)?.message ?? err);
+      return { error: toastForError(err, 'Nie udało się odblokować') };
     } finally {
       setIsAuthenticating(false);
     }

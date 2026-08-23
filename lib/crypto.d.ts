@@ -16,7 +16,7 @@ export function decryptDek(
   encryptedDekB64: string,
   dekIvB64: string,
   kdfIterations: number
-): Uint8Array;
+): Promise<Uint8Array>;
 
 export function encryptField(dek: Uint8Array, plaintext: string): Promise<EncryptedField>;
 

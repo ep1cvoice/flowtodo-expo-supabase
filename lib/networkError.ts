@@ -14,7 +14,7 @@ export function isNetworkError(err: unknown): boolean {
     };
 
     if (e.status === 0) return true;
-    if (e.name === 'TypeError') return true;
+    if (e.name === 'TypeError' || e.name === 'TimeoutError') return true;
     if (e.code === 'NETWORK_ERROR' || e.code === 'ENOTFOUND' || e.code === 'ECONNABORTED') {
       return true;
     }
