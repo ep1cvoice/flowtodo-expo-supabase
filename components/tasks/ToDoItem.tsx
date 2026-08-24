@@ -107,9 +107,9 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
-  /** Native: long-press the whole row to start DraggableFlatList drag. */
+  /** Unused on native (react-native-sortables uses Sortable.Handle). Kept for callers. */
   drag?: () => void;
-  /** Web: up and down buttons instead of drag (draggable-flatlist is poor on web). */
+  /** Web: up and down buttons instead of drag. */
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
