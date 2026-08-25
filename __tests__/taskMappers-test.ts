@@ -85,14 +85,14 @@ describe('task mappers', () => {
 
     expect(task).toMatchObject({
       id: 10,
-      title: 'Ship tests',
-      description: 'must-have only',
+      title: 'Zrobić migrację',
+      description: 'Opis zadania',
       done: false,
       completedAt: null,
       categoryId: 1,
-      sortOrder: 3,
-      category: { id: 1, name: 'Work' },
-      tags: [{ id: 2, name: 'urgent' }],
+      sortOrder: 1,
+      category: { id: 1, name: 'Praca' },
+      tags: [{ id: 2, name: 'work' }],
     });
   });
 });
