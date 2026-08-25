@@ -4,9 +4,16 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "android:dev": "expo run:android --variant development",
+    "android:prod": "expo run:android --variant release",
+    "android:clean": "expo prebuild --clean && expo run:android",
+    "ios": "expo run:ios",
+    "ios:dev": "expo run:ios --configuration Development",
+    "ios:prod": "expo run:ios --configuration Release",
+    "ios:clean": "expo prebuild --clean && expo run:ios",
     "web": "expo start --web",
+    "clean": "expo prebuild --clean",
     "test": "jest"
   },
   "dependencies": {
