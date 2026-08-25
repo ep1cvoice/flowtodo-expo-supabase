@@ -25,6 +25,9 @@ interface FieldProps {
   onChangeText: (text: string) => void;
   error?: string;
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  autoFocus?: boolean;
+  editable?: boolean;
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
 }
 
 export default function Field({
@@ -36,6 +39,9 @@ export default function Field({
   onChangeText,
   error,
   autoCapitalize = 'none',
+  autoFocus,
+  editable = true,
+  onSubmitEditing,
 }: FieldProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -80,7 +86,12 @@ export default function Field({
           secureTextEntry={secure}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
+          autoFocus={autoFocus}
+          editable={editable}
           keyboardType={type === 'email' ? 'email-address' : 'default'}
+          returnKeyType={onSubmitEditing ? 'go' : 'done'}
+          onSubmitEditing={onSubmitEditing}
+          textContentType={type === 'password' ? 'password' : type === 'email' ? 'emailAddress' : 'none'}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
