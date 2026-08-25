@@ -45,7 +45,7 @@
     "react-native-svg": "15.12.1",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "~0.21.0",
-    "react-native-webview": "^14.0.1",
+    "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
@@ -72,7 +72,9 @@
     }
   },
   "overrides": {
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "private": true
 }
