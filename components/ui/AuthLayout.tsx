@@ -68,14 +68,14 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
   );
 }
 
-export function LoggingInOverlay() {
+export function LoggingInOverlay({ message = 'Logging in...' }: { message?: string }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.loggingInOverlay}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.loggingInText}>Logging in...</Text>
+      <Text style={styles.loggingInText}>{message}</Text>
     </View>
   );
 }

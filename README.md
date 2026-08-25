@@ -33,6 +33,7 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 | Warstwa | Wybór |
 |---------|--------|
 | Framework | Expo SDK **54** + Expo Router |
+| Package manager | **Bun** (`bun.lock`) — Node.js LTS still needed for some Expo commands |
 | UI | React Native + `react-native-web`, StyleSheet |
 | Ikony | `lucide-react-native` |
 | Auth / DB | Supabase (`supabase-js`), sesja w AsyncStorage |
@@ -56,31 +57,43 @@ Odpal migracje w projekcie Supabase (SQL Editor albo CLI) w tej kolejności na �
 
 ## Run
 
+Install [Bun](https://bun.sh/docs/installation), then:
+
 ```bash
-npm install
+bun install
 cp .env.example .env   # uzupełnij klucze lokalnie
-npm start -- -c
+bun start -- -c
 ```
 
 `w` = web · Expo Go = QR z terminala · SDK celowo **54** pod aktualne Expo Go.
 
+| Zadanie | Komenda |
+|---------|---------|
+| Dev server | `bun start` |
+| Android | `bun run android` |
+| iOS | `bun run ios` |
+| Web | `bun run web` |
+| Dodać bibliotekę Expo | `bun expo install <pkg>` |
+
 ## Android APK
 
 ```bash
-npx eas-cli login
-npx eas-cli build:configure   # once — links Expo projectId into app.json
-npx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://YOUR.supabase.co" --visibility plaintext --non-interactive
-npx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your_anon_key" --visibility sensitive --non-interactive
-npx eas-cli build -p android --profile preview
+bunx eas-cli login
+bunx eas-cli build:configure   # once — links Expo projectId into app.json
+bunx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://YOUR.supabase.co" --visibility plaintext --non-interactive
+bunx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your_anon_key" --visibility sensitive --non-interactive
+bunx eas-cli build -p android --profile preview
 ```
 
-Profil `preview` w `eas.json` buduje **APK** (nie AAB). Po buildzie Expo daje link do pobrania — na telefonie trzeba zezwolić na instalację z nieznanych źródeł.
+Profil `preview` w `eas.json` buduje **APK** (nie AAB). Po buildzie Expo daje link do pobrania — na telefonie trzeba zezwolić na instalację z nieznanych źródeł. EAS używa Buna, bo w repo jest `bun.lock`.
 
 ## Tests
 
 ```bash
-npm test
+bun run test
 ```
+
+Używaj `bun run test`, nie `bun test` — to drugi runner, nie Jest.
 
 Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
 Must-have coverage for now: auth validation (+ login smoke), network errors, task/pomo mappers, filtered reorder, offline banner.

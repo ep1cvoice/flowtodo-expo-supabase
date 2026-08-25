@@ -1,29 +1,41 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  View,
   Text,
-  TextInput,
   Pressable,
   ActivityIndicator,
   StyleSheet,
-  ScrollView,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Lock, Unlock } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
-import { useKeyboardHeight } from '@/lib/useKeyboardBottomInset';
+import { useTheme } from '@/context/ThemeContext';
+import type { AppColors } from '@/constants/theme';
+import Heading from '@/components/ui/Heading';
+import Field from '@/components/ui/Field';
+import Button from '@/components/ui/Button';
+import AuthLayout, { LoggingInOverlay } from '@/components/ui/AuthLayout';
+import { webInteractive } from '@/utils/pressableWeb';
 
 export function UnlockGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, dek, loading, unlock, logout, isAuthenticating } = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const keyboardInset = useKeyboardHeight();
-  const keyboardOpen = keyboardInset > 0;
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
+      <LinearGradient
+        colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={styles.loading}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </LinearGradient>
     );
   }
 
@@ -33,98 +45,93 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
   }
 
   const handleUnlock = async () => {
-    if (!password) return;
+    if (!password || submitting) return false;
     setSubmitting(true);
     setError(null);
-    const { error } = await unlock(password);
-    if (error) {
-      setError(error);
+    const { error: unlockError } = await unlock(password);
+    if (unlockError) {
+      setError(unlockError);
     } else {
       setPassword('');
     }
     setSubmitting(false);
+    return false;
   };
 
   const handleLogout = async () => {
+    if (submitting) return;
     setPassword('');
     setError(null);
     await logout();
   };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[
-        styles.container,
-        keyboardOpen && styles.containerKeyboard,
-        keyboardOpen && { paddingBottom: keyboardInset + 24 },
-      ]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Odblokuj FlowTodo</Text>
-      <Text style={styles.subtitle}>Podaj hasło, aby odszyfrować swoje dane</Text>
-      <TextInput
-        style={styles.input}
-        secureTextEntry
-        autoFocus
-        autoCapitalize="none"
-        autoCorrect={false}
-        spellCheck={false}
-        textContentType="password"
-        importantForAutofill="no"
-        value={password}
-        onChangeText={setPassword}
-        onSubmitEditing={handleUnlock}
-        placeholder="Hasło"
-        editable={!submitting}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable
-        style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={handleUnlock}
-        disabled={submitting || !password}
-      >
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Odblokuj</Text>}
-      </Pressable>
-      <Pressable style={styles.logoutButton} onPress={handleLogout} disabled={submitting}>
-        <Text style={styles.logoutText}>Wyloguj się</Text>
-      </Pressable>
-    </ScrollView>
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <AuthLayout
+        gap={48}
+        overlay={submitting ? <LoggingInOverlay message="Unlocking..." /> : null}>
+        <Heading
+          title="Unlock application" 
+          icon={Unlock}
+          text="Enter your password to decrypt your data"
+        />
+        <Field
+          innerText="Enter your password"
+          Icon={Lock}
+          type="password"
+          label="Password"
+          value={password}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (error) setError(null);
+          }}
+          error={error ?? ''}
+          autoFocus
+          editable={!submitting}
+          onSubmitEditing={handleUnlock}
+        />
+        <Button inner="Unlock" onPress={handleUnlock} />
+        <Pressable
+          onPress={handleLogout}
+          disabled={submitting}
+          style={({ pressed, hovered }) => [
+            styles.logout,
+            (hovered || pressed) && styles.logoutPressed,
+            submitting && styles.logoutDisabled,
+          ]}>
+          <Text style={styles.logoutText}>Log Out</Text>
+        </Pressable>
+      </AuthLayout>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { flex: 1 },
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  containerKeyboard: { flexGrow: 0, justifyContent: 'flex-start' },
-  title: { fontSize: 22, fontWeight: '600', textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  error: { color: '#dc2626', textAlign: 'center' },
-  button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  logoutButton: {
-    marginTop: 4,
-    padding: 10,
-    alignItems: 'center',
-  },
-  logoutText: {
-    color: '#dc2626',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    loading: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logout: {
+      alignSelf: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      ...webInteractive,
+    },
+    logoutPressed: {
+      backgroundColor: colors.sidebarLogoutHover,
+    },
+    logoutDisabled: {
+      opacity: 0.6,
+    },
+    logoutText: {
+      color: colors.sidebarLogoutText,
+      textAlign: 'center',
+      fontSize: 15,
+      fontWeight: '500',
+    },
+  });
+}
