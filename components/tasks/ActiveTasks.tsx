@@ -10,13 +10,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import DraggableFlatList, {
-  ScaleDecorator,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
+import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -77,6 +74,7 @@ export default function ActiveTasks() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const scrollableRef = useAnimatedRef<Animated.ScrollView>();
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
@@ -281,19 +279,12 @@ export default function ActiveTasks() {
 
   const handleDragEnd = useCallback(
     ({ data }: { data: Task[] }) => {
-      if (!canReorder || isWeb) return;
-      const orderChanged = data.some((task, i) => task.id !== filteredTasks[i]?.id);
-      if (!orderChanged) return;
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (!canReorder) return;
+      if (data === filteredTasks) return;
       persistVisibleOrder(data);
     },
     [canReorder, filteredTasks, persistVisibleOrder]
   );
-
-  const beginDrag = useCallback((drag: () => void) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    drag();
-  }, []);
 
   const moveTask = useCallback(
     (taskId: number, direction: -1 | 1) => {
@@ -311,21 +302,22 @@ export default function ActiveTasks() {
     [canReorder, filteredTasks, persistVisibleOrder]
   );
 
-  const renderNativeItem = useCallback(
-    ({ item, drag, getIndex, isActive }: RenderItemParams<Task>) => (
-      <ScaleDecorator activeScale={1.04}>
-        <View style={[styles.itemWrap, isActive && styles.itemDragging]}>
+  const renderNativeItem = useCallback<SortableGridRenderItem<Task>>(
+    ({ item, index }) => (
+      <View style={styles.itemWrap}>
+        <Sortable.Handle
+          mode={canReorder ? 'draggable' : 'non-draggable'}
+          style={styles.itemHandle}>
           <ToDoItem
             task={item}
-            index={getIndex() ?? 0}
+            index={index}
             onToggle={handleToggle}
             onDelete={handleDelete}
-            drag={canReorder ? () => beginDrag(drag) : undefined}
           />
-        </View>
-      </ScaleDecorator>
+        </Sortable.Handle>
+      </View>
     ),
-    [beginDrag, canReorder, handleDelete, handleToggle, styles.itemDragging, styles.itemWrap]
+    [canReorder, handleDelete, handleToggle, styles.itemHandle, styles.itemWrap]
   );
 
   const renderWebItem = useCallback(
@@ -447,18 +439,33 @@ export default function ActiveTasks() {
                 keyboardShouldPersistTaps="handled"
               />
             ) : (
-              <DraggableFlatList
+              <Animated.ScrollView
+                ref={scrollableRef}
                 style={styles.tasksList}
-                containerStyle={styles.tasksList}
                 contentContainerStyle={listContentStyle}
-                data={filteredTasks}
-                keyExtractor={(item) => String(item.id)}
-                onDragEnd={handleDragEnd}
-                activationDistance={canReorder ? 8 : 9999}
-                ListEmptyComponent={emptyComponent}
-                renderItem={renderNativeItem}
-                keyboardShouldPersistTaps="handled"
-              />
+                keyboardShouldPersistTaps="handled">
+                {filteredTasks.length === 0 ? (
+                  emptyComponent
+                ) : (
+                  <Sortable.Grid
+                    columns={1}
+                    data={filteredTasks}
+                    keyExtractor={(item) => String(item.id)}
+                    renderItem={renderNativeItem}
+                    onDragEnd={handleDragEnd}
+                    scrollableRef={scrollableRef}
+                    customHandle
+                    sortEnabled={canReorder}
+                    dragActivationDelay={450}
+                    activeItemScale={1.04}
+                    inactiveItemOpacity={1}
+                    hapticsEnabled
+                    itemEntering={null}
+                    itemExiting={null}
+                    itemsLayoutTransitionMode="reorder"
+                  />
+                )}
+              </Animated.ScrollView>
             )}
           </View>
         )}
@@ -538,16 +545,11 @@ function createStyles(colors: AppColors) {
       justifyContent: 'center',
     },
     itemWrap: {
+      width: '100%',
       overflow: 'visible',
     },
-    itemDragging: {
-      zIndex: 30,
-      overflow: 'visible',
-      shadowColor: '#0f172a',
-      shadowOpacity: 0.18,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 12,
+    itemHandle: {
+      width: '100%',
     },
     loadingState: {
       flex: 1,

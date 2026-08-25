@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Modal,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import { PALETTE_COLORS } from '@/constants/palette';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import AppModal from '@/components/ui/AppModal';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TagModalProps {
@@ -70,7 +70,7 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -152,7 +152,7 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -161,7 +161,6 @@ function createStyles(colors: AppColors) {
     flex: { flex: 1 },
     overlay: {
       flex: 1,
-      backgroundColor: colors.overlayBg,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,

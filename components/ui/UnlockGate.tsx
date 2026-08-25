@@ -1,12 +1,23 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { useAuth } from '@/context/AuthContext';
+import { useKeyboardHeight } from '@/lib/useKeyboardBottomInset';
 
 export function UnlockGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, dek, loading, unlock, logout, isAuthenticating } = useAuth();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const keyboardInset = useKeyboardHeight();
+  const keyboardOpen = keyboardInset > 0;
 
   if (loading) {
     return (
@@ -41,7 +52,16 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.container,
+        keyboardOpen && styles.containerKeyboard,
+        keyboardOpen && { paddingBottom: keyboardInset + 24 },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Odblokuj FlowTodo</Text>
       <Text style={styles.subtitle}>Podaj hasło, aby odszyfrować swoje dane</Text>
       <TextInput
@@ -70,13 +90,15 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
       <Pressable style={styles.logoutButton} onPress={handleLogout} disabled={submitting}>
         <Text style={styles.logoutText}>Wyloguj się</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
+  scroll: { flex: 1 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 },
+  containerKeyboard: { flexGrow: 0, justifyContent: 'flex-start' },
   title: { fontSize: 22, fontWeight: '600', textAlign: 'center' },
   subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 12 },
   input: {

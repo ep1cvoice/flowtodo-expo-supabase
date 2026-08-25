@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Modal,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -17,6 +16,7 @@ import {
   sameDay,
   startOfDay,
 } from '@/lib/calendarDate';
+import AppModal from '@/components/ui/AppModal';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface CalendarModalProps {
@@ -63,7 +63,7 @@ export default function CalendarModal({
   const canConfirm = !!draft && startOfDay(draft) >= today;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
         <Pressable
           style={[styles.modal, isMobile && styles.modalMobile]}
@@ -166,7 +166,7 @@ export default function CalendarModal({
           </View>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -174,7 +174,6 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.65)',
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,

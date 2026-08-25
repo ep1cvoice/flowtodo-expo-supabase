@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   LayoutAnimation,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -47,12 +46,14 @@ import type { LucideIcon } from 'lucide-react-native';
 import CalendarModal from '@/components/tasks/CalendarModal';
 import EditTaskModal from '@/components/tasks/EditTaskModal';
 import PomodoroTimer from '@/components/tasks/PomodoroTimer';
+import AppModal from '@/components/ui/AppModal';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toastForError } from '@/lib/networkError';
 import type { CategoryIcon, Task } from '@/types';
 import { webInteractive } from '@/utils/pressableWeb';
@@ -106,9 +107,9 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
-  /** Native: long-press the whole row to start DraggableFlatList drag. */
+  /** Unused on native (react-native-sortables uses Sortable.Handle). Kept for callers. */
   drag?: () => void;
-  /** Web: up and down buttons instead of drag (draggable-flatlist is poor on web). */
+  /** Web: up and down buttons instead of drag. */
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -132,6 +133,7 @@ export default function ToDoItem({
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
   const { activeTaskId, canStart, startPomo, endPomo } = usePomodoro();
@@ -496,13 +498,11 @@ export default function ToDoItem({
         )}
       </Pressable>
 
-      <Modal
-        visible={showMobileActions}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowMobileActions(false)}>
+      <AppModal visible={showMobileActions} onClose={() => setShowMobileActions(false)}>
         <Pressable style={styles.mobileOverlay} onPress={() => setShowMobileActions(false)}>
-          <Pressable style={styles.mobileActionsModal} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.mobileActionsModal, { paddingBottom: 8 + insets.bottom }]}
+            onPress={(e) => e.stopPropagation()}>
             {canStart ? (
               <Pressable
                 style={styles.mobileActionRow}
@@ -553,7 +553,7 @@ export default function ToDoItem({
             </Pressable>
           </Pressable>
         </Pressable>
-      </Modal>
+      </AppModal>
 
       <EditTaskModal
         visible={showEditModal}
@@ -816,7 +816,6 @@ function createStyles(colors: AppColors) {
     },
     mobileOverlay: {
       flex: 1,
-      backgroundColor: colors.overlayBg,
       justifyContent: 'flex-end',
     },
     mobileActionsModal: {

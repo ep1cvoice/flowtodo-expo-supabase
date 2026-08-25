@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Modal,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import CategoryModal from '@/components/tasks/CategoryModal';
 import TagChipPicker from '@/components/tasks/TagChipPicker';
 import TagModal from '@/components/tasks/TagModal';
 import type { AppColors } from '@/constants/theme';
+import AppModal from '@/components/ui/AppModal';
 import { tokens } from '@/constants/theme';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -131,7 +131,7 @@ export default function AddTaskModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <AppModal visible={visible} onClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -147,6 +147,7 @@ export default function AddTaskModal({
             </View>
 
             <ScrollView
+              style={styles.scroll}
               contentContainerStyle={styles.form}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
@@ -295,7 +296,7 @@ export default function AddTaskModal({
           }
         }}
       />
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -304,7 +305,6 @@ function createStyles(colors: AppColors) {
     flex: { flex: 1 },
     overlay: {
       flex: 1,
-      backgroundColor: colors.overlayBg,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,
@@ -315,6 +315,8 @@ function createStyles(colors: AppColors) {
     modal: {
       width: '100%',
       maxWidth: 420,
+      maxHeight: '100%',
+      flexShrink: 1,
       backgroundColor: colors.bgContent,
       borderWidth: 1,
       borderColor: colors.borderColor,
@@ -343,6 +345,9 @@ function createStyles(colors: AppColors) {
     closeBtn: {
       padding: 6,
       borderRadius: 8,
+    },
+    scroll: {
+      flexShrink: 1,
     },
     form: {
       padding: 18,

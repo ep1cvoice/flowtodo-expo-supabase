@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Modal,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -17,6 +16,7 @@ import {
   TASK_SORT_MODES,
   type TaskSortMode,
 } from '@/lib/taskSort';
+import AppModal from '@/components/ui/AppModal';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TaskSortToggleProps {
@@ -69,7 +69,7 @@ export default function TaskSortSheet({
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
         <Pressable
           style={[styles.modal, isMobile && styles.modalMobile]}
@@ -123,7 +123,7 @@ export default function TaskSortSheet({
           </View>
         </Pressable>
       </Pressable>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -146,7 +146,6 @@ function createStyles(colors: AppColors) {
     },
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,

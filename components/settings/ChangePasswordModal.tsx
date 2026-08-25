@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   Pressable,
@@ -11,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Lock } from 'lucide-react-native';
+import AppModal from '@/components/ui/AppModal';
 import Field from '@/components/ui/Field';
 import { useTheme } from '@/context/ThemeContext';
 import type { AppColors } from '@/constants/theme';
@@ -99,7 +99,7 @@ export default function ChangePasswordModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <AppModal visible={visible} onClose={onClose}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -108,6 +108,7 @@ export default function ChangePasswordModal({
             style={[styles.modal, isMobile && styles.modalMobile]}
             onPress={(e) => e.stopPropagation()}>
             <ScrollView
+              style={styles.scrollView}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scroll}>
@@ -179,7 +180,7 @@ export default function ChangePasswordModal({
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
-    </Modal>
+    </AppModal>
   );
 }
 
@@ -188,7 +189,6 @@ function createStyles(colors: AppColors) {
     flex: { flex: 1 },
     overlay: {
       flex: 1,
-      backgroundColor: colors.overlayBg,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,
@@ -199,7 +199,8 @@ function createStyles(colors: AppColors) {
     modal: {
       width: '100%',
       maxWidth: 440,
-      maxHeight: '90%',
+      maxHeight: '100%',
+      flexShrink: 1,
       backgroundColor: colors.bgSurface,
       borderRadius: tokens.borderRadius,
       borderWidth: 1,
@@ -210,6 +211,9 @@ function createStyles(colors: AppColors) {
       maxWidth: '100%',
       borderBottomLeftRadius: 0,
       borderBottomRightRadius: 0,
+    },
+    scrollView: {
+      flexShrink: 1,
     },
     scroll: {
       gap: 12,
