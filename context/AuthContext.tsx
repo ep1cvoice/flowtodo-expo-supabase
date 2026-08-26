@@ -34,9 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthContextValue['user']>(null);
   const [loading, setLoading] = useState(true);
   const [dek, setDek] = useState<Uint8Array | null>(null);
-  // Zapobiega migotnięciu UnlockGate w oknie między ustawieniem `user`
-  // (przez onAuthStateChange) a ustawieniem `dek` (w signIn/unlock) —
-  // te dwa stany aktualizują się z różnych, niepowiązanych źródeł asynchronicznych.
+  // Only true during signIn/signUp. Unlock must NOT set this — UnlockGate
+  // shows the app when this is true so the login screen can stay mounted.
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
@@ -112,7 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         decryptFailLog: 'Failed to decrypt DEK:',
         decryptFailError: 'Invalid password or corrupted encryption data',
       });
-      if (!resolved.ok) return { error: resolved.error };
+      if (!resolved.ok) {
+        await supabase.auth.signOut();
+        return { error: resolved.error };
+      }
 
       setDek(resolved.dek);
       return { error: null };
@@ -129,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Brak aktywnej sesji.' };
     }
 
-    setIsAuthenticating(true);
     try {
       const resolved = await resolveDekFromPassword({
         userId: user.id,
@@ -146,8 +147,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('unlock failed:', (err as Error)?.message ?? err);
       return { error: toastForError(err, 'Nie udało się odblokować') };
-    } finally {
-      setIsAuthenticating(false);
     }
   };
 

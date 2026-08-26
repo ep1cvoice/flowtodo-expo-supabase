@@ -10,6 +10,7 @@ import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { gcm } from '@noble/ciphers/aes.js';
+import { withTimeout } from '@/lib/withTimeout';
 
 export interface EncryptedField {
   ciphertext: string; // Base64
@@ -96,7 +97,6 @@ async function randomBytes(length: number): Promise<Uint8Array> {
 }
 
 async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
-  // Jeśli kod jest natywny (szybka ścieżka C++)
   if (QuickCrypto) {
     const derived = QuickCrypto.pbkdf2Sync(
       password,
@@ -108,15 +108,30 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterati
     return new Uint8Array(derived);
   }
 
-  // Jeśli w Expo Go i jest dostęp do mostu WebView
-  if ((global as any).deriveKeyViaWebView) {
-    const saltBase64 = toBase64(salt);
-    const keyBase64 = await (global as any).deriveKeyViaWebView(password, saltBase64, iterations);
-    return fromBase64(keyBase64);
+  const deriveViaWebView = (global as { deriveKeyViaWebView?: (
+    password: string,
+    saltBase64: string,
+    iterations: number
+  ) => Promise<string> }).deriveKeyViaWebView;
+
+  if (deriveViaWebView) {
+    try {
+      const saltBase64 = toBase64(salt);
+      const keyBase64 = await withTimeout(
+        deriveViaWebView(password, saltBase64, iterations),
+        16_000,
+        'pbkdf2WebView'
+      );
+      return fromBase64(keyBase64);
+    } catch (err) {
+      console.warn(
+        '[crypto] WebView PBKDF2 failed, using @noble.',
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
-  // Całkowity fallback (zablokuje wątek JS, ale uratuje sytuację, gdyby WebView jeszcze nie wstało)
-  console.warn('[crypto] WebView is not ready. Using @noble.');
+  console.warn('[crypto] Using @noble PBKDF2 fallback.');
   const passBytes = new TextEncoder().encode(password);
   return pbkdf2(sha256, passBytes, salt, { c: iterations, dkLen: DEK_BYTES });
 }

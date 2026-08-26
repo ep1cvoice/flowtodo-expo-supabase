@@ -22,6 +22,19 @@ type DekMaterial = {
   kdf_iterations: number;
 };
 
+function isRejectedPassword(
+  err: { message?: string; status?: number; code?: string } | null
+): boolean {
+  if (!err) return false;
+  if (err.code === 'invalid_credentials') return true;
+  const message = (err.message ?? '').toLowerCase();
+  return (
+    message.includes('invalid login credentials') ||
+    message.includes('invalid password') ||
+    message.includes('email not confirmed')
+  );
+}
+
 /**
  * Re-wrapuje DEK nową (silniejszą) liczbą iteracji PBKDF2, w tle, bez blokowania UI.
  * Wywoływane po udanym odszyfrowaniu, jeśli profil ma jeszcze starą wartość kdf_iterations.
@@ -96,8 +109,8 @@ async function backfillDekMaterial(
 }
 
 /**
- * Pobiera (lub dosyła) materiał DEK i odszyfrowuje klucz.
- * `verifyEmail` — ścieżka unlock: stare konto bez DEK najpierw potwierdza hasło przez Auth.
+ * Fetches (or backfills) DEK material and unwraps the key.
+ * `verifyEmail` — only when the profile has no DEK yet: prove the password via Auth before generating one.
  */
 export async function resolveDekFromPassword(options: {
   userId: string;
@@ -129,8 +142,8 @@ export async function resolveDekFromPassword(options: {
         email: options.verifyEmail,
         password: options.password,
       });
-      if (reauthError) {
-        return { ok: false, error: 'Wrong password' };
+      if (reauthError && isRejectedPassword(reauthError)) {
+        return { ok: false, error: 'Invalid password' };
       }
     }
 
@@ -144,7 +157,7 @@ export async function resolveDekFromPassword(options: {
   }
 
   try {
-    const iterations = kdf_iterations ?? LEGACY_KDF_ITERATIONS;
+    const iterations = Number(kdf_iterations) || LEGACY_KDF_ITERATIONS;
     const decryptedDek = await decryptDek(
       options.password,
       salt,

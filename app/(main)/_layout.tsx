@@ -1,7 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Redirect, Stack, type Href } from 'expo-router';
 import OfflineBanner from '@/components/ui/OfflineBanner';
-import { Pbkdf2WebView } from '@/components/Pbkdf2WebView';
 import { useAuth } from '@/context/AuthContext';
 
 export default function MainLayout() {
@@ -15,8 +14,6 @@ export default function MainLayout() {
 
   return (
     <View style={styles.root}>
-      {/* Newidoczne środowisko WebCrypto dla Expo Go */}
-      <Pbkdf2WebView />
       <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
