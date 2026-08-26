@@ -201,8 +201,9 @@ export default function ToDoItem({
                 {task.title}
               </Text>
             </View>
-            <TaskTagChips tags={tags} styles={styles} />
           </View>
+
+          <TaskTagChips tags={tags} styles={styles} maxVisible={isMobile ? 1 : 2} />
 
           {!isMobile && (
             <View style={styles.todoIndicators}>

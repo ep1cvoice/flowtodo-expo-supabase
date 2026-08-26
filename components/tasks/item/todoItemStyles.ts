@@ -109,13 +109,11 @@ export function createTodoItemStyles(colors: AppColors) {
     todoBody: {
       flex: 1,
       minWidth: 0,
-      gap: 2,
       justifyContent: 'center',
     },
     todoText: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
       minWidth: 0,
     },
     titleText: {
@@ -127,15 +125,28 @@ export function createTodoItemStyles(colors: AppColors) {
       color: colors.textPrimary,
       lineHeight: 20,
     },
-    tagMeta: {
-      fontSize: 12,
-      fontWeight: '600',
-      lineHeight: 16,
+    tagRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0,
     },
-    tagMetaItem: {
-      fontSize: 12,
-      fontWeight: '600',
-      lineHeight: 16,
+    tagChip: {
+      maxWidth: 56,
+      paddingVertical: 1,
+      paddingHorizontal: 4,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    tagChipText: {
+      fontSize: 9,
+      fontWeight: '700',
+      lineHeight: 11,
+    },
+    tagMore: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.textMuted,
     },
     done: {
       textDecorationLine: 'line-through',
@@ -157,9 +168,9 @@ export function createTodoItemStyles(colors: AppColors) {
       zIndex: 1,
     },
     todoDate: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 6,
       ...webInteractive,
       backgroundColor: colors.todoHighlight,
       borderWidth: 1,
@@ -182,7 +193,7 @@ export function createTodoItemStyles(colors: AppColors) {
       borderColor: colors.borderColor,
     },
     todoDateText: {
-      fontSize: 11,
+      fontSize: 9,
       fontWeight: '600',
       color: colors.textSecondary,
     },
