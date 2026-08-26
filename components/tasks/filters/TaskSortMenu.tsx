@@ -131,6 +131,7 @@ function createStyles(colors: AppColors) {
     },
     toggleBtnPressed: {
       backgroundColor: colors.todoHighlight,
+      borderColor: colors.primary,
     },
     card: {
       maxHeight: '85%',

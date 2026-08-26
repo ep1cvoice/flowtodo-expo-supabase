@@ -61,7 +61,15 @@ export default function MonthGrid({
                       accessibilityState: { selected: state.selected },
                     }
                   : {})}>
-                {renderDayInner(day, state, styles, renderExtra)}
+                {({ pressed, hovered }) =>
+                  renderDayInner(
+                    day,
+                    state,
+                    styles,
+                    renderExtra,
+                    !state.selected && !state.disabled && (hovered || pressed)
+                  )
+                }
               </Pressable>
             );
           })}
@@ -75,7 +83,8 @@ function renderDayInner(
   day: Date,
   state: MonthGridDayState,
   styles: ReturnType<typeof createStyles>,
-  renderExtra?: (day: Date, state: MonthGridDayState) => ReactNode
+  renderExtra: ((day: Date, state: MonthGridDayState) => ReactNode) | undefined,
+  hovered: boolean
 ) {
   return (
     <View
@@ -84,6 +93,7 @@ function renderDayInner(
         state.selected && styles.daySelected,
         state.today && !state.selected && styles.dayToday,
         state.disabled && styles.dayDisabled,
+        hovered && styles.dayHovered,
       ]}>
       <Text
         style={[
@@ -123,6 +133,7 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
       aspectRatio: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      ...webInteractive,
     },
     dayInner: {
       width: compact ? 34 : 36,
@@ -131,6 +142,9 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
       alignItems: 'center',
       justifyContent: 'center',
       ...webInteractive,
+    },
+    dayHovered: {
+      backgroundColor: colors.bgCardHover,
     },
     daySelected: {
       backgroundColor: colors.primary,

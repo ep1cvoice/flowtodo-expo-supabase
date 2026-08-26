@@ -40,7 +40,7 @@ export default function ActiveDayCalendar({
   const today = useMemo(() => startOfDay(new Date()), []);
   const stripDays = useMemo(() => buildDayStrip(today), [today]);
   const stripRef = useRef<ScrollView>(null);
-  const [expanded, setExpanded] = useState(() => width >= tokens.desktopBreakpoint);
+  const [expanded, setExpanded] = useState(false);
   const [monthCursor, setMonthCursor] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1)
   );
@@ -278,6 +278,7 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
     },
     allChipPressed: {
       backgroundColor: colors.todoHighlight,
+      borderColor: colors.primary,
     },
     allChipText: {
       fontSize: 12,
@@ -324,6 +325,7 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
     },
     stripDayPressed: {
       backgroundColor: colors.todoHighlight,
+      borderColor: colors.primary,
     },
     stripWeekday: {
       fontSize: 9,
@@ -376,6 +378,7 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
     },
     expandBtnPressed: {
       backgroundColor: colors.todoHighlight,
+      borderColor: colors.primary,
     },
     monthPanel: {
       borderRadius: 12,

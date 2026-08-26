@@ -186,8 +186,8 @@ export default function ToDoItem({
         )}
 
         {!isMobile && CategoryIconComp && category && (
-          <View style={[styles.categoryBgIcon, { opacity: 0.2 }]} pointerEvents="none">
-            <CategoryIconComp size={35} strokeWidth={1.5} color={category.color} />
+          <View style={[styles.categoryBgIcon, { opacity: 0.14 }]} pointerEvents="none">
+            <CategoryIconComp size={44} strokeWidth={1.5} color={category.color} />
           </View>
         )}
 
@@ -205,19 +205,23 @@ export default function ToDoItem({
 
           <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
 
-          <View style={[styles.todoText, isExpanded && styles.todoTextExpanded]}>
-            <Text
-              style={[styles.titleText, task.done && styles.done]}
-              numberOfLines={isExpanded ? undefined : isMobile ? 2 : 1}>
-              {task.title}
-            </Text>
-            {hasDescription ? (
-              isExpanded ? (
-                <ChevronUp size={16} color={colors.textMuted} />
-              ) : (
-                <ChevronDown size={16} color={colors.textMuted} />
-              )
-            ) : null}
+          <View style={styles.todoBody}>
+            <View style={styles.todoText}>
+              <Text
+                style={[styles.titleText, task.done && styles.done]}
+                numberOfLines={isExpanded ? undefined : 1}
+                ellipsizeMode="tail">
+                {task.title}
+              </Text>
+              {hasDescription ? (
+                isExpanded ? (
+                  <ChevronUp size={16} color={colors.textMuted} />
+                ) : (
+                  <ChevronDown size={16} color={colors.textMuted} />
+                )
+              ) : null}
+            </View>
+            <TaskTagChips tags={tags} styles={styles} />
           </View>
 
           {/* Desktop: due date in the main row (hidden on completed — grouped by day). */}
@@ -273,8 +277,6 @@ export default function ToDoItem({
             <PomodoroTimer taskId={task.id} />
           </View>
         ) : null}
-
-        <TaskTagChips tags={tags} styles={styles} />
 
         {isExpanded && hasDescription && (
           <View style={styles.descriptionWrapper}>

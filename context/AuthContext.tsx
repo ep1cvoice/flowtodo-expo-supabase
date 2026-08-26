@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         profileTimeoutLabel: 'signInProfile',
         decryptFailLog: 'Failed to decrypt DEK:',
-        decryptFailError: 'Nieprawidłowe hasło lub uszkodzone dane szyfrowania',
+        decryptFailError: 'Invalid password or corrupted encryption data',
       });
       if (!resolved.ok) return { error: resolved.error };
 
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyEmail: user.email,
         profileTimeoutLabel: 'unlockProfile',
         decryptFailLog: 'Failed to unlock DEK:',
-        decryptFailError: 'Nieprawidłowe hasło',
+        decryptFailError: 'Invalid password',
       });
       if (!resolved.ok) return { error: resolved.error };
 

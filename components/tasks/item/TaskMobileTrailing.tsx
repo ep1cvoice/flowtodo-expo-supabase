@@ -44,18 +44,32 @@ export default function TaskMobileTrailing({
           onPress={onOpenCalendar}
         />
       ) : null}
-      {CategoryIconComp && category && (
-        <View style={{ opacity: 0.5 }}>
-          <CategoryIconComp size={20} strokeWidth={1.5} color={category.color} />
+      {CategoryIconComp && category ? (
+        <View
+          style={styles.categoryMark}
+          pointerEvents="none"
+          accessible={false}
+          importantForAccessibility="no-hide-descendants">
+          <CategoryIconComp size={20} strokeWidth={2} color={category.color} />
         </View>
-      )}
+      ) : null}
       {!done ? (
-        <Pressable style={styles.mobilePlus} onPress={onOpenActions} hitSlop={8}>
-          <CirclePlus size={20} color={colors.textPrimary} />
+        <Pressable
+          style={[styles.mobilePlus, styles.iconTile]}
+          onPress={onOpenActions}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Task actions">
+          <CirclePlus size={18} strokeWidth={2.2} color={colors.primary} />
         </Pressable>
       ) : (
-        <Pressable style={styles.mobilePlus} onPress={onDelete} hitSlop={8}>
-          <Trash2 size={20} color={colors.textPrimary} />
+        <Pressable
+          style={styles.mobilePlus}
+          onPress={onDelete}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Delete task">
+          <Trash2 size={18} strokeWidth={2.2} color={colors.textPrimary} />
         </Pressable>
       )}
     </View>
