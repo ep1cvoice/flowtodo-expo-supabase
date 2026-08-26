@@ -1,4 +1,4 @@
-import { applyFilteredReorder } from '@/lib/taskReorder';
+import { applyFilteredReorder } from '@/lib/tasks/taskReorder';
 import type { Task } from '@/types';
 
 function task(id: number, title = `t${id}`): Task {

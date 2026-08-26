@@ -1,5 +1,5 @@
 import { Pressable, Text } from 'react-native';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 
 interface TaskCheckboxProps {
   done: boolean;

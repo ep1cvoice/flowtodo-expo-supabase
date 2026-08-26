@@ -78,7 +78,7 @@ export const Pbkdf2WebView = () => {
   const pendingRequests = useRef<Record<string, {resolve: Function, reject: Function}>>({});
 
   useEffect(() => {
-    // Rejestrujemy funkcję w obiekcie global, aby plik crypto.native.ts mógł jej łatwo użyć
+    // Rejestrujemy funkcję w obiekcie global, aby natywne lib/crypto mogło jej łatwo użyć
     (global as any).deriveKeyViaWebView = (password: string, saltBase64: string, iterations: number) => {
       return new Promise((resolve, reject) => {
         const id = Date.now().toString() + Math.random().toString();

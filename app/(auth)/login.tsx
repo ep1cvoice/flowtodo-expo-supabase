@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { validateLogin } from '@/lib/authValidation';
+import { validateLogin } from '@/lib/auth/authValidation';
 import { toastForError } from '@/lib/networkError';
 import Heading from '@/components/ui/Heading';
 import Field from '@/components/ui/Field';

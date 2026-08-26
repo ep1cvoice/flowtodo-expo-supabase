@@ -14,22 +14,22 @@ import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
-import ToDoItem from '@/components/tasks/ToDoItem';
+import ToDoItem from '@/components/tasks/item/ToDoItem';
 import CreateTaskButton, {
   CREATE_TASK_FAB_CLEARANCE,
-} from '@/components/tasks/CreateTaskButton';
-import AddTaskModal from '@/components/tasks/AddTaskModal';
-import TaskFilterBar from '@/components/tasks/TaskFilterBar';
-import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
-import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/TaskSearchBar';
-import TaskSortSheet from '@/components/tasks/TaskSortMenu';
-import ActiveDayCalendar from '@/components/tasks/ActiveDayCalendar';
+} from '@/components/tasks/form/CreateTaskButton';
+import AddTaskModal from '@/components/tasks/form/AddTaskModal';
+import TaskFilterBar from '@/components/tasks/filters/TaskFilterBar';
+import TaskFilterSheet from '@/components/tasks/filters/TaskFilterSheet';
+import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/filters/TaskSearchBar';
+import TaskSortSheet from '@/components/tasks/filters/TaskSortMenu';
+import ActiveDayCalendar from '@/components/tasks/calendar/ActiveDayCalendar';
 import EmptyState from '@/components/ui/EmptyState';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { toastForError } from '@/lib/networkError';
-import { applyFilteredReorder } from '@/lib/taskReorder';
-import { useActiveTaskFilters } from '@/lib/useActiveTaskFilters';
+import { applyFilteredReorder } from '@/lib/tasks/taskReorder';
+import { useActiveTaskFilters } from '@/lib/tasks/useActiveTaskFilters';
 import type { Task } from '@/types';
 
 const isWeb = Platform.OS === 'web';

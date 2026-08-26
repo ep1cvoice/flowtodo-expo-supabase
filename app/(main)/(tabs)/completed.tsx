@@ -11,19 +11,19 @@ import { useNavigation } from 'expo-router';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
-import ToDoItem from '@/components/tasks/ToDoItem';
+import ToDoItem from '@/components/tasks/item/ToDoItem';
 import TaskSearchBar, {
   TASK_LIST_INSET,
   TaskSearchToggle,
-} from '@/components/tasks/TaskSearchBar';
+} from '@/components/tasks/filters/TaskSearchBar';
 import EmptyState from '@/components/ui/EmptyState';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
-import { groupCompletedTasks } from '@/lib/completedGroups';
+import { groupCompletedTasks } from '@/lib/tasks/completedGroups';
 import { toastForError } from '@/lib/networkError';
-import { filterTasksBySearch } from '@/lib/taskSearch';
-import { useTaskSearch } from '@/lib/useTaskSearch';
+import { filterTasksBySearch } from '@/lib/tasks/taskSearch';
+import { useTaskSearch } from '@/lib/tasks/useTaskSearch';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export default function CompletedTasksScreen() {

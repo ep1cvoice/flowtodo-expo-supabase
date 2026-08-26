@@ -1,4 +1,4 @@
-import { validateTaskTitle } from '@/lib/taskValidation';
+import { validateTaskTitle } from '@/lib/tasks/taskValidation';
 
 describe('validateTaskTitle', () => {
   it('requires a non-empty title', () => {

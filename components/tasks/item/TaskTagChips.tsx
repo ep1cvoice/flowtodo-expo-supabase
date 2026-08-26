@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import type { Tag } from '@/types';
 
 interface TaskTagChipsProps {

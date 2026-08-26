@@ -1,4 +1,4 @@
-import { passwordRuleError, validateLogin, validateRegister } from '@/lib/authValidation';
+import { passwordRuleError, validateLogin, validateRegister } from '@/lib/auth/authValidation';
 
 describe('validateLogin', () => {
   it('requires email and password', () => {

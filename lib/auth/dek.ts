@@ -10,7 +10,7 @@ import {
   encryptDekWithPassword,
   generateEncryptionMaterial,
 } from '@/lib/crypto';
-import { migrateUserEncryption } from '@/lib/migrateEncryption';
+import { migrateUserEncryption } from '@/lib/crypto/migrateEncryption';
 import { withRetry } from '@/lib/retry';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';

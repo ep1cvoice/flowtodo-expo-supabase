@@ -1,5 +1,5 @@
 import { encryptField, hashForUniqueness } from '@/lib/crypto';
-import { mapCategory, mapTag } from '@/lib/taskMappers';
+import { mapCategory, mapTag } from '@/lib/tasks/taskMappers';
 import { encryptTaskFields } from '@/lib/tasks/encryptTaskFields';
 import type { AddCategoryInput, AddTagInput } from '@/lib/tasks/types';
 import { supabase } from '@/supabase/client';

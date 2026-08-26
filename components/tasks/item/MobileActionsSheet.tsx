@@ -1,7 +1,7 @@
 import { Pressable, Text } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import AppModal from '@/components/ui/AppModal';
 import type { AppColors } from '@/constants/theme';
 

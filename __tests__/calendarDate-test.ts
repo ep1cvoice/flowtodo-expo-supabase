@@ -6,7 +6,7 @@ import {
   taskMatchesScheduledDay,
   toDayKey,
   toScheduledIso,
-} from '@/lib/calendarDate';
+} from '@/lib/calendar/calendarDate';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

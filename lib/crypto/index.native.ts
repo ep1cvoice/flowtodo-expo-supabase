@@ -1,7 +1,7 @@
 /**
  * Native crypto: prefer react-native-quick-crypto (dev/preview builds).
  * Fall back to @noble when the native module is missing (Expo Go).
- * Wire format matches crypto.web.ts (PBKDF2-SHA256 + AES-256-GCM with tag appended).
+ * Wire format matches the web implementation (PBKDF2-SHA256 + AES-256-GCM with tag appended).
  */
 import { Buffer } from 'buffer';
 import Constants from 'expo-constants';

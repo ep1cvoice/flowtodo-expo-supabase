@@ -8,7 +8,7 @@ import Linking from '@/components/ui/Linking';
 import AuthLayout from '@/components/ui/AuthLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { validateRegister } from '@/lib/authValidation';
+import { validateRegister } from '@/lib/auth/authValidation';
 import { toastForError } from '@/lib/networkError';
 
 export default function RegisterScreen() {

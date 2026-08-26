@@ -5,7 +5,7 @@ import { resolveDekFromPassword } from '@/lib/auth/dek';
 import { fetchProfile, minimalUserFromSession, toProfileRow } from '@/lib/auth/profile';
 import { rewrapDekAndUpdatePassword } from '@/lib/auth/updatePassword';
 import { toastForError } from '@/lib/networkError';
-import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
+import { pausePomodoroBeforeLogout } from '@/lib/pomodoro/pomodoroLogoutBridge';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
 import type { ProfileUpdates, User } from '@/types';

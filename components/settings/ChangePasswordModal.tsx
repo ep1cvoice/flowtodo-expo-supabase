@@ -8,7 +8,7 @@ import type { AppColors } from '@/constants/theme';
 import {
   confirmPasswordError,
   validatePassword,
-} from '@/lib/authValidation';
+} from '@/lib/auth/authValidation';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface ChangePasswordModalProps {

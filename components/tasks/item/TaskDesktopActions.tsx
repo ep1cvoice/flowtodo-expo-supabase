@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2 } from 'lucide-react-native';
-import PomodoroTimer from '@/components/tasks/PomodoroTimer';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import type { AppColors } from '@/constants/theme';
 
 interface TaskDesktopActionsProps {

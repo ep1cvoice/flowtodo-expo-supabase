@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { CirclePlus, Trash2, type LucideIcon } from 'lucide-react-native';
 import DueDateBadge from '@/components/tasks/item/DueDateBadge';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import type { AppColors } from '@/constants/theme';
 import type { Category } from '@/types';
 

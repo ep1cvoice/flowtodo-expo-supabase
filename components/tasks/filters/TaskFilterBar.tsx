@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { ListFilter, X } from 'lucide-react-native';
-import { TaskSearchToggle } from '@/components/tasks/TaskSearchBar';
-import { TaskSortToggle } from '@/components/tasks/TaskSortMenu';
-import type { TaskSortMode } from '@/lib/taskSort';
+import { TaskSearchToggle } from '@/components/tasks/filters/TaskSearchBar';
+import { TaskSortToggle } from '@/components/tasks/filters/TaskSortMenu';
+import type { TaskSortMode } from '@/lib/tasks/taskSort';
 import type { Category, Tag } from '@/types';
 import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';

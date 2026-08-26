@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { Zap } from 'lucide-react-native';
 import SettingsSection from '@/components/settings/SettingsSection';
 import { useSettingsStyles } from '@/components/settings/settingsStyles';
-import PomodoroHistory from '@/components/tasks/PomodoroHistory';
+import PomodoroHistory from '@/components/tasks/pomodoro/PomodoroHistory';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { toastForError } from '@/lib/networkError';

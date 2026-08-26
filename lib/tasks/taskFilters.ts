@@ -1,6 +1,6 @@
-import { taskMatchesScheduledDay } from '@/lib/calendarDate';
-import { filterTasksBySearch } from '@/lib/taskSearch';
-import { sortTasks, type TaskSortMode } from '@/lib/taskSort';
+import { taskMatchesScheduledDay } from '@/lib/calendar/calendarDate';
+import { filterTasksBySearch } from '@/lib/tasks/taskSearch';
+import { sortTasks, type TaskSortMode } from '@/lib/tasks/taskSort';
 import type { Task } from '@/types';
 
 export function filterTasksByLabels(

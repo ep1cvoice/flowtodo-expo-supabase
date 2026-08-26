@@ -10,9 +10,9 @@ import { useAuth } from '@/context/AuthContext';
 import {
   mergeCompletedTasks,
   type CompletedCursor,
-} from '@/lib/completedPagination';
-import { seedDemoData } from '@/lib/seedDemoData';
-import { requireDek } from '@/lib/taskDek';
+} from '@/lib/tasks/completedPagination';
+import { seedDemoData } from '@/lib/tasks/seedDemoData';
+import { requireDek } from '@/lib/auth/requireDek';
 import {
   deleteCategoryForUser,
   deleteTagForUser,

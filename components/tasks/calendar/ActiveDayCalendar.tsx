@@ -18,8 +18,8 @@ import {
   sameDay,
   startOfDay,
   toDayKey,
-} from '@/lib/calendarDate';
-import MonthGrid from '@/components/tasks/MonthGrid';
+} from '@/lib/calendar/calendarDate';
+import MonthGrid from '@/components/tasks/calendar/MonthGrid';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface ActiveDayCalendarProps {

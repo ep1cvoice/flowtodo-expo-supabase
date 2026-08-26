@@ -1,5 +1,5 @@
 import { Pressable, Text } from 'react-native';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 
 function formatShortDate(date: Date) {
   return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });

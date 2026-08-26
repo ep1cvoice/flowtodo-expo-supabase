@@ -5,7 +5,7 @@ import {
   getCompletedCursor,
   mergeCompletedTasks,
   sortCompletedTasks,
-} from '@/lib/completedPagination';
+} from '@/lib/tasks/completedPagination';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

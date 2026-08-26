@@ -10,10 +10,10 @@ import {
 import type { PomoData, PomoRecord } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
-import { mapActivePomo, mapPomoRecord } from '@/lib/pomoMappers';
-import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoroLogoutBridge';
+import { mapActivePomo, mapPomoRecord } from '@/lib/pomodoro/pomoMappers';
+import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoro/pomodoroLogoutBridge';
 import { encryptField } from '@/lib/crypto';
-import { requireDek } from '@/lib/taskDek';
+import { requireDek } from '@/lib/auth/requireDek';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
 

@@ -1,4 +1,4 @@
-import { EncryptedField, EncryptionMaterial } from './crypto.native';
+import { EncryptedField, EncryptionMaterial } from './index.native';
 export { EncryptedField, EncryptionMaterial };
 
 export const CURRENT_PBKDF2_ITERATIONS: number;

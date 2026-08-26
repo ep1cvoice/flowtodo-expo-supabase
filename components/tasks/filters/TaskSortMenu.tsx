@@ -13,7 +13,7 @@ import {
   TASK_SORT_LABELS,
   TASK_SORT_MODES,
   type TaskSortMode,
-} from '@/lib/taskSort';
+} from '@/lib/tasks/taskSort';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 

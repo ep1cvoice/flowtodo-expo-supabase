@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
-import type { TodoItemStyles } from '@/components/tasks/todoItemStyles';
+import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 
 interface TaskReorderButtonsProps {
   canMoveUp: boolean;

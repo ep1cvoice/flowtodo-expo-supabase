@@ -12,8 +12,8 @@ import {
   buildMonthWeeks,
   sameDay,
   startOfDay,
-} from '@/lib/calendarDate';
-import MonthGrid from '@/components/tasks/MonthGrid';
+} from '@/lib/calendar/calendarDate';
+import MonthGrid from '@/components/tasks/calendar/MonthGrid';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 

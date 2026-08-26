@@ -7,13 +7,13 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
-import { collectMarkedDayKeys } from '@/lib/calendarDate';
+import { collectMarkedDayKeys } from '@/lib/calendar/calendarDate';
 import {
   filterActiveTaskList,
   getActiveEmptyCopy,
-} from '@/lib/taskFilters';
-import { isTaskSortMode, type TaskSortMode } from '@/lib/taskSort';
-import { useTaskSearch } from '@/lib/useTaskSearch';
+} from '@/lib/tasks/taskFilters';
+import { isTaskSortMode, type TaskSortMode } from '@/lib/tasks/taskSort';
+import { useTaskSearch } from '@/lib/tasks/useTaskSearch';
 
 const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
 

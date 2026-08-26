@@ -1,4 +1,4 @@
-import { filterActiveTaskList, filterTasksByLabels, getActiveEmptyCopy } from '@/lib/taskFilters';
+import { filterActiveTaskList, filterTasksByLabels, getActiveEmptyCopy } from '@/lib/tasks/taskFilters';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

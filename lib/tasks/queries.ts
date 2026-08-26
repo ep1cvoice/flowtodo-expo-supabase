@@ -4,8 +4,8 @@ import {
   getCompletedCursor,
   sortCompletedTasks,
   type CompletedCursor,
-} from '@/lib/completedPagination';
-import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
+} from '@/lib/tasks/completedPagination';
+import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/tasks/taskMappers';
 import { supabase } from '@/supabase/client';
 import type { Category, Tag, Task } from '@/types';
 

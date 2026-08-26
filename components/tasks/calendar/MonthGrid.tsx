@@ -2,7 +2,7 @@ import { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
-import { WEEKDAY_LABELS } from '@/lib/calendarDate';
+import { WEEKDAY_LABELS } from '@/lib/calendar/calendarDate';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export type MonthGridDayState = {

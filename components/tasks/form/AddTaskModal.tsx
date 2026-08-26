@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react-native';
 import type { Category, Tag } from '@/types';
 import TaskFormModal from '@/components/tasks/form/TaskFormModal';
-import { toScheduledIso } from '@/lib/calendarDate';
+import { toScheduledIso } from '@/lib/calendar/calendarDate';
 import type { AddTaskInput } from '@/lib/tasks/types';
 
 interface AddTaskModalProps {

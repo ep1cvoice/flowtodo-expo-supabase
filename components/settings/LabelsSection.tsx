@@ -4,8 +4,8 @@ import { Plus, Tags, Trash2 } from 'lucide-react-native';
 import { confirmDestructive } from '@/components/settings/confirmDestructive';
 import SettingsSection from '@/components/settings/SettingsSection';
 import { useSettingsStyles } from '@/components/settings/settingsStyles';
-import CategoryModal from '@/components/tasks/CategoryModal';
-import TagModal from '@/components/tasks/TagModal';
+import CategoryModal from '@/components/tasks/form/CategoryModal';
+import TagModal from '@/components/tasks/form/TagModal';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,

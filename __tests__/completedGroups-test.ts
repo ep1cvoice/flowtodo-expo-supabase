@@ -3,7 +3,7 @@ import {
   getCompletedSectionMeta,
   groupCompletedTasks,
   startOfLocalDay,
-} from '@/lib/completedGroups';
+} from '@/lib/tasks/completedGroups';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

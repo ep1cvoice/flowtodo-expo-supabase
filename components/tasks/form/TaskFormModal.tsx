@@ -8,15 +8,15 @@ import {
 } from 'react-native';
 import { type LucideIcon } from 'lucide-react-native';
 import type { Category, CategoryIcon, Tag } from '@/types';
-import CategoryModal from '@/components/tasks/CategoryModal';
+import CategoryModal from '@/components/tasks/form/CategoryModal';
 import { useTaskFormStyles } from '@/components/tasks/form/taskFormStyles';
-import TagChipPicker from '@/components/tasks/TagChipPicker';
-import TagModal from '@/components/tasks/TagModal';
+import TagChipPicker from '@/components/tasks/form/TagChipPicker';
+import TagModal from '@/components/tasks/form/TagModal';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
 import { toastForError } from '@/lib/networkError';
-import { validateTaskTitle, type TaskFormInput } from '@/lib/taskValidation';
+import { validateTaskTitle, type TaskFormInput } from '@/lib/tasks/taskValidation';
 
 export type { TaskFormInput };
 
