@@ -1,55 +1,15 @@
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export function createTaskFormStyles(colors: AppColors) {
   return StyleSheet.create({
-    flex: { flex: 1 },
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 420,
+    card: {
       maxHeight: '100%',
       flexShrink: 1,
-      backgroundColor: colors.bgContent,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      borderRadius: tokens.borderRadius,
       overflow: 'hidden',
-      ...tokens.shadow,
-    },
-    modalMobile: {
-      marginBottom: 16,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.bgSurface,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderColor,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontWeight: '500',
-      fontSize: 18,
-    },
-    closeBtn: {
-      padding: 6,
-      borderRadius: 8,
     },
     scroll: {
       flexShrink: 1,

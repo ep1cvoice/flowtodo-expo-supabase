@@ -1,9 +1,6 @@
-export type TaskFormValues = {
-  title: string;
-  description: string;
-  categoryId: number | null;
-  tagIds: number[];
-};
+import type { TaskFormInput } from '@/lib/tasks/types';
+
+export type { TaskFormInput };
 
 const TITLE_PATTERN = /^[\p{L}\p{N}\s.,!?'"/:()#\p{Pd}]+$/u;
 

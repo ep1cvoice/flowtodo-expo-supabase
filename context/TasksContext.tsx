@@ -31,12 +31,13 @@ import type {
   AddCategoryInput,
   AddTagInput,
   AddTaskInput,
+  TaskFormInput,
   UpdateTaskInput,
 } from '@/lib/tasks/types';
 import { withTimeout } from '@/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 
-export type { AddCategoryInput, AddTagInput, AddTaskInput, UpdateTaskInput };
+export type { AddCategoryInput, AddTagInput, AddTaskInput, TaskFormInput, UpdateTaskInput };
 
 const TASKS_REFRESH_TIMEOUT_MS = 15_000;
 

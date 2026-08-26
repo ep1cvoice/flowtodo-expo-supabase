@@ -1,4 +1,4 @@
-import { validateLogin, validateRegister } from '@/lib/authValidation';
+import { passwordRuleError, validateLogin, validateRegister } from '@/lib/authValidation';
 
 describe('validateLogin', () => {
   it('requires email and password', () => {
@@ -86,5 +86,15 @@ describe('validateRegister', () => {
 
   it('passes a valid payload', () => {
     expect(validateRegister(valid)).toEqual({});
+  });
+});
+
+describe('passwordRuleError', () => {
+  it('requires lowercase', () => {
+    expect(passwordRuleError('NOLOWER1!')).toBe('Must contain lowercase letter');
+  });
+
+  it('accepts a strong password', () => {
+    expect(passwordRuleError('Secret1!')).toBe('');
   });
 });

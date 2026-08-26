@@ -6,17 +6,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  useWindowDimensions,
 } from 'react-native';
-import { X, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import type { Tag } from '@/types';
 import { PALETTE_COLORS } from '@/constants/palette';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
-import AppModal from '@/components/ui/AppModal';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TagModalProps {
@@ -27,8 +23,6 @@ interface TagModalProps {
 }
 
 export default function TagModal({ visible, tag = null, onSave, onClose }: TagModalProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -70,25 +64,16 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
   };
 
   return (
-    <AppModal visible={visible} onClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
-          <Pressable
-            style={[styles.modal, isMobile && styles.modalMobile]}
-            onPress={(e) => e.stopPropagation()}>
-            <View style={styles.header}>
-              <Text style={styles.title}>{tag ? 'Edit Tag' : 'Add Tag'}</Text>
-              <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
-                <X size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            <ScrollView
-              contentContainerStyle={styles.form}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
+    <SheetFrame
+      visible={visible}
+      onClose={onClose}
+      title={tag ? 'Edit Tag' : 'Add Tag'}
+      keyboardAvoiding
+      cardStyle={styles.card}>
+      <ScrollView
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Name</Text>
                 <TextInput
@@ -149,57 +134,15 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
                 </Pressable>
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </AppModal>
+    </SheetFrame>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    flex: { flex: 1 },
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 420,
+    card: {
       maxHeight: '90%',
-      backgroundColor: colors.bgContent,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      borderRadius: tokens.borderRadius,
       overflow: 'hidden',
-      ...tokens.shadow,
-    },
-    modalMobile: {
-      marginBottom: 16,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.bgSurface,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderColor,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontWeight: '600',
-      fontSize: 18,
-    },
-    closeBtn: {
-      padding: 6,
-      borderRadius: 8,
     },
     form: {
       padding: 18,

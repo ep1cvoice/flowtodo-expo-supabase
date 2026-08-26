@@ -2,11 +2,11 @@ import { Plus } from 'lucide-react-native';
 import type { Category, Tag } from '@/types';
 import TaskFormModal from '@/components/tasks/form/TaskFormModal';
 import { toScheduledIso } from '@/lib/calendarDate';
-import type { TaskFormValues } from '@/lib/taskValidation';
+import type { AddTaskInput } from '@/lib/tasks/types';
 
 interface AddTaskModalProps {
   visible: boolean;
-  onAdd: (task: TaskFormValues & { scheduled?: string | null }) => void | Promise<void>;
+  onAdd: (task: AddTaskInput) => void | Promise<void>;
   onClose: () => void;
   categories: Category[];
   tags: Tag[];

@@ -19,6 +19,7 @@ import {
   startOfDay,
   toDayKey,
 } from '@/lib/calendarDate';
+import MonthGrid from '@/components/tasks/MonthGrid';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface ActiveDayCalendarProps {
@@ -203,62 +204,29 @@ export default function ActiveDayCalendar({
 
       {expanded ? (
         <View style={styles.monthPanel}>
-          <View style={styles.weekRow}>
-            {WEEKDAY_LABELS.map((d) => (
-              <View key={d} style={styles.weekdayCell}>
-                <Text style={styles.weekday}>{d}</Text>
-              </View>
-            ))}
-          </View>
-
-          {weeks.map((week, wi) => (
-            <View key={`w-${wi}`} style={styles.weekRow}>
-              {week.map((day, di) => {
-                if (!day) {
-                  return <View key={`e-${wi}-${di}`} style={styles.cell} />;
-                }
-                const key = toDayKey(day);
-                const selected = selectedDay ? sameDay(day, selectedDay) : false;
-                const isToday = sameDay(day, today);
-                const marked = markedDays.has(key);
-                const otherMonth = day.getMonth() !== monthCursor.getMonth();
-
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={() => handleSelect(day)}
-                    style={styles.cell}
-                    accessibilityRole="button"
-                    accessibilityLabel={day.toDateString()}
-                    accessibilityState={{ selected }}>
-                    <View
-                      style={[
-                        styles.dayInner,
-                        selected && styles.daySelected,
-                        isToday && !selected && styles.dayToday,
-                      ]}>
-                      <Text
-                        style={[
-                          styles.dayText,
-                          otherMonth && styles.dayTextMuted,
-                          selected && styles.dayTextSelected,
-                        ]}>
-                        {day.getDate()}
-                      </Text>
-                      <View
-                        style={[
-                          styles.dot,
-                          styles.monthDot,
-                          marked ? styles.dotMarked : styles.dotEmpty,
-                          selected && marked && styles.dotOnSelected,
-                        ]}
-                      />
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+          <MonthGrid
+            weeks={weeks}
+            variant="inline"
+            onPressDay={handleSelect}
+            dayState={(day) => ({
+              selected: selectedDay ? sameDay(day, selectedDay) : false,
+              today: sameDay(day, today),
+              muted: day.getMonth() !== monthCursor.getMonth(),
+            })}
+            renderExtra={(day, state) => {
+              const marked = markedDays.has(toDayKey(day));
+              return (
+                <View
+                  style={[
+                    styles.dot,
+                    styles.monthDot,
+                    marked ? styles.dotMarked : styles.dotEmpty,
+                    state.selected && marked && styles.dotOnSelected,
+                  ]}
+                />
+              );
+            }}
+          />
         </View>
       ) : null}
     </View>
@@ -438,54 +406,6 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
       fontWeight: '700',
       color: colors.textPrimary,
       textAlign: 'center',
-    },
-    weekRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    weekdayCell: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 4,
-    },
-    weekday: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.textMuted,
-    },
-    cell: {
-      flex: 1,
-      aspectRatio: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    dayInner: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...webInteractive,
-    },
-    daySelected: {
-      backgroundColor: colors.primary,
-    },
-    dayToday: {
-      borderWidth: 1.5,
-      borderColor: colors.primary,
-    },
-    dayText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.textPrimary,
-    },
-    dayTextMuted: {
-      color: colors.textMuted,
-      fontWeight: '500',
-    },
-    dayTextSelected: {
-      color: '#fff',
-      fontWeight: '700',
     },
   });
 }

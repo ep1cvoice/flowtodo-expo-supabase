@@ -1,14 +1,12 @@
 import { Pencil } from 'lucide-react-native';
 import type { Category, Tag, Task } from '@/types';
 import TaskFormModal from '@/components/tasks/form/TaskFormModal';
-import type { TaskFormValues } from '@/lib/taskValidation';
-
-export type EditTaskUpdates = TaskFormValues;
+import type { TaskFormInput } from '@/lib/tasks/types';
 
 interface EditTaskModalProps {
   visible: boolean;
   task: Task;
-  onUpdate: (id: number, updates: EditTaskUpdates) => void | Promise<void>;
+  onUpdate: (id: number, updates: TaskFormInput) => void | Promise<void>;
   onClose: () => void;
   categories: Category[];
   tags: Tag[];

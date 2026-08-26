@@ -4,11 +4,9 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
-import { ArrowUpDown, Check, X } from 'lucide-react-native';
+import { ArrowUpDown, Check } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import {
   TASK_SORT_HINTS,
@@ -16,7 +14,7 @@ import {
   TASK_SORT_MODES,
   type TaskSortMode,
 } from '@/lib/taskSort';
-import AppModal from '@/components/ui/AppModal';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TaskSortToggleProps {
@@ -63,25 +61,17 @@ export default function TaskSortSheet({
   onSelect,
   onClose,
 }: TaskSortSheetProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <AppModal visible={visible} onClose={onClose}>
-      <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
-        <Pressable
-          style={[styles.modal, isMobile && styles.modalMobile]}
-          onPress={(e) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Sort tasks</Text>
-            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
-              <X size={20} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
-          <View style={styles.body}>
+    <SheetFrame
+      visible={visible}
+      onClose={onClose}
+      title="Sort tasks"
+      compactHeader
+      cardStyle={styles.card}>
+      <View style={styles.body}>
             {TASK_SORT_MODES.map((option) => {
               const selected = option === mode;
               return (
@@ -121,9 +111,7 @@ export default function TaskSortSheet({
               <Text style={styles.doneBtnText}>Done</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </AppModal>
+    </SheetFrame>
   );
 }
 
@@ -144,50 +132,9 @@ function createStyles(colors: AppColors) {
     toggleBtnPressed: {
       backgroundColor: colors.todoHighlight,
     },
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 420,
+    card: {
       maxHeight: '85%',
-      backgroundColor: colors.bgContent,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      borderRadius: tokens.borderRadius,
       overflow: 'hidden',
-      ...tokens.shadow,
-    },
-    modalMobile: {
-      marginBottom: 16,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.bgSurface,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderColor,
-      gap: 8,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontWeight: '600',
-      fontSize: 18,
-      flex: 1,
-    },
-    closeBtn: {
-      padding: 6,
-      borderRadius: 8,
-      ...webInteractive,
     },
     body: {
       padding: 16,

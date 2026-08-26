@@ -8,7 +8,25 @@ import { toastForError } from '@/lib/networkError';
 import { pausePomodoroBeforeLogout } from '@/lib/pomodoroLogoutBridge';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
-import type { AuthContextValue, ProfileUpdates } from '@/types';
+import type { ProfileUpdates, User } from '@/types';
+
+interface AuthContextValue {
+  user: User | null;
+  isAuthenticated: boolean;
+  isAuthenticating: boolean;
+  dek: Uint8Array | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  logout: () => Promise<void>;
+  updateProfile: (updates: ProfileUpdates) => Promise<{ error: string | null }>;
+  updatePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ error: string | null }>;
+  deleteAccount: () => Promise<{ error: string | null }>;
+  unlock: (password: string) => Promise<{ error: string | null }>;
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 

@@ -1,14 +1,17 @@
-import type { CategoryIcon } from '@/types';
+import type { CategoryIcon } from '@/constants/categoryIcons';
 
-export interface AddTaskInput {
+export interface TaskFormInput {
   title: string;
   description: string;
   categoryId: number | null;
   tagIds: number[];
+}
+
+export interface AddTaskInput extends TaskFormInput {
   scheduled?: string | null;
 }
 
-export type UpdateTaskInput = AddTaskInput;
+export type UpdateTaskInput = TaskFormInput;
 
 export interface AddCategoryInput {
   name: string;

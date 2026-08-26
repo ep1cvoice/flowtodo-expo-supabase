@@ -21,7 +21,31 @@ import {
   Zap,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import type { CategoryIcon } from '@/types';
+
+export const CATEGORY_ICONS = [
+  'Briefcase',
+  'Home',
+  'Book',
+  'Heart',
+  'Star',
+  'ShoppingCart',
+  'Dumbbell',
+  'Code',
+  'Music',
+  'Camera',
+  'Plane',
+  'Car',
+  'Coffee',
+  'Gamepad2',
+  'Palette',
+  'Globe',
+  'Leaf',
+  'Zap',
+  'Target',
+  'Users',
+] as const;
+
+export type CategoryIcon = (typeof CATEGORY_ICONS)[number];
 
 export const CATEGORY_ICON_MAP: Record<CategoryIcon, LucideIcon> = {
   Briefcase,

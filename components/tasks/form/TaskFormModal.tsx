@@ -5,23 +5,20 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  useWindowDimensions,
 } from 'react-native';
-import { X, type LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 import type { Category, CategoryIcon, Tag } from '@/types';
 import CategoryModal from '@/components/tasks/CategoryModal';
 import { useTaskFormStyles } from '@/components/tasks/form/taskFormStyles';
 import TagChipPicker from '@/components/tasks/TagChipPicker';
 import TagModal from '@/components/tasks/TagModal';
-import AppModal from '@/components/ui/AppModal';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
 import { toastForError } from '@/lib/networkError';
-import { validateTaskTitle, type TaskFormValues } from '@/lib/taskValidation';
+import { validateTaskTitle, type TaskFormInput } from '@/lib/taskValidation';
 
-export type { TaskFormValues };
+export type { TaskFormInput };
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -31,13 +28,13 @@ interface TaskFormModalProps {
   SubmitIcon: LucideIcon;
   categories: Category[];
   tags: Tag[];
-  initialValues: TaskFormValues;
+  initialValues: TaskFormInput;
   syncKey?: unknown;
   disableCloseWhileSubmitting?: boolean;
   resetOnClose?: boolean;
   failLog: string;
   successToast: string;
-  onSubmit: (values: TaskFormValues) => void | Promise<void>;
+  onSubmit: (values: TaskFormInput) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -58,8 +55,6 @@ export default function TaskFormModal({
   onSubmit,
   onClose,
 }: TaskFormModalProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors, styles } = useTaskFormStyles();
   const { showToast } = useToast();
   const { addCategory, addTag } = useTasks();
@@ -74,7 +69,7 @@ export default function TaskFormModal({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
 
-  const applyInitial = (values: TaskFormValues) => {
+  const applyInitial = (values: TaskFormInput) => {
     setTitle(values.title);
     setDescription(values.description);
     setCategoryId(values.categoryId);
@@ -127,30 +122,53 @@ export default function TaskFormModal({
   };
 
   return (
-    <AppModal visible={visible} onClose={handleClose}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={handleClose}>
-          <Pressable
-            style={[styles.modal, isMobile && styles.modalMobile]}
-            onPress={(e) => e.stopPropagation()}>
-            <View style={styles.header}>
-              <Text style={styles.title}>{heading}</Text>
-              <Pressable
-                onPress={handleClose}
-                disabled={disableCloseWhileSubmitting && submitting}
-                style={styles.closeBtn}
-                hitSlop={8}>
-                <X size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={styles.form}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
+    <SheetFrame
+      visible={visible}
+      onClose={handleClose}
+      title={heading}
+      titleWeight="500"
+      closeDisabled={disableCloseWhileSubmitting && submitting}
+      keyboardAvoiding
+      cardStyle={styles.card}
+      accessory={
+        <>
+          <CategoryModal
+            visible={showCategoryModal}
+            onClose={() => setShowCategoryModal(false)}
+            onSave={async (name, color, icon) => {
+              try {
+                const created = await addCategory({ name, color, icon: icon as CategoryIcon });
+                setCategoryId(created.id);
+                showToast('Category created.');
+              } catch (err) {
+                console.warn('Failed to create category:', err);
+                showToast(toastForError(err, 'Could not save category.'), 'error');
+                throw err;
+              }
+            }}
+          />
+          <TagModal
+            visible={showTagModal}
+            onClose={() => setShowTagModal(false)}
+            onSave={async (name, color) => {
+              try {
+                const created = await addTag({ name, color });
+                setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
+                showToast('Tag created.');
+              } catch (err) {
+                console.warn('Failed to create tag:', err);
+                showToast(toastForError(err, 'Could not save tag.'), 'error');
+                throw err;
+              }
+            }}
+          />
+        </>
+      }>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Task Title</Text>
                 <TextInput
@@ -264,40 +282,6 @@ export default function TaskFormModal({
                 </Pressable>
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-
-      <CategoryModal
-        visible={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        onSave={async (name, color, icon) => {
-          try {
-            const created = await addCategory({ name, color, icon: icon as CategoryIcon });
-            setCategoryId(created.id);
-            showToast('Category created.');
-          } catch (err) {
-            console.warn('Failed to create category:', err);
-            showToast(toastForError(err, 'Could not save category.'), 'error');
-            throw err;
-          }
-        }}
-      />
-      <TagModal
-        visible={showTagModal}
-        onClose={() => setShowTagModal(false)}
-        onSave={async (name, color) => {
-          try {
-            const created = await addTag({ name, color });
-            setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
-            showToast('Tag created.');
-          } catch (err) {
-            console.warn('Failed to create tag:', err);
-            showToast(toastForError(err, 'Could not save tag.'), 'error');
-            throw err;
-          }
-        }}
-      />
-    </AppModal>
+    </SheetFrame>
   );
 }

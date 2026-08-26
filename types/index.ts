@@ -7,6 +7,8 @@ export interface UserSettings {
   maxFilterSelections?: number;
 }
 
+export type { CategoryIcon } from '@/constants/categoryIcons';
+
 export type ProfileUpdates = Partial<UserSettings>;
 
 export interface User {
@@ -14,24 +16,6 @@ export interface User {
   username: string;
   email: string;
   settings?: UserSettings;
-}
-
-export interface AuthContextValue {
-  user: User | null;
-  isAuthenticated: boolean;
-  isAuthenticating: boolean;
-  dek: Uint8Array | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
-  logout: () => Promise<void>;
-  updateProfile: (updates: ProfileUpdates) => Promise<{ error: string | null }>;
-  updatePassword: (
-    currentPassword: string,
-    newPassword: string
-  ) => Promise<{ error: string | null }>;
-  deleteAccount: () => Promise<{ error: string | null }>;
-  unlock: (password: string) => Promise<{ error: string | null }>;
 }
 
 export interface Task {
@@ -82,25 +66,3 @@ export interface PomoRecord {
 }
 
 export const MAX_TAGS_PER_TASK = 10;
-
-export type CategoryIcon =
-  | 'Briefcase'
-  | 'Home'
-  | 'Book'
-  | 'Heart'
-  | 'Star'
-  | 'ShoppingCart'
-  | 'Dumbbell'
-  | 'Code'
-  | 'Music'
-  | 'Camera'
-  | 'Plane'
-  | 'Car'
-  | 'Coffee'
-  | 'Gamepad2'
-  | 'Palette'
-  | 'Globe'
-  | 'Leaf'
-  | 'Zap'
-  | 'Target'
-  | 'Users';

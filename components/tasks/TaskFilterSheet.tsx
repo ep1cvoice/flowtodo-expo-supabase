@@ -5,14 +5,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
-import { X } from 'lucide-react-native';
 import type { Category, Tag } from '@/types';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
-import AppModal from '@/components/ui/AppModal';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface TaskFilterSheetProps {
@@ -44,8 +41,6 @@ export default function TaskFilterSheet({
   onClear,
   onClose,
 }: TaskFilterSheetProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const allCategories = selectedCategoryIds.length === 0;
@@ -55,29 +50,23 @@ export default function TaskFilterSheet({
   const atSharedLimit = selectedCount >= maxFilterSelections;
 
   return (
-    <AppModal visible={visible} onClose={onClose}>
-      <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
-        <Pressable
-          style={[styles.modal, isMobile && styles.modalMobile]}
-          onPress={(e) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Filter tasks</Text>
-            <View style={styles.headerActions}>
-              {hasFilters ? (
-                <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn}>
-                  <Text style={styles.clearText}>Clear</Text>
-                </Pressable>
-              ) : null}
-              <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
-                <X size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.body}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
+    <SheetFrame
+      visible={visible}
+      onClose={onClose}
+      title="Filter tasks"
+      compactHeader
+      cardStyle={styles.card}
+      headerRight={
+        hasFilters ? (
+          <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn}>
+            <Text style={styles.clearText}>Clear</Text>
+          </Pressable>
+        ) : null
+      }>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
             <View style={styles.section}>
               <View style={styles.sectionLabelRow}>
                 <Text style={styles.sectionLabel}>Categories</Text>
@@ -177,58 +166,15 @@ export default function TaskFilterSheet({
               <Text style={styles.doneBtnText}>Done</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </AppModal>
+    </SheetFrame>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 420,
+    card: {
       maxHeight: '85%',
-      backgroundColor: colors.bgContent,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      borderRadius: tokens.borderRadius,
       overflow: 'hidden',
-      ...tokens.shadow,
-    },
-    modalMobile: {
-      marginBottom: 16,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.bgSurface,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderColor,
-      gap: 8,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontWeight: '600',
-      fontSize: 18,
-      flex: 1,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
     },
     clearBtn: {
       paddingVertical: 6,
@@ -240,11 +186,6 @@ function createStyles(colors: AppColors) {
       color: colors.primary,
       fontSize: 14,
       fontWeight: '600',
-    },
-    closeBtn: {
-      padding: 6,
-      borderRadius: 8,
-      ...webInteractive,
     },
     body: {
       padding: 16,

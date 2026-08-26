@@ -4,19 +4,17 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import {
-  WEEKDAY_LABELS,
   buildMonthWeeks,
   sameDay,
   startOfDay,
 } from '@/lib/calendarDate';
-import AppModal from '@/components/ui/AppModal';
+import MonthGrid from '@/components/tasks/MonthGrid';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface CalendarModalProps {
@@ -34,8 +32,6 @@ export default function CalendarModal({
   onClear,
   onConfirm,
 }: CalendarModalProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -63,19 +59,15 @@ export default function CalendarModal({
   const canConfirm = !!draft && startOfDay(draft) >= today;
 
   return (
-    <AppModal visible={visible} onClose={onClose}>
-      <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
-        <Pressable
-          style={[styles.modal, isMobile && styles.modalMobile]}
-          onPress={(e) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Set due date</Text>
-            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8}>
-              <X size={20} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
-          <View style={styles.monthNav}>
+    <SheetFrame
+      visible={visible}
+      onClose={onClose}
+      title="Set due date"
+      header="plain"
+      maxWidth={360}
+      cardStyle={styles.card}
+      mobileCardStyle={styles.cardMobile}>
+      <View style={styles.monthNav}>
             <Pressable
               onPress={() =>
                 setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))
@@ -95,54 +87,18 @@ export default function CalendarModal({
             </Pressable>
           </View>
 
-          <View style={styles.weekRow}>
-            {WEEKDAY_LABELS.map((d) => (
-              <View key={d} style={styles.weekdayCell}>
-                <Text style={styles.weekday}>{d}</Text>
-              </View>
-            ))}
-          </View>
+      <MonthGrid
+        weeks={weeks}
+        variant="modal"
+        onPressDay={setDraft}
+        dayState={(day) => ({
+          selected: draft ? sameDay(day, draft) : false,
+          today: sameDay(day, today),
+          disabled: startOfDay(day) < today,
+        })}
+      />
 
-          {weeks.map((week, wi) => (
-            <View key={`w-${wi}`} style={styles.weekRow}>
-              {week.map((day, di) => {
-                if (!day) {
-                  return <View key={`e-${wi}-${di}`} style={styles.cell} />;
-                }
-
-                const disabled = startOfDay(day) < today;
-                const isSelected = draft ? sameDay(day, draft) : false;
-                const isToday = sameDay(day, today);
-
-                return (
-                  <Pressable
-                    key={day.toISOString()}
-                    disabled={disabled}
-                    onPress={() => setDraft(day)}
-                    style={styles.cell}>
-                    <View
-                      style={[
-                        styles.dayInner,
-                        isSelected && styles.daySelected,
-                        isToday && !isSelected && styles.dayToday,
-                        disabled && styles.dayDisabled,
-                      ]}>
-                      <Text
-                        style={[
-                          styles.dayText,
-                          isSelected && styles.dayTextSelected,
-                          disabled && styles.dayTextDisabled,
-                        ]}>
-                        {day.getDate()}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-
-          <View style={styles.footer}>
+      <View style={styles.footer}>
             <Pressable
               onPress={onClear}
               style={({ pressed, hovered }) => [
@@ -164,52 +120,17 @@ export default function CalendarModal({
               <Text style={styles.setText}>Set Date</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </AppModal>
+    </SheetFrame>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 360,
-      backgroundColor: colors.bgContent,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      borderRadius: tokens.borderRadius,
+    card: {
       padding: 20,
-      ...tokens.shadow,
     },
-    modalMobile: {
-      marginBottom: 16,
+    cardMobile: {
       maxWidth: 420,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    headerTitle: {
-      fontSize: 18,
-      fontWeight: '500',
-      color: colors.textPrimary,
-    },
-    closeBtn: {
-      padding: 4,
-      borderRadius: 8,
-      ...webInteractive,
     },
     monthNav: {
       flexDirection: 'row',
@@ -226,57 +147,6 @@ function createStyles(colors: AppColors) {
       fontSize: 16,
       fontWeight: '600',
       color: colors.textPrimary,
-    },
-    weekRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    weekdayCell: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 6,
-    },
-    cell: {
-      flex: 1,
-      aspectRatio: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    weekday: {
-      textAlign: 'center',
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textMuted,
-    },
-    dayInner: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...webInteractive,
-    },
-    daySelected: {
-      backgroundColor: colors.primary,
-    },
-    dayToday: {
-      borderWidth: 1.5,
-      borderColor: colors.primary,
-    },
-    dayDisabled: {
-      opacity: 0.35,
-    },
-    dayText: {
-      fontSize: 14,
-      color: colors.textPrimary,
-    },
-    dayTextSelected: {
-      color: '#fff',
-      fontWeight: '700',
-    },
-    dayTextDisabled: {
-      color: colors.textMuted,
     },
     footer: {
       flexDirection: 'row',
