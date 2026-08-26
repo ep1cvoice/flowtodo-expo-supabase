@@ -32,7 +32,6 @@ interface TaskFormModalProps {
   categories: Category[];
   tags: Tag[];
   initialValues: TaskFormValues;
-  /** Re-apply initialValues when this changes while the modal is open (edit: the task). */
   syncKey?: unknown;
   disableCloseWhileSubmitting?: boolean;
   resetOnClose?: boolean;
@@ -88,8 +87,6 @@ export default function TaskFormModal({
   useEffect(() => {
     if (syncKey === undefined || !visible) return;
     applyInitial(initialValues);
-    // Edit resyncs from the task; Add only resets on close (matches previous behavior).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, syncKey]);
 
   const reset = () => applyInitial(initialValues);

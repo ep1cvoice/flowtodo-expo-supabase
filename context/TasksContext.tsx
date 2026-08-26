@@ -8,43 +8,37 @@ import {
 } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
-  COMPLETED_PAGE_SIZE,
-  completedKeysetOrFilter,
-  getCompletedCursor,
   mergeCompletedTasks,
-  sortCompletedTasks,
   type CompletedCursor,
 } from '@/lib/completedPagination';
 import { seedDemoData } from '@/lib/seedDemoData';
-import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/lib/taskMappers';
-import { encryptField, hashForUniqueness } from '@/lib/crypto';
 import { requireDek } from '@/lib/taskDek';
+import {
+  deleteCategoryForUser,
+  deleteTagForUser,
+  deleteTaskForUser,
+  deleteTasksByDone,
+  insertEncryptedCategory,
+  insertEncryptedTag,
+  insertEncryptedTask,
+  setTaskDoneRow,
+  setTaskScheduledRow,
+  updateEncryptedTask,
+  updateTaskSortOrders,
+} from '@/lib/tasks/mutations';
+import { fetchCompletedPage, fetchTasksSnapshot } from '@/lib/tasks/queries';
+import type {
+  AddCategoryInput,
+  AddTagInput,
+  AddTaskInput,
+  UpdateTaskInput,
+} from '@/lib/tasks/types';
 import { withTimeout } from '@/lib/withTimeout';
-import { supabase } from '@/supabase/client';
-import type { Category, CategoryIcon, Tag, Task } from '@/types';
+import type { Category, Tag, Task } from '@/types';
+
+export type { AddCategoryInput, AddTagInput, AddTaskInput, UpdateTaskInput };
 
 const TASKS_REFRESH_TIMEOUT_MS = 15_000;
-
-export interface AddTaskInput {
-  title: string;
-  description: string;
-  categoryId: number | null;
-  tagIds: number[];
-  scheduled?: string | null;
-}
-
-export type UpdateTaskInput = AddTaskInput;
-
-export interface AddCategoryInput {
-  name: string;
-  color: string;
-  icon: CategoryIcon | string;
-}
-
-export interface AddTagInput {
-  name: string;
-  color: string;
-}
 
 interface TasksContextValue {
   tasks: Task[];
@@ -72,31 +66,7 @@ interface TasksContextValue {
   reorderTasks: (items: { id: number; sortOrder: number }[]) => Promise<void>;
 }
 
-const TASK_SELECT = `
-  id,
-  user_id,
-  title,
-  title_enc,
-  title_iv,
-  description,
-  description_enc,
-  description_iv,
-  done,
-  scheduled,
-  completed_at,
-  sort_order,
-  category_id,
-  created_at,
-  updated_at,
-  categories ( id, user_id, name, name_enc, name_iv, name_hash, color, icon, created_at ),
-  task_tags ( tags ( id, user_id, name, name_enc, name_iv, name_hash, color, created_at ) )
-`;
-
 const TasksContext = createContext<TasksContextValue | null>(null);
-
-function mapTaskRows(rows: TaskQueryRow[] | null | undefined, dek: Uint8Array | null): Task[] {
-  return (rows ?? []).map((row) => mapTask(row, dek));
-}
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading, dek } = useAuth();
@@ -115,82 +85,19 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     [activeTasks, completedTasks]
   );
 
-  const fetchCompletedPage = useCallback(
-    async (userId: string, cursor: CompletedCursor | null) => {
-      let query = supabase
-        .from('tasks')
-        .select(TASK_SELECT)
-        .eq('user_id', userId)
-        .eq('done', true)
-        .not('completed_at', 'is', null)
-        .order('completed_at', { ascending: false })
-        .order('id', { ascending: false })
-        .limit(COMPLETED_PAGE_SIZE + 1);
-
-      if (cursor) {
-        query = query.or(completedKeysetOrFilter(cursor));
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const rows = mapTaskRows(data as TaskQueryRow[] | null, dek);
-      const hasMore = rows.length > COMPLETED_PAGE_SIZE;
-      const page = hasMore ? rows.slice(0, COMPLETED_PAGE_SIZE) : rows;
-      const nextCursor =
-        page.length > 0 ? getCompletedCursor(page[page.length - 1]) : null;
-
-      return { page, hasMore, nextCursor };
-    },
-    [dek]
-  );
-
   const refresh = useCallback(
     async (userId: string) => {
-      const [categoriesRes, tagsRes, activeRes, countRes, completedPage] =
-        await Promise.all([
-          supabase.from('categories').select('*').eq('user_id', userId).order('name'),
-          supabase.from('tags').select('*').eq('user_id', userId).order('name'),
-          supabase
-            .from('tasks')
-            .select(TASK_SELECT)
-            .eq('user_id', userId)
-            .eq('done', false)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('tasks')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('done', true),
-          fetchCompletedPage(userId, null),
-        ]);
-
-      if (categoriesRes.error) throw categoriesRes.error;
-      if (tagsRes.error) throw tagsRes.error;
-      if (activeRes.error) throw activeRes.error;
-      if (countRes.error) throw countRes.error;
-
-      const nextCategories = (categoriesRes.data ?? []).map((row) => mapCategory(row, dek));
-      const nextTags = (tagsRes.data ?? []).map((row) => mapTag(row, dek));
-      const nextActive = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek);
-      const nextCompleted = sortCompletedTasks(completedPage.page);
-
-      setCategories(nextCategories);
-      setTags(nextTags);
-      setActiveTasks(nextActive);
-      setCompletedTasks(nextCompleted);
-      setCompletedCount(countRes.count ?? nextCompleted.length);
-      setCompletedCursor(completedPage.nextCursor);
-      setHasMoreCompleted(completedPage.hasMore);
-
-      return {
-        categories: nextCategories,
-        tags: nextTags,
-        activeTasks: nextActive,
-        completedTasks: nextCompleted,
-      };
+      const snapshot = await fetchTasksSnapshot(userId, dek);
+      setCategories(snapshot.categories);
+      setTags(snapshot.tags);
+      setActiveTasks(snapshot.activeTasks);
+      setCompletedTasks(snapshot.completedTasks);
+      setCompletedCount(snapshot.completedCount);
+      setCompletedCursor(snapshot.nextCursor);
+      setHasMoreCompleted(snapshot.hasMore);
+      return snapshot;
     },
-    [fetchCompletedPage, dek]
+    [dek]
   );
 
   useEffect(() => {
@@ -264,7 +171,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     try {
       const { page, hasMore, nextCursor } = await fetchCompletedPage(
         user.id,
-        completedCursor
+        completedCursor,
+        dek
       );
       setCompletedTasks((prev) => mergeCompletedTasks(prev, page));
       setCompletedCursor(nextCursor);
@@ -280,7 +188,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     hasMoreCompleted,
     loadingMoreCompleted,
     completedCursor,
-    fetchCompletedPage,
+    dek,
   ]);
 
   const requireUserId = () => {
@@ -297,50 +205,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }: AddTaskInput) => {
     const userId = requireUserId();
     const activeDek = requireDek(dek);
-
     const minSort = activeTasks.length
       ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
       : 0;
 
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-
-    const titleEnc = await encryptField(activeDek, trimmedTitle);
-    let descriptionEncFields: { description_enc: string | null; description_iv: string | null } = {
-      description_enc: null,
-      description_iv: null,
-    };
-    if (trimmedDescription) {
-      const descEnc = await encryptField(activeDek, trimmedDescription);
-      descriptionEncFields = { description_enc: descEnc.ciphertext, description_iv: descEnc.iv };
-    }
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({
-        user_id: userId,
-        title: '', // plaintext no longer written — real value in title_enc
-        description: '', // plaintext no longer written — real value in description_enc
-        category_id: categoryId,
-        sort_order: minSort,
-        done: false,
-        title_enc: titleEnc.ciphertext,
-        title_iv: titleEnc.iv,
-        scheduled: scheduled ?? null,
-        ...descriptionEncFields,
-      })
-      .select('id')
-      .single();
-
-    if (error) throw error;
-
-    if (tagIds.length > 0) {
-      const { error: tagError } = await supabase.from('task_tags').insert(
-        tagIds.map((tag_id) => ({ task_id: data.id, tag_id }))
-      );
-      if (tagError) throw tagError;
-    }
-
+    await insertEncryptedTask({
+      userId,
+      dek: activeDek,
+      title,
+      description,
+      categoryId,
+      tagIds,
+      scheduled: scheduled ?? null,
+      sortOrder: minSort,
+    });
     await refresh(userId);
   };
 
@@ -350,129 +228,46 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const userId = requireUserId();
     const activeDek = requireDek(dek);
-
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-
-    const titleEnc = await encryptField(activeDek, trimmedTitle);
-    let descriptionEncFields: { description_enc: string | null; description_iv: string | null } = {
-      description_enc: null,
-      description_iv: null,
-    };
-    if (trimmedDescription) {
-      const descEnc = await encryptField(activeDek, trimmedDescription);
-      descriptionEncFields = { description_enc: descEnc.ciphertext, description_iv: descEnc.iv };
-    }
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        title: '', // plaintext no longer written — real value in title_enc
-        description: '', // plaintext no longer written — real value in description_enc
-        category_id: categoryId,
-        title_enc: titleEnc.ciphertext,
-        title_iv: titleEnc.iv,
-        ...descriptionEncFields,
-      })
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (error) throw error;
-
-    const { error: clearError } = await supabase.from('task_tags').delete().eq('task_id', id);
-    if (clearError) throw clearError;
-
-    if (tagIds.length > 0) {
-      const { error: tagError } = await supabase
-        .from('task_tags')
-        .insert(tagIds.map((tag_id) => ({ task_id: id, tag_id })));
-      if (tagError) throw tagError;
-    }
-
+    await updateEncryptedTask({
+      userId,
+      dek: activeDek,
+      id,
+      title,
+      description,
+      categoryId,
+      tagIds,
+    });
     await refresh(userId);
   };
 
   const patchTaskLocal = (id: number, patch: Partial<Task>) => {
-    setActiveTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
-    );
-    setCompletedTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
-    );
+    setActiveTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setCompletedTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   };
 
   const setTaskScheduled = async (id: number, scheduled: string | null) => {
     const userId = requireUserId();
-    const { error } = await supabase
-      .from('tasks')
-      .update({ scheduled })
-      .eq('id', id)
-      .eq('user_id', userId);
-    if (error) throw error;
-
+    await setTaskScheduledRow(userId, id, scheduled);
     patchTaskLocal(id, { scheduled });
   };
 
-  const addCategory = async ({ name, color, icon }: AddCategoryInput): Promise<Category> => {
+  const addCategory = async (input: AddCategoryInput): Promise<Category> => {
     const userId = requireUserId();
-    const activeDek = requireDek(dek);
-    const trimmedName = name.trim();
-
-    const nameEnc = await encryptField(activeDek, trimmedName);
-    const nameHash = hashForUniqueness(activeDek, trimmedName);
-
-    const { data, error } = await supabase
-      .from('categories')
-      .insert({
-        user_id: userId,
-        name: '', // plaintext no longer written — real value in name_enc
-        color,
-        icon: String(icon),
-        name_enc: nameEnc.ciphertext,
-        name_iv: nameEnc.iv,
-        name_hash: nameHash,
-      })
-      .select('*')
-      .single();
-
-    if (error) throw error;
-    const category = mapCategory(data, dek);
+    const category = await insertEncryptedCategory(userId, requireDek(dek), input);
     setCategories((prev) => [...prev, category]);
     return category;
   };
 
-  const addTag = async ({ name, color }: AddTagInput): Promise<Tag> => {
+  const addTag = async (input: AddTagInput): Promise<Tag> => {
     const userId = requireUserId();
-    const activeDek = requireDek(dek);
-    const trimmedName = name.trim();
-
-    const nameEnc = await encryptField(activeDek, trimmedName);
-    const nameHash = hashForUniqueness(activeDek, trimmedName);
-
-    const { data, error } = await supabase
-      .from('tags')
-      .insert({
-        user_id: userId,
-        name: '', // plaintext no longer written — real value in name_enc
-        color,
-        name_enc: nameEnc.ciphertext,
-        name_iv: nameEnc.iv,
-        name_hash: nameHash,
-      })
-      .select('*')
-      .single();
-
-    if (error) throw error;
-    const tag = mapTag(data, dek);
+    const tag = await insertEncryptedTag(userId, requireDek(dek), input);
     setTags((prev) => [...prev, tag]);
     return tag;
   };
 
   const deleteCategory = async (id: number) => {
     const userId = requireUserId();
-    const { error } = await supabase.from('categories').delete().eq('id', id).eq('user_id', userId);
-    if (error) throw error;
-
+    await deleteCategoryForUser(userId, id);
     setCategories((prev) => prev.filter((c) => c.id !== id));
     const clearCategory = (t: Task): Task =>
       t.categoryId === id ? { ...t, categoryId: null, category: null } : t;
@@ -482,9 +277,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTag = async (id: number) => {
     const userId = requireUserId();
-    const { error } = await supabase.from('tags').delete().eq('id', id).eq('user_id', userId);
-    if (error) throw error;
-
+    await deleteTagForUser(userId, id);
     setTags((prev) => prev.filter((t) => t.id !== id));
     const stripTag = (t: Task): Task => ({
       ...t,
@@ -520,13 +313,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       setCompletedCount((n) => Math.max(0, n - 1));
     }
 
-    const { error } = await supabase
-      .from('tasks')
-      .update({ done: nextDone, completed_at: nextCompletedAt })
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (error) {
+    try {
+      await setTaskDoneRow(userId, id, nextDone, nextCompletedAt);
+    } catch (error) {
       if (nextDone) {
         setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
         setActiveTasks((prev) =>
@@ -545,8 +334,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const deleteTask = async (id: number) => {
     const userId = requireUserId();
     const wasCompleted = completedTasks.some((t) => t.id === id);
-    const { error } = await supabase.from('tasks').delete().eq('id', id).eq('user_id', userId);
-    if (error) throw error;
+    await deleteTaskForUser(userId, id);
     setActiveTasks((prev) => prev.filter((t) => t.id !== id));
     setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
     if (wasCompleted) setCompletedCount((n) => Math.max(0, n - 1));
@@ -554,23 +342,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAllActive = async () => {
     const userId = requireUserId();
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('user_id', userId)
-      .eq('done', false);
-    if (error) throw error;
+    await deleteTasksByDone(userId, false);
     setActiveTasks([]);
   };
 
   const deleteAllCompleted = async () => {
     const userId = requireUserId();
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('user_id', userId)
-      .eq('done', true);
-    if (error) throw error;
+    await deleteTasksByDone(userId, true);
     setCompletedTasks([]);
     setCompletedCount(0);
     setCompletedCursor(null);
@@ -589,16 +367,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    const results = await Promise.all(
-      items.map(({ id, sortOrder }) =>
-        supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id).eq('user_id', userId)
-      )
-    );
-
-    const failed = results.find((result) => result.error);
-    if (failed?.error) {
+    try {
+      await updateTaskSortOrders(userId, items);
+    } catch (error) {
       setActiveTasks(previous);
-      throw failed.error;
+      throw error;
     }
   };
 
