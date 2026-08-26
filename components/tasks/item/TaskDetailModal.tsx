@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { AlarmClock, Calendar, Check, Pencil, Trash2, X } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { getCategoryIcon } from '@/constants/categoryIcons';
@@ -50,7 +49,6 @@ export default function TaskDetailModal({
   onStartPomodoro,
   onToggleComplete,
 }: TaskDetailModalProps) {
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const tags = task.tags ?? [];
@@ -125,21 +123,7 @@ export default function TaskDetailModal({
           </ScrollView>
         ) : null}
 
-        <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
-          <Pressable
-            onPress={() => {
-              void onDelete();
-            }}
-            style={({ pressed, hovered }) => [
-              styles.deleteBtn,
-              (hovered || pressed) && styles.deleteBtnPressed,
-            ]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Delete task">
-            <Trash2 size={16} strokeWidth={2.2} color={colors.red} />
-          </Pressable>
-
+        <View style={styles.footer}>
           <View style={styles.footerActions}>
             {!task.done ? (
               <Pressable
@@ -159,7 +143,9 @@ export default function TaskDetailModal({
 
             {showPomodoro ? (
               isPomoActive ? (
-                <PomodoroTimer taskId={task.id} />
+                <View style={styles.timerSlot}>
+                  <PomodoroTimer taskId={task.id} />
+                </View>
               ) : (
                 <Pressable
                   onPress={onStartPomodoro}
@@ -190,6 +176,24 @@ export default function TaskDetailModal({
                 Edit
               </Text>
             </Pressable>
+          </View>
+
+          <View style={styles.footerRow}>
+            <Pressable
+              onPress={() => {
+                void onDelete();
+              }}
+              style={({ pressed, hovered }) => [
+                styles.deleteBtn,
+                (hovered || pressed) && styles.deleteBtnPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete task">
+              <Trash2 size={15} strokeWidth={2.2} color={colors.red} />
+              <Text style={styles.deleteBtnText} numberOfLines={1}>
+                Delete
+              </Text>
+            </Pressable>
 
             <Pressable
               onPress={() => {
@@ -201,7 +205,10 @@ export default function TaskDetailModal({
               ]}
               accessibilityRole="button"
               accessibilityLabel={task.done ? 'Mark as incomplete' : 'Mark as completed'}>
-              <Check size={16} strokeWidth={2.4} color="#fff" />
+              <Check size={15} strokeWidth={2.4} color="#fff" />
+              <Text style={styles.completeBtnText} numberOfLines={1}>
+                Completed
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -293,27 +300,36 @@ function createStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
     footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
       paddingHorizontal: 12,
       paddingTop: 12,
-      gap: 6,
+      paddingBottom: 12,
+      gap: 8,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderColor,
       backgroundColor: colors.bgSurface,
     },
     footerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
+      gap: 6,
+    },
+    timerSlot: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    actionBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
-      flexWrap: 'nowrap',
-      gap: 6,
-      minWidth: 0,
-    },
-    actionBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
       paddingVertical: 8,
       paddingHorizontal: 8,
@@ -321,7 +337,6 @@ function createStyles(colors: AppColors) {
       borderWidth: 1,
       borderColor: colors.borderColor,
       backgroundColor: colors.bgTodoItem,
-      flexShrink: 1,
       ...webInteractive,
     },
     actionBtnPressed: {
@@ -334,31 +349,45 @@ function createStyles(colors: AppColors) {
       flexShrink: 1,
     },
     deleteBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
+      flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      paddingHorizontal: 10,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.red,
-      flexShrink: 0,
       ...webInteractive,
     },
     deleteBtnPressed: {
       backgroundColor: colors.sidebarLogoutHover,
     },
+    deleteBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.red,
+    },
     completeBtn: {
-      width: 52,
-      height: 32,
-      borderRadius: 8,
+      flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      paddingHorizontal: 10,
+      borderRadius: 10,
       backgroundColor: colors.primary,
-      flexShrink: 0,
       ...webInteractive,
     },
     completeBtnPressed: {
       opacity: 0.88,
+    },
+    completeBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
     },
   });
 }
