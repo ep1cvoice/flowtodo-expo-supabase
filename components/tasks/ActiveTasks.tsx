@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Keyboard,
   Platform,
   View,
   Text,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from 'expo-router';
-import { Search } from 'lucide-react-native';
+import { useNavigation } from 'expo-router';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
-import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -28,24 +24,15 @@ import TaskFilterSheet from '@/components/tasks/TaskFilterSheet';
 import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/TaskSearchBar';
 import TaskSortSheet from '@/components/tasks/TaskSortMenu';
 import ActiveDayCalendar from '@/components/tasks/ActiveDayCalendar';
-import {
-  clampFilterLimit,
-  FILTER_LIMIT_DEFAULT,
-} from '@/constants/filterLimits';
+import EmptyState from '@/components/ui/EmptyState';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
-import {
-  collectMarkedDayKeys,
-  taskMatchesScheduledDay,
-} from '@/lib/calendarDate';
 import { toastForError } from '@/lib/networkError';
 import { applyFilteredReorder } from '@/lib/taskReorder';
-import { filterTasksBySearch } from '@/lib/taskSearch';
-import { isTaskSortMode, sortTasks, type TaskSortMode } from '@/lib/taskSort';
+import { useActiveTaskFilters } from '@/lib/useActiveTaskFilters';
 import type { Task } from '@/types';
 
 const isWeb = Platform.OS === 'web';
-const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
 
 export default function ActiveTasks() {
   const navigation = useNavigation();
@@ -53,52 +40,38 @@ export default function ActiveTasks() {
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const { showToast } = useToast();
-  const { user } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { categories, tags, loading, addTask, toggleTask, deleteTask, reorderTasks } = useTasks();
   const {
     activeTasks,
-    categories,
-    tags,
-    loading,
-    addTask,
-    toggleTask,
-    deleteTask,
-    reorderTasks,
-  } = useTasks();
+    searchOpen,
+    searchQuery,
+    setSearchQuery,
+    hasSearch,
+    toggleSearch,
+    sortMode,
+    handleSelectSort,
+    selectedDay,
+    setSelectedDay,
+    markedDays,
+    validCategoryIds,
+    validTagIds,
+    maxFilterSelections,
+    hasFilters,
+    hasListConstraints,
+    filteredTasks,
+    canReorder,
+    handleToggleCategory,
+    handleToggleTag,
+    clearFilters,
+    emptyCopy,
+    setSelectedCategoryIds,
+    setSelectedTagIds,
+  } = useActiveTaskFilters();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [showSortSheet, setShowSortSheet] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<TaskSortMode>('manual');
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const scrollableRef = useAnimatedRef<Animated.ScrollView>();
-
-  const maxFilterSelections = clampFilterLimit(
-    user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
-  );
-
-  useEffect(() => {
-    AsyncStorage.getItem(SORT_STORAGE_KEY)
-      .then((value) => {
-        if (isTaskSortMode(value)) setSortMode(value);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    setSelectedCategoryIds((cats) => {
-      const nextCats =
-        cats.length > maxFilterSelections ? cats.slice(0, maxFilterSelections) : cats;
-      setSelectedTagIds((tags) => {
-        const room = maxFilterSelections - nextCats.length;
-        return tags.length > room ? tags.slice(0, room) : tags;
-      });
-      return nextCats;
-    });
-  }, [maxFilterSelections]);
 
   const handleToggle = useCallback(
     async (id: number) => {
@@ -123,100 +96,8 @@ export default function ActiveTasks() {
     [deleteTask, showToast]
   );
 
-  const handleToggleCategory = useCallback(
-    (id: number) => {
-      setSelectedCategoryIds((prev) => {
-        if (prev.includes(id)) return prev.filter((x) => x !== id);
-        if (prev.length + selectedTagIds.length >= maxFilterSelections) {
-          showToast(
-            `You can select up to ${maxFilterSelections} categories and tags combined.`,
-            'error'
-          );
-          return prev;
-        }
-        return [...prev, id];
-      });
-    },
-    [maxFilterSelections, selectedTagIds.length, showToast]
-  );
-
-  const handleToggleTag = useCallback(
-    (id: number) => {
-      setSelectedTagIds((prev) => {
-        if (prev.includes(id)) return prev.filter((x) => x !== id);
-        if (selectedCategoryIds.length + prev.length >= maxFilterSelections) {
-          showToast(
-            `You can select up to ${maxFilterSelections} categories and tags combined.`,
-            'error'
-          );
-          return prev;
-        }
-        return [...prev, id];
-      });
-    },
-    [maxFilterSelections, selectedCategoryIds.length, showToast]
-  );
-
-  const validCategoryIds = useMemo(
-    () => selectedCategoryIds.filter((id) => categories.some((c) => c.id === id)),
-    [selectedCategoryIds, categories]
-  );
-  const validTagIds = useMemo(
-    () => selectedTagIds.filter((id) => tags.some((t) => t.id === id)),
-    [selectedTagIds, tags]
-  );
-  const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
-  const hasSearch = searchQuery.trim().length > 0;
-  const hasDayFilter = selectedDay != null;
-  const hasListConstraints = hasFilters || hasSearch || hasDayFilter;
-  const isManualSort = sortMode === 'manual';
-
-  const markedDays = useMemo(() => collectMarkedDayKeys(activeTasks), [activeTasks]);
-
-  const filteredTasks = useMemo(() => {
-    const sorted = sortTasks(activeTasks, sortMode);
-    const byLabels = sorted.filter((task) => {
-      if (validCategoryIds.length > 0) {
-        if (task.categoryId === null || !validCategoryIds.includes(task.categoryId)) {
-          return false;
-        }
-      }
-      if (validTagIds.length > 0) {
-        const taskTagIds = new Set((task.tags ?? []).map((t) => t.id));
-        // OR within tags: match if task has any selected tag
-        if (!validTagIds.some((id) => taskTagIds.has(id))) return false;
-      }
-      return true;
-    });
-    const bySearch = filterTasksBySearch(byLabels, searchQuery);
-    if (!selectedDay) return bySearch;
-    return bySearch.filter((task) => taskMatchesScheduledDay(task, selectedDay));
-  }, [activeTasks, sortMode, validCategoryIds, validTagIds, searchQuery, selectedDay]);
-
-  const canReorder = isManualSort && filteredTasks.length > 1;
-
-  const clearFilters = useCallback(() => {
-    setSelectedCategoryIds([]);
-    setSelectedTagIds([]);
-  }, []);
-
   const openFilterSheet = useCallback(() => setShowFilterSheet(true), []);
   const openSortSheet = useCallback(() => setShowSortSheet(true), []);
-  const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
-
-  const handleSelectSort = useCallback((mode: TaskSortMode) => {
-    setSortMode(mode);
-    AsyncStorage.setItem(SORT_STORAGE_KEY, mode).catch(() => {});
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setSearchOpen(false);
-        Keyboard.dismiss();
-      };
-    }, [])
-  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -241,17 +122,17 @@ export default function ActiveTasks() {
   }, [
     navigation,
     isMobile,
-    hasFilters,
     categories,
     tags,
+    hasFilters,
     validCategoryIds,
     validTagIds,
-    openFilterSheet,
     clearFilters,
     searchOpen,
     hasSearch,
     toggleSearch,
     sortMode,
+    openFilterSheet,
     openSortSheet,
   ]);
 
@@ -269,10 +150,11 @@ export default function ActiveTasks() {
 
   const persistVisibleOrder = useCallback(
     (reorderedFiltered: Task[]) => {
-      const orderedActive = hasListConstraints
-        ? applyFilteredReorder(activeTasks, reorderedFiltered)
-        : reorderedFiltered;
-      persistOrder(orderedActive);
+      persistOrder(
+        hasListConstraints
+          ? applyFilteredReorder(activeTasks, reorderedFiltered)
+          : reorderedFiltered
+      );
     },
     [activeTasks, hasListConstraints, persistOrder]
   );
@@ -346,59 +228,8 @@ export default function ActiveTasks() {
     ]
   );
 
-  const emptyCopy = (() => {
-    if (hasDayFilter && !hasSearch && !hasFilters) {
-      return {
-        title: 'No tasks on this day',
-        text: 'Create a task or pick another day',
-      };
-    }
-    if (hasSearch && !hasFilters) {
-      return {
-        title: 'No matching tasks',
-        text: 'Try a different search term',
-      };
-    }
-    if (hasSearch && hasFilters) {
-      return {
-        title: 'No matching tasks',
-        text: 'Try clearing search or filters',
-      };
-    }
-    if (!hasFilters) {
-      return {
-        title: 'No active tasks',
-        text: 'Create your first task to get started',
-      };
-    }
-    if (validTagIds.length > 0 && validCategoryIds.length > 0) {
-      return {
-        title: 'No matching tasks',
-        text: 'Try clearing some filters or create a task with these labels',
-      };
-    }
-    if (validTagIds.length > 0) {
-      return {
-        title: 'No tasks with these tags',
-        text: 'Try removing some tag filters or assign these tags to a task',
-      };
-    }
-    return {
-      title: 'No tasks in these categories',
-      text: 'Add a category to an existing task or create a new one',
-    };
-  })();
-
   const emptyComponent = (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconWrap}>
-          <Search size={68} color={colors.primary} />
-        </View>
-        <Text style={styles.emptyTitle}>{emptyCopy.title}</Text>
-        <Text style={styles.emptyText}>{emptyCopy.text}</Text>
-      </View>
-    </View>
+    <EmptyState title={emptyCopy.title} text={emptyCopy.text} />
   );
 
   const listContentStyle = [
@@ -562,37 +393,6 @@ function createStyles(colors: AppColors) {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textMuted,
-    },
-    emptyState: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 40,
-    },
-    emptyContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 40,
-      gap: 12,
-    },
-    emptyIconWrap: {
-      padding: 20,
-      borderRadius: 999,
-      backgroundColor: colors.primaryLight,
-      borderWidth: 12,
-      borderColor: colors.todoHighlight,
-    },
-    emptyTitle: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    emptyText: {
-      margin: 0,
-      fontSize: 14,
-      color: colors.textMuted,
-      textAlign: 'center',
     },
   });
 }
