@@ -10,61 +10,15 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import {
-  X,
-  Check,
-  Briefcase,
-  Home,
-  Book,
-  Heart,
-  Star,
-  ShoppingCart,
-  Dumbbell,
-  Code,
-  Music,
-  Camera,
-  Plane,
-  Car,
-  Coffee,
-  Gamepad2,
-  Palette,
-  Globe,
-  Leaf,
-  Zap,
-  Target,
-  Users,
-} from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
+import { X, Check } from 'lucide-react-native';
 import type { Category, CategoryIcon } from '@/types';
+import { CATEGORY_ICON_MAP } from '@/constants/categoryIcons';
 import { CATEGORY_ICONS, PALETTE_COLORS } from '@/constants/palette';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import AppModal from '@/components/ui/AppModal';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
-
-const ICON_MAP: Record<CategoryIcon, LucideIcon> = {
-  Briefcase,
-  Home,
-  Book,
-  Heart,
-  Star,
-  ShoppingCart,
-  Dumbbell,
-  Code,
-  Music,
-  Camera,
-  Plane,
-  Car,
-  Coffee,
-  Gamepad2,
-  Palette,
-  Globe,
-  Leaf,
-  Zap,
-  Target,
-  Users,
-};
 
 interface CategoryModalProps {
   visible: boolean;
@@ -183,7 +137,7 @@ export default function CategoryModal({
                 <Text style={styles.label}>Icon</Text>
                 <View style={styles.iconGrid}>
                   {CATEGORY_ICONS.map((iconKey) => {
-                    const Icon = ICON_MAP[iconKey];
+                    const Icon = CATEGORY_ICON_MAP[iconKey];
                     const selected = selectedIcon === iconKey;
                     return (
                       <Pressable
