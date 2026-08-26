@@ -26,7 +26,10 @@ export default function DueDateBadge({
 }: DueDateBadgeProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
       style={({ pressed, hovered }) => [
         styles.todoDate,
         isToday && styles.todoDateToday,

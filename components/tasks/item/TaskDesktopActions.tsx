@@ -41,7 +41,10 @@ export default function TaskDesktopActions({
                 styles.todoActionBtn,
                 (hovered || pressed) && styles.actionPressed,
               ]}
-              onPress={onStartPomodoro}
+              onPress={(e) => {
+                e.stopPropagation();
+                onStartPomodoro();
+              }}
               hitSlop={6}
               accessibilityLabel="Start pomodoro">
               <AlarmClock size={18} color={colors.textSecondary} />
@@ -52,7 +55,10 @@ export default function TaskDesktopActions({
               styles.todoActionBtn,
               (hovered || pressed) && styles.actionPressed,
             ]}
-            onPress={onOpenCalendar}
+            onPress={(e) => {
+              e.stopPropagation();
+              onOpenCalendar();
+            }}
             hitSlop={6}>
             <Calendar size={18} color={colors.textSecondary} />
           </Pressable>
@@ -61,7 +67,10 @@ export default function TaskDesktopActions({
               styles.todoActionBtn,
               (hovered || pressed) && styles.actionPressed,
             ]}
-            onPress={onEdit}
+            onPress={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
             hitSlop={6}>
             <Pencil size={18} color={colors.textSecondary} />
           </Pressable>
@@ -72,7 +81,10 @@ export default function TaskDesktopActions({
           styles.todoActionBtn,
           (hovered || pressed) && styles.actionPressed,
         ]}
-        onPress={onDelete}
+        onPress={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
         hitSlop={6}>
         <Trash2 size={18} color={colors.textSecondary} />
       </Pressable>

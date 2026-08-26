@@ -85,11 +85,12 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
 
   return (
     <>
-      <View style={styles.row}>
+      <Pressable onPress={(e) => e.stopPropagation()} style={styles.row}>
         <Text style={styles.time}>{formatTime(seconds)}</Text>
 
         <Pressable
-          onPress={() => {
+          onPress={(e) => {
+            e.stopPropagation();
             if (showAlarm) return;
             if (isPaused) void resumePomo();
             else void pausePomo();
@@ -108,7 +109,10 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
         </Pressable>
 
         <Pressable
-          onPress={stopAlarmAndEnd}
+          onPress={(e) => {
+            e.stopPropagation();
+            stopAlarmAndEnd();
+          }}
           hitSlop={8}
           style={({ pressed, hovered }) => [
             styles.btn,
@@ -117,7 +121,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
           accessibilityLabel="End pomodoro">
           <X size={14} color={colors.textPrimary} />
         </Pressable>
-      </View>
+      </Pressable>
 
       <AppModal visible={showAlarm} onClose={handleDismissAlarm}>
         <Pressable style={styles.alarmOverlay} onPress={handleDismissAlarm}>

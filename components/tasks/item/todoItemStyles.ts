@@ -58,9 +58,6 @@ export function createTodoItemStyles(colors: AppColors) {
       gap: 10,
       zIndex: 1,
     },
-    todoMainRowExpanded: {
-      alignItems: 'flex-start',
-    },
     reorderButtons: {
       marginLeft: -4,
       alignItems: 'center',
@@ -242,16 +239,6 @@ export function createTodoItemStyles(colors: AppColors) {
       borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    descriptionWrapper: {
-      marginTop: 8,
-      marginLeft: 34,
-      zIndex: 1,
-    },
-    todoDescription: {
-      fontSize: 13,
-      lineHeight: 19,
-      color: colors.textSecondary,
     },
     mobileOverlay: {
       flex: 1,

@@ -56,7 +56,10 @@ export default function TaskMobileTrailing({
       {!done ? (
         <Pressable
           style={[styles.mobilePlus, styles.iconTile]}
-          onPress={onOpenActions}
+          onPress={(e) => {
+            e.stopPropagation();
+            onOpenActions();
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Task actions">
@@ -65,7 +68,10 @@ export default function TaskMobileTrailing({
       ) : (
         <Pressable
           style={styles.mobilePlus}
-          onPress={onDelete}
+          onPress={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Delete task">

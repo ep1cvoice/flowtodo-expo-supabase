@@ -36,6 +36,7 @@ interface SheetFrameProps {
   cardStyle?: StyleProp<ViewStyle>;
   mobileCardStyle?: StyleProp<ViewStyle>;
   accessory?: ReactNode;
+  centered?: boolean;
 }
 
 export default function SheetFrame({
@@ -53,6 +54,7 @@ export default function SheetFrame({
   cardStyle,
   mobileCardStyle,
   accessory,
+  centered = false,
 }: SheetFrameProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < SHEET_MOBILE_BREAKPOINT;
@@ -66,7 +68,7 @@ export default function SheetFrame({
         styles.card,
         { maxWidth },
         cardStyle,
-        isMobile && styles.cardMobile,
+        isMobile && !centered && styles.cardMobile,
         isMobile && mobileCardStyle,
       ]}
       onPress={(e) => e.stopPropagation()}>
@@ -103,7 +105,7 @@ export default function SheetFrame({
   );
 
   const overlay = (
-    <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
+    <Pressable style={[styles.overlay, isMobile && !centered && styles.overlayMobile]} onPress={onClose}>
       {card}
     </Pressable>
   );

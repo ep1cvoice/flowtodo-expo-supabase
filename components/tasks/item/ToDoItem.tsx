@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import {
-  LayoutAnimation,
   Platform,
   Pressable,
   Text,
-  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import CalendarModal from '@/components/tasks/calendar/CalendarModal';
 import EditTaskModal from '@/components/tasks/form/EditTaskModal';
@@ -18,6 +15,7 @@ import DueDateBadge from '@/components/tasks/item/DueDateBadge';
 import MobileActionsSheet from '@/components/tasks/item/MobileActionsSheet';
 import TaskCheckbox from '@/components/tasks/item/TaskCheckbox';
 import TaskDesktopActions from '@/components/tasks/item/TaskDesktopActions';
+import TaskDetailModal from '@/components/tasks/item/TaskDetailModal';
 import TaskMobileTrailing from '@/components/tasks/item/TaskMobileTrailing';
 import TaskReorderButtons from '@/components/tasks/item/TaskReorderButtons';
 import TaskTagChips from '@/components/tasks/item/TaskTagChips';
@@ -32,10 +30,6 @@ import { sameDay, startOfDay, toScheduledIso } from '@/lib/calendar/calendarDate
 import { categoryFadeColors } from '@/lib/color';
 import { toastForError } from '@/lib/networkError';
 import type { Task } from '@/types';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 interface ToDoItemProps {
   task: Task;
@@ -71,7 +65,7 @@ export default function ToDoItem({
   const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
   const { activeTaskId, canStart, startPomo, endPomo } = usePomodoro();
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -87,12 +81,6 @@ export default function ToDoItem({
   const isPast = dueDate ? startOfDay(dueDate) < todayStart : false;
 
   const categoryGradientColors = category ? categoryFadeColors(category.color) : null;
-  const hasDescription = !!task.description?.trim();
-
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsExpanded((v) => !v);
-  };
 
   const handleEdit = () => {
     setShowEditModal(true);
@@ -111,13 +99,14 @@ export default function ToDoItem({
         await endPomo();
       } catch (err) {
         showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
-        return; // nie kontynuuj toggle, jeśli endPomo zawiodło
+        return false;
       }
     }
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     onToggle(task.id);
+    return true;
   };
 
   const handleDelete = async () => {
@@ -126,18 +115,14 @@ export default function ToDoItem({
         await endPomo();
       } catch (err) {
         showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
-        return;
+        return false;
       }
     }
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
     onDelete(task.id);
-  };
-
-  const handleItemPress = () => {
-    if (!hasDescription) return;
-    toggleExpand();
+    return true;
   };
 
   const openCalendar = () => {
@@ -165,10 +150,12 @@ export default function ToDoItem({
   return (
     <>
       <Pressable
-        onPress={handleItemPress}
+        onPress={() => setShowDetailModal(true)}
         onLongPress={drag}
         delayLongPress={drag ? 450 : undefined}
-        accessibilityHint={drag ? 'Long press to reorder' : undefined}
+        accessibilityRole="button"
+        accessibilityLabel={task.title}
+        accessibilityHint={drag ? 'Opens details. Long press to reorder' : 'Show task details'}
         style={({ pressed, hovered }) => [
           styles.todoItem,
           category && !isMobile ? styles.hasCategory : null,
@@ -191,7 +178,7 @@ export default function ToDoItem({
           </View>
         )}
 
-        <View style={[styles.todoMainRow, isExpanded && styles.todoMainRowExpanded]}>
+        <View style={styles.todoMainRow}>
           {showReorderButtons ? (
             <TaskReorderButtons
               canMoveUp={canMoveUp}
@@ -209,22 +196,14 @@ export default function ToDoItem({
             <View style={styles.todoText}>
               <Text
                 style={[styles.titleText, task.done && styles.done]}
-                numberOfLines={isExpanded ? undefined : 1}
+                numberOfLines={1}
                 ellipsizeMode="tail">
                 {task.title}
               </Text>
-              {hasDescription ? (
-                isExpanded ? (
-                  <ChevronUp size={16} color={colors.textMuted} />
-                ) : (
-                  <ChevronDown size={16} color={colors.textMuted} />
-                )
-              ) : null}
             </View>
             <TaskTagChips tags={tags} styles={styles} />
           </View>
 
-          {/* Desktop: due date in the main row (hidden on completed — grouped by day). */}
           {!isMobile && (
             <View style={styles.todoIndicators}>
               {!task.done && dueDate ? (
@@ -277,15 +256,26 @@ export default function ToDoItem({
             <PomodoroTimer taskId={task.id} />
           </View>
         ) : null}
-
-        {isExpanded && hasDescription && (
-          <View style={styles.descriptionWrapper}>
-            <Text style={[styles.todoDescription, task.done && styles.done]}>
-              {task.description}
-            </Text>
-          </View>
-        )}
       </Pressable>
+
+      <TaskDetailModal
+        visible={showDetailModal}
+        task={task}
+        canStart={canStart}
+        isPomoActive={isPomoActive}
+        onClose={() => setShowDetailModal(false)}
+        onDelete={async () => {
+          const deleted = await handleDelete();
+          if (deleted) setShowDetailModal(false);
+        }}
+        onEdit={handleEdit}
+        onOpenCalendar={openCalendar}
+        onStartPomodoro={handleStartPomodoro}
+        onToggleComplete={async () => {
+          const ok = await handleToggleDone();
+          if (ok && !task.done) setShowDetailModal(false);
+        }}
+      />
 
       <MobileActionsSheet
         visible={showMobileActions}

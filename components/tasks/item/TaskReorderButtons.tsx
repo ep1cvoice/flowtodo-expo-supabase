@@ -23,7 +23,10 @@ export default function TaskReorderButtons({
   return (
     <View style={styles.reorderButtons}>
       <Pressable
-        onPress={onMoveUp}
+        onPress={(e) => {
+          e.stopPropagation();
+          onMoveUp?.();
+        }}
         disabled={!canMoveUp}
         hitSlop={4}
         accessibilityRole="button"
@@ -40,7 +43,10 @@ export default function TaskReorderButtons({
         />
       </Pressable>
       <Pressable
-        onPress={onMoveDown}
+        onPress={(e) => {
+          e.stopPropagation();
+          onMoveDown?.();
+        }}
         disabled={!canMoveDown}
         hitSlop={4}
         accessibilityRole="button"

@@ -17,7 +17,10 @@ export default function TaskCheckbox({ done, styles, onPress }: TaskCheckboxProp
         hovered && done && styles.checkboxCheckedHovered,
         pressed && styles.controlPressed,
       ]}
-      onPress={onPress}
+      onPress={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
       hitSlop={6}>
       {done ? <Text style={styles.checkmark}>✓</Text> : null}
     </Pressable>
