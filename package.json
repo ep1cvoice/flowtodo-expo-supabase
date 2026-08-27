@@ -13,6 +13,7 @@
     "ios:prod": "expo run:ios --configuration Release",
     "ios:clean": "expo prebuild --clean && expo run:ios",
     "web": "expo start --web",
+    "web:export": "expo export -p web",
     "clean": "expo prebuild --clean",
     "test": "jest"
   },

@@ -1,0 +1,7 @@
+{
+  "buildCommand": "bun expo export -p web",
+  "outputDirectory": "dist",
+  "installCommand": "bun install",
+  "framework": null,
+  "cleanUrls": true
+}
