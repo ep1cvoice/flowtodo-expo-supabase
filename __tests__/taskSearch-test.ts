@@ -1,4 +1,4 @@
-import { filterTasksBySearch, normalizeSearchQuery, taskMatchesSearch } from '@/lib/taskSearch';
+import { filterTasksBySearch, normalizeSearchQuery, taskMatchesSearch } from '@/lib/tasks/taskSearch';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

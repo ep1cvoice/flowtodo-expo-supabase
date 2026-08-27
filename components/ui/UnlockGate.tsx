@@ -26,84 +26,99 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
+    return <GateSplash colors={colors} isDark={isDark} styles={styles} />;
+  }
+
+  // Locked session: show the gate. During sign-in `isAuthenticating` stays true
+  // so the login screen is not replaced by this form (password was just entered).
+  // Unlock does not set that flag, so the app never appears without a DEK.
+  if (isAuthenticated && dek === null && !isAuthenticating) {
+
+    const handleUnlock = async () => {
+      if (!password || submitting) return false;
+      setSubmitting(true);
+      setError(null);
+      const { error: unlockError } = await unlock(password);
+      if (unlockError) {
+        setError(unlockError);
+      } else {
+        setPassword('');
+      }
+      setSubmitting(false);
+      return false;
+    };
+
+    const handleLogout = async () => {
+      if (submitting) return;
+      setPassword('');
+      setError(null);
+      await logout();
+    };
+
     return (
-      <LinearGradient
-        colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
-        locations={[0, 0.45, 1]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.loading}>
+      <>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <ActivityIndicator size="large" color={colors.primary} />
-      </LinearGradient>
+        <AuthLayout
+          gap={48}
+          overlay={submitting ? <LoggingInOverlay message="Unlocking..." /> : null}>
+          <Heading
+            title="Unlock application"
+            icon={Unlock}
+            text="Enter your password to decrypt your data"
+          />
+          <Field
+            innerText="Enter your password"
+            Icon={Lock}
+            type="password"
+            label="Password"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (error) setError(null);
+            }}
+            error={error ?? ''}
+            autoFocus
+            editable={!submitting}
+            onSubmitEditing={handleUnlock}
+          />
+          <Button inner="Unlock" onPress={handleUnlock} />
+          <Pressable
+            onPress={handleLogout}
+            disabled={submitting}
+            style={({ pressed, hovered }) => [
+              styles.logout,
+              (hovered || pressed) && styles.logoutPressed,
+              submitting && styles.logoutDisabled,
+            ]}>
+            <Text style={styles.logoutText}>Log Out</Text>
+          </Pressable>
+        </AuthLayout>
+      </>
     );
   }
 
-  const needsUnlock = isAuthenticated && dek === null && !isAuthenticating;
-  if (!needsUnlock) {
-    return <>{children}</>;
-  }
+  return <>{children}</>;
+}
 
-  const handleUnlock = async () => {
-    if (!password || submitting) return false;
-    setSubmitting(true);
-    setError(null);
-    const { error: unlockError } = await unlock(password);
-    if (unlockError) {
-      setError(unlockError);
-    } else {
-      setPassword('');
-    }
-    setSubmitting(false);
-    return false;
-  };
-
-  const handleLogout = async () => {
-    if (submitting) return;
-    setPassword('');
-    setError(null);
-    await logout();
-  };
-
+function GateSplash({
+  colors,
+  isDark,
+  styles,
+}: {
+  colors: AppColors;
+  isDark: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
-    <>
+    <LinearGradient
+      colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
+      locations={[0, 0.45, 1]}
+      start={{ x: 0.1, y: 0 }}
+      end={{ x: 0.9, y: 1 }}
+      style={styles.loading}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <AuthLayout
-        gap={48}
-        overlay={submitting ? <LoggingInOverlay message="Unlocking..." /> : null}>
-        <Heading
-          title="Unlock application" 
-          icon={Unlock}
-          text="Enter your password to decrypt your data"
-        />
-        <Field
-          innerText="Enter your password"
-          Icon={Lock}
-          type="password"
-          label="Password"
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (error) setError(null);
-          }}
-          error={error ?? ''}
-          autoFocus
-          editable={!submitting}
-          onSubmitEditing={handleUnlock}
-        />
-        <Button inner="Unlock" onPress={handleUnlock} />
-        <Pressable
-          onPress={handleLogout}
-          disabled={submitting}
-          style={({ pressed, hovered }) => [
-            styles.logout,
-            (hovered || pressed) && styles.logoutPressed,
-            submitting && styles.logoutDisabled,
-          ]}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </Pressable>
-      </AuthLayout>
-    </>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </LinearGradient>
   );
 }
 

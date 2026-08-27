@@ -3,7 +3,7 @@ import {
   isTaskSortMode,
   sortTasks,
   type TaskSortMode,
-} from '@/lib/taskSort';
+} from '@/lib/tasks/taskSort';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {

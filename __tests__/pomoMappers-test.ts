@@ -1,4 +1,4 @@
-import { mapActivePomo, mapPomoRecord } from '@/lib/pomoMappers';
+import { mapActivePomo, mapPomoRecord } from '@/lib/pomodoro/pomoMappers';
 
 const baseRow = {
   id: 7,

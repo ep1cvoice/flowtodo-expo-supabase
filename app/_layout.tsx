@@ -5,6 +5,7 @@ if (typeof global.Buffer === 'undefined') {
 }
 
 import ReconnectRefresh from '@/components/network/ReconnectRefresh';
+import { Pbkdf2WebView } from '@/components/Pbkdf2WebView';
 import AppSplash from '@/components/ui/AppSplash';
 import ToastHost from '@/components/ui/ToastHost';
 import { UnlockGate } from '@/components/ui/UnlockGate';
@@ -58,6 +59,7 @@ export default function RootLayout() {
 				<NetworkProvider>
 					<AuthProvider>
 						<ThemeProvider>
+							<Pbkdf2WebView />
 							<UnlockGate>
 								<ToastProvider>
 									<TasksProvider>

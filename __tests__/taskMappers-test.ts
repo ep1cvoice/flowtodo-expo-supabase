@@ -1,4 +1,4 @@
-import { mapCategory, mapTag, mapTask } from '@/lib/taskMappers';
+import { mapCategory, mapTag, mapTask } from '@/lib/tasks/taskMappers';
 
 describe('task mappers', () => {
   it('maps category and tag rows', () => {

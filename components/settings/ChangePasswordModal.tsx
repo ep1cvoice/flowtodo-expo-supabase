@@ -1,20 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  useWindowDimensions,
-  ScrollView,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Lock } from 'lucide-react-native';
-import AppModal from '@/components/ui/AppModal';
 import Field from '@/components/ui/Field';
+import SheetFrame from '@/components/ui/SheetFrame';
 import { useTheme } from '@/context/ThemeContext';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
+import {
+  confirmPasswordError,
+  validatePassword,
+} from '@/lib/auth/authValidation';
 import { webInteractive } from '@/utils/pressableWeb';
 
 interface ChangePasswordModalProps {
@@ -23,25 +17,11 @@ interface ChangePasswordModalProps {
   onSubmit: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
-function validateNewPassword(password: string): string {
-  if (!password) return 'New password is required';
-  if (password.length < 8) return 'Password must be at least 8 characters long';
-  if (!/[a-z]/.test(password)) return 'Must contain lowercase letter';
-  if (!/[A-Z]/.test(password)) return 'Must contain uppercase letter';
-  if (!/[0-9]/.test(password)) return 'Must contain a digit';
-  if (!/[!@#$%^&*()_\-+=[\]{};:'",.<>/?`~|]/.test(password)) {
-    return 'Must contain a special character';
-  }
-  return '';
-}
-
 export default function ChangePasswordModal({
   visible,
   onClose,
   onSubmit,
 }: ChangePasswordModalProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 480;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -68,11 +48,11 @@ export default function ChangePasswordModal({
     const nextErrors: Record<string, string> = {};
     if (!currentPassword) nextErrors.currentPassword = 'Current password is required';
 
-    const newErr = validateNewPassword(newPassword);
+    const newErr = validatePassword(newPassword, 'New password is required');
     if (newErr) nextErrors.newPassword = newErr;
 
-    if (!confirmPassword) nextErrors.confirmPassword = 'Confirm your password';
-    else if (newPassword !== confirmPassword) nextErrors.confirmPassword = 'Passwords do not match';
+    const confirmErr = confirmPasswordError(newPassword, confirmPassword);
+    if (confirmErr) nextErrors.confirmPassword = confirmErr;
 
     if (currentPassword && newPassword && currentPassword === newPassword) {
       nextErrors.newPassword = 'New password must be different from current password';
@@ -99,116 +79,99 @@ export default function ChangePasswordModal({
   };
 
   return (
-    <AppModal visible={visible} onClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={[styles.overlay, isMobile && styles.overlayMobile]} onPress={onClose}>
+    <SheetFrame
+      visible={visible}
+      onClose={onClose}
+      header="none"
+      keyboardAvoiding
+      maxWidth={440}
+      cardStyle={styles.card}
+      mobileCardStyle={styles.cardMobile}>
+      <ScrollView
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}>
+        <Text style={styles.title}>Change password</Text>
+        <Text style={styles.subtitle}>Enter your current password, then choose a new one.</Text>
+
+        <Field
+          label="Current password"
+          type="password"
+          Icon={Lock}
+          innerText="Current password"
+          value={currentPassword}
+          onChangeText={(text) => {
+            setCurrentPassword(text);
+            setErrors((prev) => ({ ...prev, currentPassword: '' }));
+          }}
+          error={errors.currentPassword}
+        />
+        <Field
+          label="New password"
+          type="password"
+          Icon={Lock}
+          innerText="New password"
+          value={newPassword}
+          onChangeText={(text) => {
+            setNewPassword(text);
+            setErrors((prev) => ({ ...prev, newPassword: '' }));
+          }}
+          error={errors.newPassword}
+        />
+        <Field
+          label="Confirm new password"
+          type="password"
+          Icon={Lock}
+          innerText="Confirm new password"
+          value={confirmPassword}
+          onChangeText={(text) => {
+            setConfirmPassword(text);
+            setErrors((prev) => ({ ...prev, confirmPassword: '' }));
+          }}
+          error={errors.confirmPassword}
+        />
+
+        {!!formError && <Text style={styles.errorInfo}>{formError}</Text>}
+        {!!success && <Text style={styles.successInfo}>{success}</Text>}
+
+        <View style={styles.actions}>
           <Pressable
-            style={[styles.modal, isMobile && styles.modalMobile]}
-            onPress={(e) => e.stopPropagation()}>
-            <ScrollView
-              style={styles.scrollView}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scroll}>
-              <Text style={styles.title}>Change password</Text>
-              <Text style={styles.subtitle}>Enter your current password, then choose a new one.</Text>
-
-              <Field
-                label="Current password"
-                type="password"
-                Icon={Lock}
-                innerText="Current password"
-                value={currentPassword}
-                onChangeText={(text) => {
-                  setCurrentPassword(text);
-                  setErrors((prev) => ({ ...prev, currentPassword: '' }));
-                }}
-                error={errors.currentPassword}
-              />
-              <Field
-                label="New password"
-                type="password"
-                Icon={Lock}
-                innerText="New password"
-                value={newPassword}
-                onChangeText={(text) => {
-                  setNewPassword(text);
-                  setErrors((prev) => ({ ...prev, newPassword: '' }));
-                }}
-                error={errors.newPassword}
-              />
-              <Field
-                label="Confirm new password"
-                type="password"
-                Icon={Lock}
-                innerText="Confirm new password"
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  setErrors((prev) => ({ ...prev, confirmPassword: '' }));
-                }}
-                error={errors.confirmPassword}
-              />
-
-              {!!formError && <Text style={styles.errorInfo}>{formError}</Text>}
-              {!!success && <Text style={styles.successInfo}>{success}</Text>}
-
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed, hovered }) => [
-                    styles.secondaryBtn,
-                    (hovered || pressed) && styles.secondaryBtnPressed,
-                  ]}
-                  onPress={onClose}
-                  disabled={saving}>
-                  <Text style={styles.secondaryBtnText}>Close</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed, hovered }) => [
-                    styles.primaryBtn,
-                    (hovered || pressed) && styles.primaryBtnPressed,
-                    saving && styles.btnDisabled,
-                  ]}
-                  onPress={handleSave}
-                  disabled={saving}>
-                  <Text style={styles.primaryBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+            style={({ pressed, hovered }) => [
+              styles.secondaryBtn,
+              (hovered || pressed) && styles.secondaryBtnPressed,
+            ]}
+            onPress={onClose}
+            disabled={saving}>
+            <Text style={styles.secondaryBtnText}>Close</Text>
           </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </AppModal>
+          <Pressable
+            style={({ pressed, hovered }) => [
+              styles.primaryBtn,
+              (hovered || pressed) && styles.primaryBtnPressed,
+              saving && styles.btnDisabled,
+            ]}
+            onPress={handleSave}
+            disabled={saving}>
+            <Text style={styles.primaryBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SheetFrame>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    flex: { flex: 1 },
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-    },
-    overlayMobile: {
-      justifyContent: 'flex-end',
-    },
-    modal: {
-      width: '100%',
-      maxWidth: 440,
+    card: {
       maxHeight: '100%',
       flexShrink: 1,
       backgroundColor: colors.bgSurface,
-      borderRadius: tokens.borderRadius,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
       padding: 20,
     },
-    modalMobile: {
+    cardMobile: {
       maxWidth: '100%',
+      marginBottom: 0,
       borderBottomLeftRadius: 0,
       borderBottomRightRadius: 0,
     },

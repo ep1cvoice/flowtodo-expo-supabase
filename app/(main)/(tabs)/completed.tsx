@@ -1,29 +1,29 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   View,
   Text,
   StyleSheet,
   SectionList,
-  Keyboard,
   Pressable,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from 'expo-router';
-import { Search } from 'lucide-react-native';
+import { useNavigation } from 'expo-router';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
-import ToDoItem from '@/components/tasks/ToDoItem';
+import ToDoItem from '@/components/tasks/item/ToDoItem';
 import TaskSearchBar, {
   TASK_LIST_INSET,
   TaskSearchToggle,
-} from '@/components/tasks/TaskSearchBar';
+} from '@/components/tasks/filters/TaskSearchBar';
+import EmptyState from '@/components/ui/EmptyState';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
-import { groupCompletedTasks } from '@/lib/completedGroups';
+import { groupCompletedTasks } from '@/lib/tasks/completedGroups';
 import { toastForError } from '@/lib/networkError';
-import { filterTasksBySearch } from '@/lib/taskSearch';
+import { filterTasksBySearch } from '@/lib/tasks/taskSearch';
+import { useTaskSearch } from '@/lib/tasks/useTaskSearch';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export default function CompletedTasksScreen() {
@@ -40,28 +40,21 @@ export default function CompletedTasksScreen() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const {
+    searchOpen,
+    searchQuery,
+    setSearchQuery,
+    hasSearch,
+    toggleSearch,
+  } = useTaskSearch();
 
   const visibleTasks = useMemo(
     () => filterTasksBySearch(completedTasks, searchQuery),
     [completedTasks, searchQuery]
   );
   const sections = useMemo(() => groupCompletedTasks(visibleTasks), [visibleTasks]);
-  const hasSearch = searchQuery.trim().length > 0;
   const isEmpty = visibleTasks.length === 0;
   const showLoadMore = hasMoreCompleted && !hasSearch;
-
-  const toggleSearch = useCallback(() => setSearchOpen((prev) => !prev), []);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setSearchOpen(false);
-        Keyboard.dismiss();
-      };
-    }, [])
-  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -125,19 +118,15 @@ export default function CompletedTasksScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
               ListEmptyComponent={
-                <View style={styles.empty}>
-                  <View style={styles.emptyIcon}>
-                    <Search size={48} color={colors.primary} />
-                  </View>
-                  <Text style={styles.emptyTitle}>
-                    {hasSearch ? 'No matching tasks' : 'No completed tasks'}
-                  </Text>
-                  <Text style={styles.emptyText}>
-                    {hasSearch
+                <EmptyState
+                  variant="plain"
+                  title={hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                  text={
+                    hasSearch
                       ? 'Try a different search term'
-                      : 'Mark a task as done to see it here'}
-                  </Text>
-                </View>
+                      : 'Mark a task as done to see it here'
+                  }
+                />
               }
               ListFooterComponent={
                 showLoadMore ? (
@@ -285,28 +274,6 @@ function createStyles(colors: AppColors) {
     loadingText: {
       fontSize: 14,
       fontWeight: '500',
-      color: colors.textMuted,
-    },
-    empty: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      padding: 40,
-    },
-    emptyIcon: {
-      padding: 16,
-      borderRadius: 999,
-      backgroundColor: colors.primaryLight,
-    },
-    emptyTitle: {
-      fontSize: 17,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    emptyText: {
-      fontSize: 14,
-      textAlign: 'center',
       color: colors.textMuted,
     },
   });

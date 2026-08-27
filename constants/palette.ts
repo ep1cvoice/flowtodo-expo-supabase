@@ -1,5 +1,3 @@
-import type { CategoryIcon } from '@/types';
-
 /** Shared color swatches for categories and tags. */
 export const PALETTE_COLORS = [
   '#ef4444',
@@ -17,26 +15,3 @@ export const PALETTE_COLORS = [
 ] as const;
 
 export type PaletteColor = (typeof PALETTE_COLORS)[number];
-
-export const CATEGORY_ICONS: CategoryIcon[] = [
-  'Briefcase',
-  'Home',
-  'Book',
-  'Heart',
-  'Star',
-  'ShoppingCart',
-  'Dumbbell',
-  'Code',
-  'Music',
-  'Camera',
-  'Plane',
-  'Car',
-  'Coffee',
-  'Gamepad2',
-  'Palette',
-  'Globe',
-  'Leaf',
-  'Zap',
-  'Target',
-  'Users',
-];
