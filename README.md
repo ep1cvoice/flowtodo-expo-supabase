@@ -2,14 +2,19 @@
 
 Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** + **Supabase** — iOS, Android i web z jednej bazy kodu.
 
+**Live (web):** [flowtodo-expo-supabase.vercel.app](https://flowtodo-expo-supabase.vercel.app)  
+**v1.0.0:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.0) — APK in v1.0.0 release.
+
 ## Screenshots
 
 | | |
 |:--|:--|
-| ![Splash](docs/screenshots/01-splash.jpg) | ![Active](docs/screenshots/02-active.jpg) |
-| *Splash* | *Active tasks* |
-| ![Settings](docs/screenshots/03-settings.jpg) | ![Completed](docs/screenshots/04-completed.jpg) |
-| *3 · Settings* | *4 · Completed* |
+| ![Log in](docs/screenshots/log-in.jpg) | ![Active tasks](docs/screenshots/active-tasks.jpg) |
+| *Log in* | *Active* |
+| ![Task detail](docs/screenshots/task-detail-view.jpg) | ![Completed](docs/screenshots/completed.jpg) |
+| *Task detail* | *Completed* |
+| ![Settings](docs/screenshots/user-settings.jpg) | ![Active light](docs/screenshots/active-light-mode.jpg) |
+| *Settings* | *Active (light)* |
 
 ## Status
 
@@ -37,7 +42,7 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 | UI | React Native + `react-native-web`, StyleSheet |
 | Ikony | `lucide-react-native` |
 | Auth / DB | Supabase (`supabase-js`), sesja w AsyncStorage |
-| Gestures / DnD | `gesture-handler`, `reanimated`, `react-native-draggable-flatlist` |
+| Gestures / DnD | `gesture-handler`, `reanimated`, `react-native-sortables` |
 | Feedback | `expo-haptics`, custom toasts |
 | Dźwięk | `expo-av` (alarm Pomodoro) |
 
@@ -86,6 +91,10 @@ bunx eas-cli build -p android --profile preview
 ```
 
 Profil `preview` w `eas.json` buduje **APK** (nie AAB). Po buildzie Expo daje link do pobrania — na telefonie trzeba zezwolić na instalację z nieznanych źródeł. EAS używa Buna, bo w repo jest `bun.lock`.
+
+## Web (Vercel)
+
+Push na `main` odpala deploy. Env na Vercelu (build-time): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Config: `vercel.json`.
 
 ## Tests
 
