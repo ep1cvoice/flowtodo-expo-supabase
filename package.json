@@ -5,7 +5,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "android:dev": "expo run:android --variant development",
+    "android:dev": "expo run:android --variant debug",
     "android:prod": "expo run:android --variant release",
     "android:clean": "expo prebuild --clean && expo run:android",
     "ios": "expo run:ios",
@@ -35,7 +35,9 @@
     "expo-haptics": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
+    "expo-local-authentication": "~17.0.9",
     "expo-router": "~6.0.24",
+    "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.11",

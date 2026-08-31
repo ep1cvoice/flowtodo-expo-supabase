@@ -4,7 +4,7 @@
  * Wire format matches the web implementation (PBKDF2-SHA256 + AES-256-GCM with tag appended).
  */
 import { Buffer } from 'buffer';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as ExpoCrypto from 'expo-crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -62,7 +62,7 @@ type QuickCryptoModule = {
 
 function tryLoadQuickCrypto(): QuickCryptoModule | null {
   // Expo Go has no native QuickCrypto / QuickBase64 — never require it there.
-  if (Constants.appOwnership === 'expo') {
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
     return null;
   }
 
