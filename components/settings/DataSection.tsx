@@ -1,11 +1,14 @@
-import { Alert, Pressable, Text, View } from 'react-native';
-import { Lock, Trash2 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, Switch, Text, View } from 'react-native';
+import { Fingerprint, Lock, Trash2 } from 'lucide-react-native';
 import { confirmDestructive } from '@/components/settings/confirmDestructive';
 import SettingsSection from '@/components/settings/SettingsSection';
 import { useSettingsStyles } from '@/components/settings/settingsStyles';
+import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
 import { toastForError } from '@/lib/networkError';
+import { isDeviceUnlockAvailable } from '@/lib/auth/secureStorage';
 
 interface DataSectionProps {
   open: boolean;
@@ -16,6 +19,41 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
   const { activeTasks, completedCount, deleteAllActive, deleteAllCompleted } = useTasks();
+  const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useAuth();
+  const [deviceSupportsUnlock, setDeviceSupportsUnlock] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    isDeviceUnlockAvailable().then((supported) => {
+      if (isMounted) setDeviceSupportsUnlock(supported);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleBiometricToggle = async (next: boolean) => {
+    if (biometricBusy) return;
+    setBiometricBusy(true);
+    try {
+      if (next) {
+        const { error } = await enableBiometricUnlock();
+        if (error) {
+          showToast(error, 'error');
+        } else {
+          showToast('Biometric unlock enabled.');
+        }
+      } else {
+        await disableBiometricUnlock();
+        showToast('Biometric unlock disabled.');
+      }
+    } catch (err) {
+      showToast(toastForError(err, 'Could not update biometric unlock.'), 'error');
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
 
   const confirmDeleteAllActive = () => {
     if (activeTasks.length === 0) {
@@ -70,6 +108,32 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
               the contents.
             </Text>
           </View>
+
+          {deviceSupportsUnlock ? (
+            <View style={styles.encryptionInfo}>
+              <View style={styles.encryptionInfoHeader}>
+                <Fingerprint size={16} color={colors.primary} />
+                <Text style={styles.encryptionInfoTitle}>Biometric unlock</Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 8,
+                }}>
+                <Text style={[styles.encryptionInfoText, { flex: 1, marginRight: 12 }]}>
+                  Use Face ID, fingerprint, or device PIN to unlock instead of your password.
+                </Text>
+                <Switch
+                  value={biometricUnlockAvailable}
+                  onValueChange={handleBiometricToggle}
+                  disabled={biometricBusy}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                />
+              </View>
+            </View>
+          ) : null}
 
           <Text style={styles.description}>Bulk delete data.</Text>
           <Pressable

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Text,
   Pressable,
@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Lock, Unlock } from 'lucide-react-native';
+import { Lock, Unlock, Fingerprint } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import type { AppColors } from '@/constants/theme';
@@ -18,12 +18,51 @@ import AuthLayout, { LoggingInOverlay } from '@/components/ui/AuthLayout';
 import { webInteractive } from '@/utils/pressableWeb';
 
 export function UnlockGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, dek, loading, unlock, logout, isAuthenticating } = useAuth();
+  const {
+    isAuthenticated,
+    dek,
+    loading,
+    unlock,
+    unlockWithBiometrics,
+    biometricUnlockAvailable,
+    logout,
+    isAuthenticating,
+  } = useAuth();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Distinguishes the automatic first-try biometric prompt (full-screen
+  // splash, nothing to interact with yet) from a manual retry tap
+  // (handled inside `submitting` like the password path).
+  const [autoBiometricPending, setAutoBiometricPending] = useState(biometricUnlockAvailable);
+  const attemptedRef = useRef(false);
+
+  const isLocked = isAuthenticated && dek === null && !isAuthenticating;
+
+  useEffect(() => {
+    if (!isLocked || !biometricUnlockAvailable) {
+      attemptedRef.current = false;
+      return;
+    }
+    if (attemptedRef.current) return;
+    attemptedRef.current = true;
+    setAutoBiometricPending(true);
+
+    (async () => {
+      const { error: bioError } = await unlockWithBiometrics();
+      // On success `dek` becomes non-null and this component unmounts
+      // itself (isLocked flips false) — nothing else to do here.
+      if (bioError) {
+        // Don't surface the biometric error as a form error on first
+        // load — it's expected (Face ID cancelled, not yet enrolled,
+        // etc.) and the user hasn't touched the password field.
+        setAutoBiometricPending(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocked, biometricUnlockAvailable]);
 
   if (loading) {
     return <GateSplash colors={colors} isDark={isDark} styles={styles} />;
@@ -32,7 +71,10 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
   // Locked session: show the gate. During sign-in `isAuthenticating` stays true
   // so the login screen is not replaced by this form (password was just entered).
   // Unlock does not set that flag, so the app never appears without a DEK.
-  if (isAuthenticated && dek === null && !isAuthenticating) {
+  if (isLocked) {
+    if (autoBiometricPending) {
+      return <GateSplash colors={colors} isDark={isDark} styles={styles} />;
+    }
 
     const handleUnlock = async () => {
       if (!password || submitting) return false;
@@ -46,6 +88,15 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
       }
       setSubmitting(false);
       return false;
+    };
+
+    const handleBiometricRetry = async () => {
+      if (submitting) return;
+      setSubmitting(true);
+      setError(null);
+      const { error: bioError } = await unlockWithBiometrics();
+      if (bioError) setError(bioError);
+      setSubmitting(false);
     };
 
     const handleLogout = async () => {
@@ -82,6 +133,19 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
             onSubmitEditing={handleUnlock}
           />
           <Button inner="Unlock" onPress={handleUnlock} />
+          {biometricUnlockAvailable && (
+            <Pressable
+              onPress={handleBiometricRetry}
+              disabled={submitting}
+              style={({ pressed, hovered }) => [
+                styles.biometricRetry,
+                (hovered || pressed) && styles.logoutPressed,
+                submitting && styles.logoutDisabled,
+              ]}>
+              <Fingerprint size={18} color={colors.sidebarLogoutText} />
+              <Text style={styles.logoutText}>Try biometric unlock again</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={handleLogout}
             disabled={submitting}
@@ -130,6 +194,17 @@ function createStyles(colors: AppColors) {
       alignItems: 'center',
     },
     logout: {
+      alignSelf: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      ...webInteractive,
+    },
+    biometricRetry: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
       alignSelf: 'center',
       paddingVertical: 4,
       paddingHorizontal: 8,

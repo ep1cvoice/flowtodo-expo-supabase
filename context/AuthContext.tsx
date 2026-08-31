@@ -9,6 +9,12 @@ import { pausePomodoroBeforeLogout } from '@/lib/pomodoro/pomodoroLogoutBridge';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
+import {
+  saveDekToSecureStoreTracked,
+  loadDekFromSecureStore,
+  clearDekFromSecureStoreTracked,
+  hasStoredDek,
+} from '@/lib/auth/secureStorage';
 
 interface AuthContextValue {
   user: User | null;
@@ -16,6 +22,8 @@ interface AuthContextValue {
   isAuthenticating: boolean;
   dek: Uint8Array | null;
   loading: boolean;
+  /** Whether a DEK is saved in the platform secure store for this device. */
+  biometricUnlockAvailable: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
@@ -26,6 +34,12 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
   unlock: (password: string) => Promise<{ error: string | null }>;
+  /** Try to unlock using the device's biometrics/PIN instead of the password. */
+  unlockWithBiometrics: () => Promise<{ error: string | null }>;
+  /** Explicit opt-in: persist the current in-memory DEK to secure storage. */
+  enableBiometricUnlock: () => Promise<{ error: string | null }>;
+  /** Explicit opt-out: wipe the persisted DEK from secure storage. */
+  disableBiometricUnlock: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthContextValue['user']>(null);
   const [loading, setLoading] = useState(true);
   const [dek, setDek] = useState<Uint8Array | null>(null);
+  const [biometricUnlockAvailable, setBiometricUnlockAvailable] = useState(false);
   // Only true during signIn/signUp. Unlock must NOT set this — UnlockGate
   // shows the app when this is true so the login screen can stay mounted.
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -43,11 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const { data } = await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_BOOTSTRAP_TIMEOUT_MS,
-          'getSession'
-        );
+        const [{ data }, storedDek] = await Promise.all([
+          withTimeout(supabase.auth.getSession(), AUTH_BOOTSTRAP_TIMEOUT_MS, 'getSession'),
+          hasStoredDek(),
+        ]);
+        if (isMounted) setBiometricUnlockAvailable(storedDek);
+
         const session = data.session;
         if (session?.user) {
           const profile =
@@ -117,6 +133,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setDek(resolved.dek);
+      // Note: this does NOT silently enable biometric unlock. Persisting
+      // the DEK to the secure store is an explicit opt-in via
+      // enableBiometricUnlock() (e.g. a settings toggle or a one-time
+      // prompt after first login) — signIn only puts it in memory.
       return { error: null };
     } catch (err) {
       console.warn('signIn failed:', (err as Error)?.message ?? err);
@@ -150,6 +170,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const unlockWithBiometrics = async () => {
+    try {
+      const storedDek = await loadDekFromSecureStore();
+      if (!storedDek) {
+        return { error: 'Odblokowanie biometryczne nie jest skonfigurowane na tym urządzeniu.' };
+      }
+      setDek(storedDek);
+      return { error: null };
+    } catch (err) {
+      // User cancelled the prompt, auth failed, or hardware unavailable —
+      // caller should fall back to showing the password unlock screen.
+      console.warn('unlockWithBiometrics failed:', (err as Error)?.message ?? err);
+      return { error: 'Uwierzytelnianie nie powiodło się. Użyj hasła.' };
+    }
+  };
+
+  const enableBiometricUnlock = async () => {
+    if (!dek) {
+      return { error: 'Brak odszyfrowanego klucza. Odblokuj aplikację hasłem, aby to włączyć.' };
+    }
+    try {
+      await saveDekToSecureStoreTracked(dek);
+      setBiometricUnlockAvailable(true);
+      return { error: null };
+    } catch (err) {
+      console.warn('enableBiometricUnlock failed:', (err as Error)?.message ?? err);
+      return { error: 'Nie udało się zapisać klucza w bezpiecznym magazynie urządzenia.' };
+    }
+  };
+
+  const disableBiometricUnlock = async () => {
+    await clearDekFromSecureStoreTracked();
+    setBiometricUnlockAvailable(false);
+  };
+
   const signUp = async (email: string, password: string, username: string) => {
     setIsAuthenticating(true);
     try {
@@ -176,6 +231,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await pausePomodoroBeforeLogout();
     await supabase.auth.signOut();
     setDek(null); // clear DEK from memory after logout
+    // Ending the session invalidates the persisted DEK's usefulness too —
+    // wipe it so a different account can't accidentally inherit it on
+    // this device, and so re-login re-establishes it deliberately.
+    await clearDekFromSecureStoreTracked();
+    setBiometricUnlockAvailable(false);
   };
 
   const updateProfile = async (updates: ProfileUpdates) => {
@@ -222,6 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Brak odszyfrowanego klucza. Zaloguj się ponownie przed zmianą hasła.' };
     }
 
+    // The raw DEK bytes are unchanged by a password change (only the
+    // password-derived wrapping key is re-derived and the DEK is
+    // re-wrapped) — no need to touch the secure store here.
     return rewrapDekAndUpdatePassword({
       userId: user.id,
       email: user.email,
@@ -242,6 +305,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     await supabase.auth.signOut();
+    await clearDekFromSecureStoreTracked();
+    setBiometricUnlockAvailable(false);
     setUserState(null);
     return { error: null };
   };
@@ -254,10 +319,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dek,
         loading,
         isAuthenticating,
+        biometricUnlockAvailable,
         signIn,
         signUp,
         logout,
         unlock,
+        unlockWithBiometrics,
+        enableBiometricUnlock,
+        disableBiometricUnlock,
         updateProfile,
         updatePassword,
         deleteAccount,
