@@ -36,15 +36,7 @@
     "plugins": [
       "expo-router",
       "react-native-quick-crypto",
-      "expo-secure-store",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "buildArchs": ["arm64-v8a"]
-          }
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
