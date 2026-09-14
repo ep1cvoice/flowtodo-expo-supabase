@@ -1,17 +1,17 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
 const ALARM_SOURCE = require('../assets/sounds/ElectronicAlarmBuzzer.wav');
 
-let sound: Audio.Sound | null = null;
+let player: AudioPlayer | null = null;
 let starting: Promise<void> | null = null;
 
 async function ensureMode() {
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    allowsRecordingIOS: false,
-    staysActiveInBackground: false,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    allowsRecording: false,
+    shouldPlayInBackground: false,
+    shouldRouteThroughEarpiece: false,
+    interruptionMode: 'duckOthers',
   });
 }
 
@@ -25,12 +25,11 @@ export async function playPomodoroAlarm() {
     try {
       await stopPomodoroAlarm();
       await ensureMode();
-      const { sound: next } = await Audio.Sound.createAsync(ALARM_SOURCE, {
-        isLooping: true,
-        volume: 1,
-        shouldPlay: true,
-      });
-      sound = next;
+      const next = createAudioPlayer(ALARM_SOURCE);
+      next.loop = true;
+      next.volume = 1;
+      next.play();
+      player = next;
     } catch {
       // Playback may fail on restricted web autoplay — modal still shows.
     } finally {
@@ -42,16 +41,16 @@ export async function playPomodoroAlarm() {
 }
 
 export async function stopPomodoroAlarm() {
-  const current = sound;
-  sound = null;
+  const current = player;
+  player = null;
   if (!current) return;
   try {
-    await current.stopAsync();
+    current.pause();
   } catch {
     // ignore
   }
   try {
-    await current.unloadAsync();
+    current.remove();
   } catch {
     // ignore
   }
