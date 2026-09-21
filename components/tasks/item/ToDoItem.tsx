@@ -153,9 +153,10 @@ export default function ToDoItem({
         onPress={() => setShowDetailModal(true)}
         onLongPress={drag}
         delayLongPress={drag ? 450 : undefined}
-        accessibilityRole="button"
+        accessibilityRole="none"
         accessibilityLabel={task.title}
         accessibilityHint={drag ? 'Opens details. Long press to reorder' : 'Show task details'}
+        {...(Platform.OS === 'web' ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,
           category && !isMobile ? styles.hasCategory : null,
@@ -192,8 +193,13 @@ export default function ToDoItem({
 
           <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
 
-          <View style={styles.todoBody}>
-            <View style={styles.todoText}>
+          <Pressable
+            onPress={() => setShowDetailModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel={task.title}
+            accessibilityHint="Show task details"
+            style={styles.todoBody}>
+            <View style={styles.todoText} pointerEvents="none">
               <Text
                 style={[styles.titleText, task.done && styles.done]}
                 numberOfLines={1}
@@ -201,7 +207,7 @@ export default function ToDoItem({
                 {task.title}
               </Text>
             </View>
-          </View>
+          </Pressable>
 
           <TaskTagChips tags={tags} styles={styles} maxVisible={isMobile ? 1 : 2} />
 

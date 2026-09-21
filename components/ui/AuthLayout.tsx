@@ -31,14 +31,15 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
   const keyboardOpen = keyboardInset > 0;
 
   return (
-    <LinearGradient
-      colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
-      locations={[0, 0.45, 1]}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={styles.gradient}>
+    <View style={styles.root} collapsable={false}>
+      <LinearGradient
+        colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+      />
       <SafeAreaView style={styles.authLayout}>
-        {overlay}
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -64,7 +65,8 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </LinearGradient>
+      {overlay}
+    </View>
   );
 }
 
@@ -73,7 +75,7 @@ export function LoggingInOverlay({ message = 'Logging in...' }: { message?: stri
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={styles.loggingInOverlay}>
+    <View style={styles.loggingInOverlay} collapsable={false}>
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={styles.loggingInText}>{message}</Text>
     </View>
@@ -82,8 +84,9 @@ export function LoggingInOverlay({ message = 'Logging in...' }: { message?: stri
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-    gradient: {
+    root: {
       flex: 1,
+      position: 'relative',
     },
     authLayout: {
       flex: 1,
@@ -133,8 +136,13 @@ function createStyles(colors: AppColors) {
       ...tokens.shadow,
     },
     loggingInOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
       zIndex: 1000,
+      elevation: 1000,
       backgroundColor: colors.overlayBg,
       alignItems: 'center',
       justifyContent: 'center',
