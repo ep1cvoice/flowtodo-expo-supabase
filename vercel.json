@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bun expo export -p web",
+  "buildCommand": "node ./node_modules/expo/bin/cli export -p web",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": null,
