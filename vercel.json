@@ -1,7 +1,7 @@
 {
   "buildCommand": "node ./node_modules/expo/bin/cli export -p web",
   "outputDirectory": "dist",
-  "installCommand": "bun install",
+  "installCommand": "rm -rf node_modules && bun install",
   "framework": null,
   "cleanUrls": true
 }

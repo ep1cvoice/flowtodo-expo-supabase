@@ -87,7 +87,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "expo-constants": "~57.0.18",
-    "expo-font": "~57.0.4"
+    "expo-font": "~57.0.4",
+    "ws": "8.21.3"
   },
   "private": true
 }
