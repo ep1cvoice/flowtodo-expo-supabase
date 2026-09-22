@@ -85,12 +85,19 @@ export function taskMatchesScheduledDay(
 export function collectMarkedDayKeys(
   tasks: Pick<Task, 'scheduled'>[]
 ): Set<string> {
-  const keys = new Set<string>();
+  return new Set(Object.keys(collectDayTaskCounts(tasks)));
+}
+
+export function collectDayTaskCounts(
+  tasks: Pick<Task, 'scheduled'>[]
+): Record<string, number> {
+  const counts: Record<string, number> = {};
   for (const task of tasks) {
     if (!task.scheduled) continue;
     const d = new Date(task.scheduled);
     if (Number.isNaN(d.getTime())) continue;
-    keys.add(toDayKey(d));
+    const key = toDayKey(d);
+    counts[key] = (counts[key] ?? 0) + 1;
   }
-  return keys;
+  return counts;
 }

@@ -22,16 +22,22 @@ import {
 import MonthGrid from '@/components/tasks/calendar/MonthGrid';
 import { webInteractive } from '@/utils/pressableWeb';
 
+const STRIP_DAY_WIDTH = 46;
+const STRIP_DAY_GAP = 6;
+const STRIP_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
 interface ActiveDayCalendarProps {
   selectedDay: Date | null;
   onSelectDay: (day: Date | null) => void;
   markedDays: Set<string>;
+  dayTaskCounts: Record<string, number>;
 }
 
 export default function ActiveDayCalendar({
   selectedDay,
   onSelectDay,
   markedDays,
+  dayTaskCounts,
 }: ActiveDayCalendarProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= tokens.desktopBreakpoint;
@@ -48,7 +54,10 @@ export default function ActiveDayCalendar({
   useEffect(() => {
     if (expanded || isDesktop) return;
     const id = requestAnimationFrame(() => {
-      stripRef.current?.scrollTo({ x: Math.max(0, 6 * 46 - 40), animated: false });
+      stripRef.current?.scrollTo({
+        x: Math.max(0, 6 * (STRIP_DAY_WIDTH + STRIP_DAY_GAP) - 28),
+        animated: false,
+      });
     });
     return () => cancelAnimationFrame(id);
   }, [expanded, isDesktop]);
@@ -76,19 +85,21 @@ export default function ActiveDayCalendar({
     const key = toDayKey(day);
     const selected = selectedDay ? sameDay(day, selectedDay) : false;
     const isToday = sameDay(day, today);
-    const marked = markedDays.has(key);
+    const count = dayTaskCounts[key] ?? 0;
+    const taskLabel = count === 1 ? '1 task' : `${count} tasks`;
     return (
       <Pressable
         key={key}
         onPress={() => handleSelect(day)}
         style={({ pressed, hovered }) => [
           styles.stripDay,
+          isDesktop && styles.stripDayDesktop,
           selected && styles.stripDaySelected,
           isToday && !selected && styles.stripDayToday,
           (hovered || pressed) && !selected && styles.stripDayPressed,
         ]}
         accessibilityRole="button"
-        accessibilityLabel={day.toDateString()}
+        accessibilityLabel={`${day.toDateString()}, ${taskLabel}`}
         accessibilityState={{ selected }}>
         <Text
           style={[
@@ -96,7 +107,7 @@ export default function ActiveDayCalendar({
             selected && styles.stripTextSelected,
             isToday && !selected && styles.stripTodayAccent,
           ]}>
-          {WEEKDAY_LABELS[day.getDay()]}
+          {STRIP_WEEKDAYS[day.getDay()]}
         </Text>
         <Text
           style={[
@@ -106,13 +117,14 @@ export default function ActiveDayCalendar({
           ]}>
           {day.getDate()}
         </Text>
-        <View
+        <Text
           style={[
-            styles.dot,
-            marked ? styles.dotMarked : styles.dotEmpty,
-            selected && marked && styles.dotOnSelected,
-          ]}
-        />
+            styles.stripCount,
+            count === 0 && styles.stripCountEmpty,
+            selected && styles.stripTextSelected,
+          ]}>
+          {count}
+        </Text>
       </Pressable>
     );
   };
@@ -292,29 +304,35 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
       flex: 1,
     },
     stripDesktopRow: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      flexShrink: 1,
+      gap: 4,
     },
     stripContent: {
-      gap: 6,
+      gap: STRIP_DAY_GAP,
       alignItems: 'center',
       paddingRight: 4,
     },
     stripDay: {
-      width: 40,
-      height: 40,
-      paddingVertical: 4,
+      width: STRIP_DAY_WIDTH,
+      height: 68,
+      paddingVertical: 6,
       paddingHorizontal: 2,
-      borderRadius: 50,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.borderColor,
       backgroundColor: colors.bgSurface,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 0,
+      gap: 1,
       ...webInteractive,
+    },
+    stripDayDesktop: {
+      flex: 1,
+      width: undefined,
+      minWidth: 0,
     },
     stripDaySelected: {
       borderColor: colors.primary,
@@ -328,16 +346,25 @@ function createStyles(colors: AppColors, isDesktop: boolean) {
       borderColor: colors.primary,
     },
     stripWeekday: {
-      fontSize: 9,
+      fontSize: 10,
       fontWeight: '600',
-      lineHeight: 11,
+      lineHeight: 12,
       color: colors.textMuted,
     },
     stripDate: {
-      fontSize: 12,
+      fontSize: 18,
       fontWeight: '700',
-      lineHeight: 14,
+      lineHeight: 22,
       color: colors.textPrimary,
+    },
+    stripCount: {
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 14,
+      color: colors.textSecondary,
+    },
+    stripCountEmpty: {
+      color: colors.textMuted,
     },
     stripTextSelected: {
       color: '#fff',

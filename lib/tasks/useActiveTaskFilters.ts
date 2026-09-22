@@ -7,7 +7,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
-import { collectMarkedDayKeys } from '@/lib/calendar/calendarDate';
+import { collectDayTaskCounts } from '@/lib/calendar/calendarDate';
 import {
   filterActiveTaskList,
   getActiveEmptyCopy,
@@ -98,7 +98,8 @@ export function useActiveTaskFilters() {
   const hasListConstraints = hasFilters || search.hasSearch || hasDayFilter;
   const isManualSort = sortMode === 'manual';
 
-  const markedDays = useMemo(() => collectMarkedDayKeys(activeTasks), [activeTasks]);
+  const dayTaskCounts = useMemo(() => collectDayTaskCounts(activeTasks), [activeTasks]);
+  const markedDays = useMemo(() => new Set(Object.keys(dayTaskCounts)), [dayTaskCounts]);
 
   const filteredTasks = useMemo(
     () =>
@@ -147,6 +148,7 @@ export function useActiveTaskFilters() {
     selectedDay,
     setSelectedDay,
     markedDays,
+    dayTaskCounts,
     selectedCategoryIds,
     selectedTagIds,
     validCategoryIds,

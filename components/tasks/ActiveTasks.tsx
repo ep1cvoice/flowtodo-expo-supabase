@@ -54,6 +54,7 @@ export default function ActiveTasks() {
     selectedDay,
     setSelectedDay,
     markedDays,
+    dayTaskCounts,
     validCategoryIds,
     validTagIds,
     maxFilterSelections,
@@ -251,6 +252,7 @@ export default function ActiveTasks() {
           selectedDay={selectedDay}
           onSelectDay={setSelectedDay}
           markedDays={markedDays}
+          dayTaskCounts={dayTaskCounts}
         />
         {loading ? (
           <View style={styles.loadingState}>

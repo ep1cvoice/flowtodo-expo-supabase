@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
 import { BottomTabBar, type BottomTabBarProps } from 'expo-router/js-tabs';
-import { ListTodo, CheckCircle2, Settings, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Calendar, type LucideIcon } from 'lucide-react-native';
 import { Platform, Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandLogo from '@/components/ui/BrandLogo';
@@ -12,6 +12,7 @@ const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
   completed: CheckCircle2,
   settings: Settings,
+  calendar: Calendar,
 };
 
 function DesktopConstrainedTabBar(props: BottomTabBarProps) {
@@ -173,6 +174,14 @@ export default function MainTabsLayout() {
           title: 'Active',
           tabBarLabel: 'Active',
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} strokeWidth={2} />,
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarLabel: 'Calendar',
+          tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
