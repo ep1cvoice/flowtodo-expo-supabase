@@ -53,7 +53,6 @@ export default function ActiveTasks() {
     handleSelectSort,
     selectedDay,
     setSelectedDay,
-    markedDays,
     dayTaskCounts,
     validCategoryIds,
     validTagIds,
@@ -251,7 +250,6 @@ export default function ActiveTasks() {
         <ActiveDayCalendar
           selectedDay={selectedDay}
           onSelectDay={setSelectedDay}
-          markedDays={markedDays}
           dayTaskCounts={dayTaskCounts}
         />
         {loading ? (

@@ -99,7 +99,6 @@ export function useActiveTaskFilters() {
   const isManualSort = sortMode === 'manual';
 
   const dayTaskCounts = useMemo(() => collectDayTaskCounts(activeTasks), [activeTasks]);
-  const markedDays = useMemo(() => new Set(Object.keys(dayTaskCounts)), [dayTaskCounts]);
 
   const filteredTasks = useMemo(
     () =>
@@ -147,7 +146,6 @@ export function useActiveTaskFilters() {
     handleSelectSort,
     selectedDay,
     setSelectedDay,
-    markedDays,
     dayTaskCounts,
     selectedCategoryIds,
     selectedTagIds,

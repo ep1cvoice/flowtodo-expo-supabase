@@ -40,7 +40,7 @@ export function toScheduledIso(date: Date): string {
   return normalized.toISOString();
 }
 
-export function buildMonthWeeks(monthCursor: Date): (Date | null)[][] {
+export function buildMonthWeeks(monthCursor: Date, minWeeks = 0): (Date | null)[][] {
   const year = monthCursor.getFullYear();
   const month = monthCursor.getMonth();
   const firstDow = new Date(year, month, 1).getDay();
@@ -56,6 +56,9 @@ export function buildMonthWeeks(monthCursor: Date): (Date | null)[][] {
   const rows: (Date | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) {
     rows.push(cells.slice(i, i + 7));
+  }
+  while (rows.length < minWeeks) {
+    rows.push(Array.from({ length: 7 }, () => null));
   }
   return rows;
 }

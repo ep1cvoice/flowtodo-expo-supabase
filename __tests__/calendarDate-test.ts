@@ -1,5 +1,6 @@
 import {
   buildDayStrip,
+  buildMonthWeeks,
   collectDayTaskCounts,
   collectMarkedDayKeys,
   sameDay,
@@ -72,6 +73,13 @@ describe('calendarDate', () => {
       task({ id: 4, title: 'D', scheduled: null }),
     ]);
     expect(counts).toEqual({ '2026-08-18': 2, '2026-08-19': 1 });
+  });
+
+  it('buildMonthWeeks can reserve a fixed number of rows', () => {
+    const february = buildMonthWeeks(new Date(2026, 1, 1), 6);
+    expect(february).toHaveLength(6);
+    expect(february[0][0]).toEqual(new Date(2026, 1, 1));
+    expect(february[5].every((day) => day === null)).toBe(true);
   });
 
   it('buildDayStrip centers around today', () => {

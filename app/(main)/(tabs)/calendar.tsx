@@ -1,4 +1,5 @@
 import { View, StyleSheet } from 'react-native';
+import CalendarTasks from '@/components/tasks/CalendarTasks';
 import ScreenBackground from '@/components/ui/ScreenBackground';
 import { tokens } from '@/constants/theme';
 
@@ -6,7 +7,7 @@ export default function CalendarScreen() {
   return (
     <ScreenBackground style={styles.container}>
       <View style={styles.panel}>
-        <p>Calendar</p>
+        <CalendarTasks />
       </View>
     </ScreenBackground>
   );
