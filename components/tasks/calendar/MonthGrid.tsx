@@ -125,8 +125,10 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
     weekday: {
       textAlign: compact ? undefined : 'center',
       fontSize: compact ? 11 : 12,
+      lineHeight: compact ? 14 : 16,
       fontWeight: '600',
       color: colors.textMuted,
+      includeFontPadding: false,
     },
     cell: {
       flex: 1,

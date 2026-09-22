@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -15,12 +14,9 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import MonthGrid from '@/components/tasks/calendar/MonthGrid';
 import ToDoItem from '@/components/tasks/item/ToDoItem';
-import AddTaskModal from '@/components/tasks/form/AddTaskModal';
-import CreateTaskButton, {
-  CREATE_TASK_FAB_CLEARANCE,
-} from '@/components/tasks/form/CreateTaskButton';
+import { CREATE_TASK_FAB_CLEARANCE } from '@/components/tasks/form/CreateTaskButton';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
+import { useCreateTask } from '@/context/CreateTaskContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -38,24 +34,27 @@ import { webInteractive } from '@/utils/pressableWeb';
 import type { Task } from '@/types';
 
 export default function CalendarTasks() {
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= tokens.desktopBreakpoint;
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors, isDesktop), [colors, isDesktop]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { showToast } = useToast();
-  const { activeTasks, categories, tags, loading, addTask, toggleTask, deleteTask } = useTasks();
+  const { activeTasks, loading, toggleTask, deleteTask } = useTasks();
+  const { setScheduledDay } = useCreateTask();
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDay, setSelectedDay] = useState<Date>(() => today);
   const [monthCursor, setMonthCursor] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1)
   );
-  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    setScheduledDay('calendar', selectedDay);
+  }, [selectedDay, setScheduledDay]);
 
   const dayTaskCounts = useMemo(() => collectDayTaskCounts(activeTasks), [activeTasks]);
   const monthPages = useMemo(
     () => [shiftMonth(monthCursor, -1), monthCursor, shiftMonth(monthCursor, 1)],
     [monthCursor]
   );
+  const currentWeekCount = useMemo(() => buildMonthWeeks(monthCursor).length, [monthCursor]);
   const monthLabel = monthCursor.toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -123,13 +122,7 @@ export default function CalendarTasks() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentInset}>
-        <View
-          style={styles.monthPanel}
-          onLayout={(event) => {
-            const nextWidth = event.nativeEvent.layout.width;
-            setPageWidth((current) => (current === nextWidth ? current : nextWidth));
-          }}>
+      <View style={styles.monthShell}>
           <View style={styles.monthNavRow}>
             <Pressable
               onPress={() => setMonthCursor((current) => shiftMonth(current, -1))}
@@ -157,6 +150,17 @@ export default function CalendarTasks() {
               <ChevronRight size={18} color={colors.textPrimary} />
             </Pressable>
           </View>
+          <View
+            style={[
+              styles.monthPager,
+              pageWidth > 0 && {
+                height: INLINE_WEEKDAY_HEIGHT + currentWeekCount * (pageWidth / 7),
+              },
+            ]}
+            onLayout={(event) => {
+              const nextWidth = event.nativeEvent.layout.width;
+              setPageWidth((current) => (current === nextWidth ? current : nextWidth));
+            }}>
           {pageWidth > 0 ? (
             <ScrollView
               ref={monthScrollRef}
@@ -172,7 +176,7 @@ export default function CalendarTasks() {
               {monthPages.map((month) => (
                 <View key={monthKey(month)} style={{ width: pageWidth }}>
                   <MonthGrid
-                    weeks={buildMonthWeeks(month, 6)}
+                    weeks={buildMonthWeeks(month)}
                     variant="inline"
                     onPressDay={handleSelect}
                     dayState={(day) => ({
@@ -197,9 +201,10 @@ export default function CalendarTasks() {
               ))}
             </ScrollView>
           ) : null}
-        </View>
+          </View>
+      </View>
 
-
+      <View style={styles.listInset}>
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -226,16 +231,6 @@ export default function CalendarTasks() {
         )}
       </View>
 
-      <CreateTaskButton onPress={() => setShowCreateModal(true)} />
-
-      <AddTaskModal
-        visible={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onAdd={addTask}
-        categories={categories}
-        tags={tags}
-        defaultScheduled={selectedDay}
-      />
     </View>
   );
 }
@@ -248,34 +243,40 @@ function monthKey(month: Date) {
   return `${month.getFullYear()}-${month.getMonth()}`;
 }
 
-function createStyles(colors: AppColors, isDesktop: boolean) {
+/** Matches MonthGrid inline weekday: paddingVertical 4 + lineHeight 14. */
+const INLINE_WEEKDAY_HEIGHT = 22;
+
+function createStyles(colors: AppColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
       minHeight: 0,
     },
-    contentInset: {
+    monthShell: {
+      marginHorizontal: -6,
+      paddingTop: 8,
+      paddingBottom: 12,
+      gap: 2,
+      backgroundColor: colors.bgSurface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderColor,
+    },
+    monthPager: {
+      width: '100%',
+      overflow: 'hidden',
+    },
+    listInset: {
       flex: 1,
       minHeight: 0,
       paddingHorizontal: TASK_LIST_INSET,
-      paddingTop: TASK_LIST_INSET,
-    },
-    monthPanel: {
-      paddingTop: 10,
-      gap: 4,
-      ...(isDesktop
-        ? {
-            maxWidth: 420,
-            width: '100%',
-            alignSelf: 'center',
-          }
-        : null),
+      paddingTop: 12,
     },
     monthNavRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 4,
+      paddingHorizontal: 8,
     },
     navBtn: {
       padding: 6,
