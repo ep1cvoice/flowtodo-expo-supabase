@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Waves } from 'lucide-react-native';
 import { brand } from '@/constants/theme';
@@ -13,6 +22,7 @@ const FADE_MS = 500;
 
 export default function AppSplash() {
   const { colors, isDark } = useTheme();
+  const { width, height } = useWindowDimensions();
   const [visible, setVisible] = useState(() => !splashShownThisSession);
   const logoScale = useRef(new Animated.Value(0.5)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -37,40 +47,40 @@ export default function AppSplash() {
       Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         easing: Easing.out(Easing.cubic),
       }),
       Animated.spring(logoScale, {
         toValue: 1,
         friction: 5,
         tension: 80,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(titleOpacity, {
         toValue: 1,
         duration: 600,
         delay: 200,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         easing: Easing.out(Easing.ease),
       }),
       Animated.timing(titleTranslateY, {
         toValue: 0,
         duration: 600,
         delay: 200,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         easing: Easing.out(Easing.ease),
       }),
       Animated.timing(glowOpacity, {
         toValue: isDark ? 0.35 : 0.55,
         duration: 700,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         easing: Easing.out(Easing.ease),
       }),
       Animated.spring(glowScale, {
         toValue: 1,
         friction: 6,
         tension: 60,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
 
@@ -78,7 +88,7 @@ export default function AppSplash() {
       Animated.timing(overlayOpacity, {
         toValue: 0,
         duration: FADE_MS,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         easing: Easing.out(Easing.ease),
       }).start();
     }, HOLD_MS);
@@ -106,10 +116,18 @@ export default function AppSplash() {
 
   if (!visible) return null;
 
-  return (
+  const overlay = (
     <Animated.View
-      pointerEvents="none"
-      style={[styles.overlay, { opacity: overlayOpacity }]}>
+      collapsable={false}
+      style={[
+        styles.overlay,
+        {
+          width,
+          height,
+          opacity: overlayOpacity,
+          pointerEvents: 'none',
+        },
+      ]}>
       <LinearGradient
         colors={[...gradientColors]}
         locations={[0, 0.45, 1]}
@@ -158,11 +176,19 @@ export default function AppSplash() {
       </View>
     </Animated.View>
   );
+
+  if (Platform.OS === 'ios') {
+    return <FullWindowOverlay>{overlay}</FullWindowOverlay>;
+  }
+
+  return overlay;
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
     zIndex: 9999,
     elevation: 9999,
     alignItems: 'center',

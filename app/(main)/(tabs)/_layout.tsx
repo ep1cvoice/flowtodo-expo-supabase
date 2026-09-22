@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { BottomTabBar, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, type BottomTabBarProps } from 'expo-router/js-tabs';
 import { ListTodo, CheckCircle2, Settings, type LucideIcon } from 'lucide-react-native';
 import { Platform, Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -1,7 +1,8 @@
 import { Buffer } from 'buffer';
 
-if (typeof global.Buffer === 'undefined') {
-	global.Buffer = Buffer;
+const root = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
+if (typeof root.Buffer === 'undefined') {
+	root.Buffer = Buffer;
 }
 
 import ReconnectRefresh from '@/components/network/ReconnectRefresh';
@@ -82,14 +83,20 @@ function RootNavigation() {
 	const { isDark } = useTheme();
 
 	return (
-		<View style={styles.root}>
+		<View style={styles.root} collapsable={false}>
 			<StatusBar style={isDark ? 'light' : 'dark'} />
-			<Stack screenOptions={{ headerShown: false }}>
-				<Stack.Screen name='index' />
-				<Stack.Screen name='(auth)' />
-				<Stack.Screen name='(main)' />
-				<Stack.Screen name='+not-found' />
-			</Stack>
+			<View style={styles.stack} collapsable={false}>
+				<Stack
+					screenOptions={{
+						headerShown: false,
+						contentStyle: styles.screen,
+					}}>
+					<Stack.Screen name='index' />
+					<Stack.Screen name='(auth)' />
+					<Stack.Screen name='(main)' />
+					<Stack.Screen name='+not-found' />
+				</Stack>
+			</View>
 			<AppSplash />
 			<ToastHost />
 		</View>
@@ -98,6 +105,13 @@ function RootNavigation() {
 
 const styles = StyleSheet.create({
 	root: {
+		flex: 1,
+		position: 'relative',
+	},
+	stack: {
+		flex: 1,
+	},
+	screen: {
 		flex: 1,
 	},
 });

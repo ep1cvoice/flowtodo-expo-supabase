@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef } from 'react';
-import { Modal, Platform, StyleSheet, View } from 'react-native';
+import { Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardHeight } from '@/lib/useKeyboardBottomInset';
 
@@ -14,6 +14,7 @@ let webModalZ = 9999;
 export default function AppModal({ visible, onClose, children }: AppModalProps) {
   const { colors } = useTheme();
   const keyboardInset = useKeyboardHeight();
+  const { width, height } = useWindowDimensions();
   const rootRef = useRef<View>(null);
 
   useEffect(() => {
@@ -39,11 +40,23 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
       animationType="fade"
       presentationStyle="overFullScreen"
       statusBarTranslucent
-      navigationBarTranslucent
+      navigationBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}>
-      <View ref={rootRef} style={styles.root}>
-        <View style={[styles.dim, { backgroundColor: colors.overlayBg }]} pointerEvents="none" />
-        <View style={[styles.content, { paddingBottom: keyboardInset }]} pointerEvents="box-none">
+      <View
+        ref={rootRef}
+        collapsable={false}
+        style={[styles.root, { width, height }]}>
+        <View
+          style={[
+            styles.dim,
+            { backgroundColor: colors.overlayBg, pointerEvents: 'none' },
+          ]}
+        />
+        <View
+          style={[
+            styles.content,
+            { paddingBottom: keyboardInset, pointerEvents: 'box-none' },
+          ]}>
           {children}
         </View>
       </View>
@@ -54,11 +67,18 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    position: 'relative',
   },
   dim: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   content: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });

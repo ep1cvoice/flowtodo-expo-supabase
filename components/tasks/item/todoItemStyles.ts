@@ -253,6 +253,8 @@ export function createTodoItemStyles(colors: AppColors) {
     },
     mobileOverlay: {
       flex: 1,
+      width: '100%',
+      height: '100%',
       justifyContent: 'flex-end',
     },
     mobileActionsModal: {
