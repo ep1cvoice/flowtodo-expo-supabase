@@ -18,6 +18,25 @@ interface MonthGridProps {
   onPressDay: (day: Date) => void;
   dayState: (day: Date) => MonthGridDayState;
   renderExtra?: (day: Date, state: MonthGridDayState) => ReactNode;
+  showWeekdays?: boolean;
+}
+
+function WeekdayRow({ styles }: { styles: ReturnType<typeof createStyles> }) {
+  return (
+    <View style={styles.weekRow}>
+      {WEEKDAY_LABELS.map((d) => (
+        <View key={d} style={styles.weekdayCell}>
+          <Text style={styles.weekday}>{d}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function MonthWeekdayHeader({ variant }: { variant: 'modal' | 'inline' }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors, variant), [colors, variant]);
+  return <WeekdayRow styles={styles} />;
 }
 
 export default function MonthGrid({
@@ -26,19 +45,14 @@ export default function MonthGrid({
   onPressDay,
   dayState,
   renderExtra,
+  showWeekdays = true,
 }: MonthGridProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors, variant), [colors, variant]);
 
   return (
     <>
-      <View style={styles.weekRow}>
-        {WEEKDAY_LABELS.map((d) => (
-          <View key={d} style={styles.weekdayCell}>
-            <Text style={styles.weekday}>{d}</Text>
-          </View>
-        ))}
-      </View>
+      {showWeekdays ? <WeekdayRow styles={styles} /> : null}
 
       {weeks.map((week, wi) => (
         <View key={`w-${wi}`} style={styles.weekRow}>
@@ -125,8 +139,10 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
     weekday: {
       textAlign: compact ? undefined : 'center',
       fontSize: compact ? 11 : 12,
+      lineHeight: compact ? 14 : 16,
       fontWeight: '600',
       color: colors.textMuted,
+      includeFontPadding: false,
     },
     cell: {
       flex: 1,

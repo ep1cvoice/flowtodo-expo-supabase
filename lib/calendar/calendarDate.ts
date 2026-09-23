@@ -40,7 +40,7 @@ export function toScheduledIso(date: Date): string {
   return normalized.toISOString();
 }
 
-export function buildMonthWeeks(monthCursor: Date): (Date | null)[][] {
+export function buildMonthWeeks(monthCursor: Date, minWeeks = 0): (Date | null)[][] {
   const year = monthCursor.getFullYear();
   const month = monthCursor.getMonth();
   const firstDow = new Date(year, month, 1).getDay();
@@ -57,7 +57,27 @@ export function buildMonthWeeks(monthCursor: Date): (Date | null)[][] {
   for (let i = 0; i < cells.length; i += 7) {
     rows.push(cells.slice(i, i + 7));
   }
+  while (rows.length < minWeeks) {
+    rows.push(Array.from({ length: 7 }, () => null));
+  }
   return rows;
+}
+
+export function focusWeekIndex(weeks: readonly (Date | null)[][], anchor: Date): number {
+  const exact = weeks.findIndex((week) =>
+    week.some((day) => day !== null && sameDay(day, anchor))
+  );
+  if (exact >= 0) return exact;
+
+  const sameDate = weeks.findIndex((week) =>
+    week.some((day) => day !== null && day.getDate() === anchor.getDate())
+  );
+  if (sameDate >= 0) return sameDate;
+
+  for (let index = weeks.length - 1; index >= 0; index--) {
+    if (weeks[index].some((day) => day !== null)) return index;
+  }
+  return 0;
 }
 
 export function buildDayStrip(today: Date, total = 14, halfBefore = 6): Date[] {
@@ -85,12 +105,19 @@ export function taskMatchesScheduledDay(
 export function collectMarkedDayKeys(
   tasks: Pick<Task, 'scheduled'>[]
 ): Set<string> {
-  const keys = new Set<string>();
+  return new Set(Object.keys(collectDayTaskCounts(tasks)));
+}
+
+export function collectDayTaskCounts(
+  tasks: Pick<Task, 'scheduled'>[]
+): Record<string, number> {
+  const counts: Record<string, number> = {};
   for (const task of tasks) {
     if (!task.scheduled) continue;
     const d = new Date(task.scheduled);
     if (Number.isNaN(d.getTime())) continue;
-    keys.add(toDayKey(d));
+    const key = toDayKey(d);
+    counts[key] = (counts[key] ?? 0) + 1;
   }
-  return keys;
+  return counts;
 }

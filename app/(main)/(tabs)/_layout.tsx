@@ -1,51 +1,20 @@
-import { createElement, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { BottomTabBar, type BottomTabBarProps } from 'expo-router/js-tabs';
-import { ListTodo, CheckCircle2, Settings, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Calendar, type LucideIcon } from 'lucide-react-native';
 import { Platform, Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MainTabBar from '@/components/navigation/MainTabBar';
 import BrandLogo from '@/components/ui/BrandLogo';
 import { tokens } from '@/constants/theme';
+import { CreateTaskProvider } from '@/context/CreateTaskContext';
 import { useTheme } from '@/context/ThemeContext';
 
 const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
   completed: CheckCircle2,
   settings: Settings,
+  calendar: Calendar,
 };
-
-function DesktopConstrainedTabBar(props: BottomTabBarProps) {
-  const { colors } = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.chromeBg,
-        { backgroundColor: colors.bgSurface, borderTopColor: colors.borderColor },
-      ]}>
-      <View style={styles.chromeInner}>
-        <BottomTabBar {...props} />
-      </View>
-      {/* Web-only hover — avoids custom tabBarButton that breaks icon/label layout */}
-      {Platform.OS === 'web'
-        ? createElement('style', {
-            dangerouslySetInnerHTML: {
-              __html: `
-              [role="tab"] {
-                cursor: pointer !important;
-                border-radius: 12px !important;
-                transition: background-color 120ms ease !important;
-              }
-              [role="tab"]:hover {
-                background-color: ${colors.todoHighlight} !important;
-              }
-            `,
-            },
-          })
-        : null}
-    </View>
-  );
-}
 
 function DesktopConstrainedHeader({
   title,
@@ -100,10 +69,9 @@ export default function MainTabsLayout() {
   const isCompactTabBar = !isDesktop && height < 700;
 
   return (
+    <CreateTaskProvider>
     <Tabs
-      tabBar={(props) =>
-        isDesktop ? <DesktopConstrainedTabBar {...props} /> : <BottomTabBar {...props} />
-      }
+      tabBar={(props) => <MainTabBar {...props} />}
       screenOptions={{
         header: ({ options, route }) => (
           <DesktopConstrainedHeader
@@ -120,23 +88,11 @@ export default function MainTabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.bgSurface,
-          borderTopColor: colors.borderColor,
-          ...(isDesktop
-            ? {
-                height: 56,
-                paddingTop: 4,
-                paddingBottom: 4,
-                borderTopWidth: 0,
-                elevation: 0,
-                shadowOpacity: 0,
-              }
-            : {
-                // React Navigation's default bar can be too short for the icon
-                // and label in browser device previews or Android variants with
-                // no reported bottom inset.
-                minHeight: isCompactTabBar ? 56 : 64,
-              }),
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          overflow: 'visible',
         },
         tabBarItemStyle: isDesktop
           ? {
@@ -176,6 +132,14 @@ export default function MainTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarLabel: 'Calendar',
+          tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} strokeWidth={2} />,
+        }}
+      />
+      <Tabs.Screen
         name="completed"
         options={{
           title: 'Completed',
@@ -194,19 +158,11 @@ export default function MainTabsLayout() {
         }}
       />
     </Tabs>
+    </CreateTaskProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  chromeBg: {
-    width: '100%',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-  },
-  chromeInner: {
-    width: '100%',
-    maxWidth: tokens.contentMaxWidth,
-  },
   headerBg: {
     width: '100%',
     borderBottomWidth: StyleSheet.hairlineWidth,
