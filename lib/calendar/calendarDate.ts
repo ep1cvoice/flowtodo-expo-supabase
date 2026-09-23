@@ -63,6 +63,23 @@ export function buildMonthWeeks(monthCursor: Date, minWeeks = 0): (Date | null)[
   return rows;
 }
 
+export function focusWeekIndex(weeks: readonly (Date | null)[][], anchor: Date): number {
+  const exact = weeks.findIndex((week) =>
+    week.some((day) => day !== null && sameDay(day, anchor))
+  );
+  if (exact >= 0) return exact;
+
+  const sameDate = weeks.findIndex((week) =>
+    week.some((day) => day !== null && day.getDate() === anchor.getDate())
+  );
+  if (sameDate >= 0) return sameDate;
+
+  for (let index = weeks.length - 1; index >= 0; index--) {
+    if (weeks[index].some((day) => day !== null)) return index;
+  }
+  return 0;
+}
+
 export function buildDayStrip(today: Date, total = 14, halfBefore = 6): Date[] {
   const base = startOfDay(today);
   const days: Date[] = [];

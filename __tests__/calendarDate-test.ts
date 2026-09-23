@@ -1,6 +1,7 @@
 import {
   buildDayStrip,
   buildMonthWeeks,
+  focusWeekIndex,
   collectDayTaskCounts,
   collectMarkedDayKeys,
   sameDay,
@@ -80,6 +81,13 @@ describe('calendarDate', () => {
     expect(february).toHaveLength(6);
     expect(february[0][0]).toEqual(new Date(2026, 1, 1));
     expect(february[5].every((day) => day === null)).toBe(true);
+  });
+
+  it('focusWeekIndex keeps the anchor week, then the same day-of-month', () => {
+    const february = buildMonthWeeks(new Date(2026, 1, 1));
+    expect(focusWeekIndex(february, new Date(2026, 1, 18))).toBe(2);
+    expect(focusWeekIndex(february, new Date(2026, 2, 18))).toBe(2);
+    expect(focusWeekIndex(february, new Date(2026, 2, 31))).toBe(february.length - 1);
   });
 
   it('buildDayStrip centers around today', () => {
