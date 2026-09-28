@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,14 +11,12 @@ import {
 import { useNavigation } from 'expo-router';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
+import { useCreateTask } from '@/context/CreateTaskContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import ToDoItem from '@/components/tasks/item/ToDoItem';
-import CreateTaskButton, {
-  CREATE_TASK_FAB_CLEARANCE,
-} from '@/components/tasks/form/CreateTaskButton';
-import AddTaskModal from '@/components/tasks/form/AddTaskModal';
+import { CREATE_TASK_FAB_CLEARANCE } from '@/components/tasks/form/CreateTaskButton';
 import TaskFilterBar from '@/components/tasks/filters/TaskFilterBar';
 import TaskFilterSheet from '@/components/tasks/filters/TaskFilterSheet';
 import TaskSearchBar, { TASK_LIST_INSET } from '@/components/tasks/filters/TaskSearchBar';
@@ -41,7 +39,8 @@ export default function ActiveTasks() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { categories, tags, loading, addTask, toggleTask, deleteTask, reorderTasks } = useTasks();
+  const { categories, tags, loading, toggleTask, deleteTask, reorderTasks } = useTasks();
+  const { setScheduledDay } = useCreateTask();
   const {
     activeTasks,
     searchOpen,
@@ -53,7 +52,7 @@ export default function ActiveTasks() {
     handleSelectSort,
     selectedDay,
     setSelectedDay,
-    markedDays,
+    dayTaskCounts,
     validCategoryIds,
     validTagIds,
     maxFilterSelections,
@@ -68,10 +67,13 @@ export default function ActiveTasks() {
     setSelectedCategoryIds,
     setSelectedTagIds,
   } = useActiveTaskFilters();
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [showSortSheet, setShowSortSheet] = useState(false);
   const scrollableRef = useAnimatedRef<Animated.ScrollView>();
+
+  useEffect(() => {
+    setScheduledDay('active', selectedDay);
+  }, [selectedDay, setScheduledDay]);
 
   const handleToggle = useCallback(
     async (id: number) => {
@@ -250,7 +252,7 @@ export default function ActiveTasks() {
         <ActiveDayCalendar
           selectedDay={selectedDay}
           onSelectDay={setSelectedDay}
-          markedDays={markedDays}
+          dayTaskCounts={dayTaskCounts}
         />
         {loading ? (
           <View style={styles.loadingState}>
@@ -301,17 +303,6 @@ export default function ActiveTasks() {
           </View>
         )}
       </View>
-
-      <CreateTaskButton onPress={() => setShowCreateModal(true)} />
-
-      <AddTaskModal
-        visible={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onAdd={addTask}
-        categories={categories}
-        tags={tags}
-        defaultScheduled={selectedDay}
-      />
 
       <TaskFilterSheet
         visible={showFilterSheet}

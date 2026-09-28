@@ -1,5 +1,8 @@
 import {
   buildDayStrip,
+  buildMonthWeeks,
+  focusWeekIndex,
+  collectDayTaskCounts,
   collectMarkedDayKeys,
   sameDay,
   startOfDay,
@@ -61,6 +64,30 @@ describe('calendarDate', () => {
       task({ id: 3, title: 'C', scheduled: null }),
     ]);
     expect([...keys]).toEqual(['2026-08-18']);
+  });
+
+  it('collectDayTaskCounts groups tasks on the same local day', () => {
+    const counts = collectDayTaskCounts([
+      task({ id: 1, title: 'A', scheduled: new Date(2026, 7, 18, 12).toISOString() }),
+      task({ id: 2, title: 'B', scheduled: new Date(2026, 7, 18, 15).toISOString() }),
+      task({ id: 3, title: 'C', scheduled: new Date(2026, 7, 19, 9).toISOString() }),
+      task({ id: 4, title: 'D', scheduled: null }),
+    ]);
+    expect(counts).toEqual({ '2026-08-18': 2, '2026-08-19': 1 });
+  });
+
+  it('buildMonthWeeks can reserve a fixed number of rows', () => {
+    const february = buildMonthWeeks(new Date(2026, 1, 1), 6);
+    expect(february).toHaveLength(6);
+    expect(february[0][0]).toEqual(new Date(2026, 1, 1));
+    expect(february[5].every((day) => day === null)).toBe(true);
+  });
+
+  it('focusWeekIndex keeps the anchor week, then the same day-of-month', () => {
+    const february = buildMonthWeeks(new Date(2026, 1, 1));
+    expect(focusWeekIndex(february, new Date(2026, 1, 18))).toBe(2);
+    expect(focusWeekIndex(february, new Date(2026, 2, 18))).toBe(2);
+    expect(focusWeekIndex(february, new Date(2026, 2, 31))).toBe(february.length - 1);
   });
 
   it('buildDayStrip centers around today', () => {

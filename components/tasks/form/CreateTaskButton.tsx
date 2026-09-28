@@ -6,7 +6,7 @@ import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-export const CREATE_TASK_FAB_CLEARANCE = 88;
+export const CREATE_TASK_FAB_CLEARANCE = 44;
 
 interface CreateTaskButtonProps {
   onPress: () => void;
