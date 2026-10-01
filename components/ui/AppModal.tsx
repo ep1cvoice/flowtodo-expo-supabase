@@ -19,18 +19,33 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
 
   useEffect(() => {
     if (!visible || Platform.OS !== 'web') return;
-    const node = rootRef.current as unknown as HTMLElement | null;
-    if (!node || typeof node.parentElement === 'undefined') return;
+    let frame = 0;
+    let tries = 0;
 
-    let el: HTMLElement | null = node;
-    while (el) {
-      if (window.getComputedStyle(el).position === 'fixed') {
-        webModalZ += 1;
-        el.style.zIndex = String(webModalZ);
-        break;
+    const raise = () => {
+      const node = rootRef.current as unknown as HTMLElement | null;
+      if (!node || typeof node.parentElement === 'undefined') {
+        if (tries++ < 8) frame = requestAnimationFrame(raise);
+        return;
       }
-      el = el.parentElement;
-    }
+
+      let fixed: HTMLElement | null = null;
+      let el: HTMLElement | null = node;
+      while (el) {
+        if (window.getComputedStyle(el).position === 'fixed') fixed = el;
+        el = el.parentElement;
+      }
+      if (!fixed) {
+        if (tries++ < 8) frame = requestAnimationFrame(raise);
+        return;
+      }
+
+      webModalZ += 1;
+      fixed.style.zIndex = String(webModalZ);
+    };
+
+    raise();
+    return () => cancelAnimationFrame(frame);
   }, [visible]);
 
   return (

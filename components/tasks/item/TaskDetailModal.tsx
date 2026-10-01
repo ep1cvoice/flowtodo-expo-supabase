@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { AlarmClock, Calendar, Check, Pencil, Trash2, X } from 'lucide-react-native';
+import { AlarmClock, Calendar, Check, Trash2, X } from 'lucide-react-native';
+import DueDateBadge from '@/components/tasks/item/DueDateBadge';
+import { useTodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { getCategoryIcon } from '@/constants/categoryIcons';
@@ -23,15 +25,6 @@ interface TaskDetailModalProps {
   onToggleComplete: () => void | Promise<void>;
 }
 
-function formatDetailDate(date: Date) {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 function tagTint(hex: string, alpha: number) {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r},${g},${b},${alpha})`;
@@ -44,20 +37,21 @@ export default function TaskDetailModal({
   isPomoActive,
   onClose,
   onDelete,
-  onEdit,
   onOpenCalendar,
   onStartPomodoro,
   onToggleComplete,
 }: TaskDetailModalProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const { styles: todoStyles } = useTodoItemStyles();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const tags = task.tags ?? [];
   const category = task.category;
   const CategoryIcon = category ? getCategoryIcon(category.icon) : null;
   const description = task.description?.trim() ?? '';
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
   const showPomodoro = !task.done && (isPomoActive || canStart);
-  const hasDetails = tags.length > 0 || !!dueDate || !!description;
+  const showCalendarIcon = !task.done && !dueDate;
+  const showAlarmIcon = showPomodoro && !isPomoActive;
 
   return (
     <SheetFrame
@@ -83,101 +77,72 @@ export default function TaskDetailModal({
       </View>
 
       <View style={styles.content}>
-        {hasDetails ? (
+        <View style={[styles.meta, description ? styles.metaDivider : null]}>
+          <View style={styles.topRow}>
+            <View style={styles.tagWrap}>
+              {tags.map((tag) => (
+                <View
+                  key={tag.id}
+                  style={[
+                    styles.tagChip,
+                    {
+                      borderColor: tag.color,
+                      backgroundColor: tagTint(tag.color, 0.14),
+                    },
+                  ]}>
+                  <Text style={[styles.tagChipText, { color: tag.color }]}>#{tag.name}</Text>
+                </View>
+              ))}
+              {dueDate ? (
+                <DueDateBadge date={dueDate} styles={todoStyles} onPress={onOpenCalendar} />
+              ) : null}
+            </View>
+            {showCalendarIcon || showAlarmIcon ? (
+              <View style={styles.iconGroup}>
+                {showCalendarIcon ? (
+                  <Pressable
+                    onPress={onOpenCalendar}
+                    style={({ pressed, hovered }) => [
+                      styles.iconBtn,
+                      (hovered || pressed) && styles.iconBtnPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Set due date">
+                    <Calendar size={16} strokeWidth={2.2} color={colors.textSecondary} />
+                  </Pressable>
+                ) : null}
+                {showAlarmIcon ? (
+                  <Pressable
+                    onPress={onStartPomodoro}
+                    style={({ pressed, hovered }) => [
+                      styles.iconBtn,
+                      (hovered || pressed) && styles.iconBtnPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Start pomodoro">
+                    <AlarmClock size={16} strokeWidth={2.2} color={colors.textSecondary} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+          {isPomoActive ? (
+            <View style={styles.timerRow}>
+              <PomodoroTimer taskId={task.id} />
+            </View>
+          ) : null}
+        </View>
+        {description ? (
           <ScrollView
-            style={styles.scroll}
+            style={[styles.scroll, styles.descriptionSection]}
             contentContainerStyle={styles.body}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            {tags.length > 0 ? (
-              <View style={styles.tagWrap}>
-                {tags.map((tag) => (
-                  <View
-                    key={tag.id}
-                    style={[
-                      styles.tagChip,
-                      {
-                        borderColor: tag.color,
-                        backgroundColor: tagTint(tag.color, 0.14),
-                      },
-                    ]}>
-                    <Text style={[styles.tagChipText, { color: tag.color }]}>#{tag.name}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            {dueDate ? (
-              <View style={styles.dateRow}>
-                <Calendar size={15} strokeWidth={2} color={colors.textMuted} />
-                <Text style={styles.dateText}>{formatDetailDate(dueDate)}</Text>
-              </View>
-            ) : null}
-
-            {description ? (
-              <>
-                <View style={styles.divider} />
-                <Text style={[styles.description, task.done && styles.done]}>{description}</Text>
-              </>
-            ) : null}
+            <Text style={[styles.description, task.done && styles.done]}>{description}</Text>
           </ScrollView>
         ) : null}
 
         <View style={styles.footer}>
-          <View style={styles.footerActions}>
-            {!task.done ? (
-              <Pressable
-                onPress={onOpenCalendar}
-                style={({ pressed, hovered }) => [
-                  styles.actionBtn,
-                  (hovered || pressed) && styles.actionBtnPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Set due date">
-                <Calendar size={15} strokeWidth={2.2} color={colors.textPrimary} />
-                <Text style={styles.actionLabel} numberOfLines={1}>
-                  Calendar
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {showPomodoro ? (
-              isPomoActive ? (
-                <View style={styles.timerSlot}>
-                  <PomodoroTimer taskId={task.id} />
-                </View>
-              ) : (
-                <Pressable
-                  onPress={onStartPomodoro}
-                  style={({ pressed, hovered }) => [
-                    styles.actionBtn,
-                    (hovered || pressed) && styles.actionBtnPressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Start pomodoro">
-                  <AlarmClock size={15} strokeWidth={2.2} color={colors.textPrimary} />
-                  <Text style={styles.actionLabel} numberOfLines={1}>
-                    Pomodoro
-                  </Text>
-                </Pressable>
-              )
-            ) : null}
-
-            <Pressable
-              onPress={onEdit}
-              style={({ pressed, hovered }) => [
-                styles.actionBtn,
-                (hovered || pressed) && styles.actionBtnPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Edit task">
-              <Pencil size={15} strokeWidth={2.2} color={colors.textPrimary} />
-              <Text style={styles.actionLabel} numberOfLines={1}>
-                Edit
-              </Text>
-            </Pressable>
-          </View>
-
           <View style={styles.footerRow}>
             <Pressable
               onPress={() => {
@@ -189,10 +154,7 @@ export default function TaskDetailModal({
               ]}
               accessibilityRole="button"
               accessibilityLabel="Delete task">
-              <Trash2 size={15} strokeWidth={2.2} color={colors.red} />
-              <Text style={styles.deleteBtnText} numberOfLines={1}>
-                Delete
-              </Text>
+              <Trash2 size={18} strokeWidth={2.2} color={colors.red} />
             </Pressable>
 
             <Pressable
@@ -217,7 +179,7 @@ export default function TaskDetailModal({
   );
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
     card: {
       maxHeight: '85%',
@@ -258,41 +220,62 @@ function createStyles(colors: AppColors) {
     scroll: {
       flexShrink: 1,
     },
+    meta: {
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 12,
+      gap: 8,
+    },
+    metaDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderColor,
+    },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    timerRow: {
+      alignItems: 'flex-start',
+    },
+    iconGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 1,
+      gap: 2,
+      marginLeft: 'auto',
+      maxWidth: '100%',
+    },
     body: {
       paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 16,
-      gap: 12,
+      paddingTop: 18,
+      paddingBottom: 8,
     },
     tagWrap: {
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 0,
       flexDirection: 'row',
       flexWrap: 'wrap',
+      alignItems: 'center',
       gap: 6,
     },
     tagChip: {
-      paddingVertical: 5,
+      minHeight: 29,
+      paddingVertical: 4,
       paddingHorizontal: 10,
       borderRadius: 999,
       borderWidth: 1.5,
+      justifyContent: 'center',
     },
     tagChipText: {
       fontSize: 13,
       fontWeight: '600',
     },
-    dateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      opacity: 0.55,
-    },
-    dateText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textMuted,
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.borderColor,
+    descriptionSection: {
+      flexGrow: 1,
+      paddingVertical: 8,
+      backgroundColor: isDark ? '#011816' : '#e7e9ea',
     },
     description: {
       fontSize: 15,
@@ -300,24 +283,12 @@ function createStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
     footer: {
-      paddingHorizontal: 12,
+      paddingHorizontal: 16,
       paddingTop: 12,
-      paddingBottom: 12,
-      gap: 8,
+      paddingBottom: 14,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderColor,
-      backgroundColor: colors.bgSurface,
-    },
-    footerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'nowrap',
-      gap: 6,
-    },
-    timerSlot: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: isDark ? colors.bgSurface : '#f3f5f4',
     },
     footerRow: {
       flexDirection: 'row',
@@ -325,58 +296,35 @@ function createStyles(colors: AppColors) {
       justifyContent: 'space-between',
       gap: 8,
     },
-    actionBtn: {
-      flex: 1,
-      flexDirection: 'row',
+    iconBtn: {
+      width: 29,
+      height: 29,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
-      paddingVertical: 8,
-      paddingHorizontal: 8,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-      backgroundColor: colors.bgTodoItem,
+      borderRadius: 999,
       ...webInteractive,
     },
-    actionBtnPressed: {
+    iconBtnPressed: {
       backgroundColor: colors.bgCardHover,
     },
-    actionLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textPrimary,
-      flexShrink: 1,
-    },
     deleteBtn: {
-      flex: 1,
-      flexDirection: 'row',
+      width: 32,
+      height: 32,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 9,
-      paddingHorizontal: 10,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.red,
+      borderRadius: 999,
       ...webInteractive,
     },
     deleteBtnPressed: {
       backgroundColor: colors.sidebarLogoutHover,
     },
-    deleteBtnText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.red,
-    },
     completeBtn: {
-      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
       paddingVertical: 9,
-      paddingHorizontal: 10,
+      paddingHorizontal: 14,
       borderRadius: 10,
       backgroundColor: colors.primary,
       ...webInteractive,

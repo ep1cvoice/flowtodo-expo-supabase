@@ -1,8 +1,3 @@
-/**
- * FlowTodo — Ocean Flow palette (light + dark).
- * Use ThemeContext / useTheme() for reactive colors.
- */
-
 export type ThemeMode = 'auto' | 'light' | 'dark';
 
 export type AppColors = {
@@ -32,7 +27,6 @@ export type AppColors = {
   overlayBg: string;
   todoHighlight: string;
   sidebarLogoutHover: string;
-  /** Light-mode sage for bars, chips, and panels. Dark mode matches the existing surface. */
   chrome: string;
 };
 
@@ -67,7 +61,6 @@ export const lightColors: AppColors = {
 };
 
 export const darkColors: AppColors = {
-  // Deep Ocean — night version of Ocean Flow
   primary: '#2dd4bf',
   primaryHover: '#14b8a6',
   primaryLight: 'rgba(45, 212, 191, 0.2)',
@@ -97,7 +90,6 @@ export const darkColors: AppColors = {
   chrome: '#0a3d3a',
 };
 
-/** Default export for non-reactive StyleSheets (light). Prefer useTheme().colors */
 export const colors = lightColors;
 
 export const tokens = {

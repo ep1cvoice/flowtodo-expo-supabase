@@ -58,6 +58,9 @@ export function createSettingsStyles(colors: AppColors, isDark: boolean) {
     sectionTitleActive: {
       color: isDark ? colors.sidebarItemActiveText : '#ffffff',
     },
+    iconRest: {
+      transform: [{ rotate: '0deg' }],
+    },
     iconRotated: {
       transform: [{ rotate: '45deg' }],
     },

@@ -25,7 +25,7 @@ import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
-import { sameDay, startOfDay, toScheduledIso } from '@/lib/calendar/calendarDate';
+import { toScheduledIso } from '@/lib/calendar/calendarDate';
 import { categoryCardWash } from '@/lib/color';
 import { toastForError } from '@/lib/networkError';
 import type { Task } from '@/types';
@@ -76,9 +76,6 @@ export default function ToDoItem({
   const CategoryIconComp = category ? getCategoryIcon(category.icon) : null;
 
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
-  const todayStart = startOfDay(new Date());
-  const isToday = dueDate ? sameDay(dueDate, todayStart) : false;
-  const isPast = dueDate ? startOfDay(dueDate) < todayStart : false;
 
   const categoryWash = category
     ? categoryCardWash(category.color, isDark ? 0.42 : 0.2)
@@ -189,19 +186,15 @@ export default function ToDoItem({
               ellipsizeMode="tail">
               {task.title}
             </Text>
-            {dueDate ? (
-              <DueDateBadge
-                date={dueDate}
-                isToday={isToday}
-                isPast={isPast}
-                done={task.done}
-                colors={colors}
-                styles={styles}
-                onPress={openCalendar}
-              />
+            {dueDate || isPomoActive ? (
+              <View style={styles.metaRow}>
+                {dueDate ? (
+                  <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
+                ) : null}
+                {isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
+              </View>
             ) : null}
             <TaskTagChips tags={tags} styles={styles} />
-            {isMobile && isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
           </View>
 
           <View style={styles.sideColumn}>

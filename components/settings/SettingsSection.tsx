@@ -48,11 +48,9 @@ export default function SettingsSection({
           <Icon size={22} color={iconColor} />
           <Text style={[styles.sectionTitle, open && styles.sectionTitleActive]}>{title}</Text>
         </View>
-        <Plus
-          size={22}
-          color={iconColor}
-          style={open ? styles.iconRotated : undefined}
-        />
+        <View style={open ? styles.iconRotated : styles.iconRest} collapsable={false}>
+          <Plus size={22} color={iconColor} />
+        </View>
       </Pressable>
       {open ? <View style={styles.sectionBody}>{children}</View> : null}
     </View>
