@@ -30,6 +30,9 @@ export type AppColors = {
   chrome: string;
 };
 
+export const lightSplashGradient = ['#eef6f3', '#b8ddd4', '#5eead4'] as const;
+export const lightSplashGlow = ['rgba(13, 148, 136, 0.18)', 'transparent'] as const;
+
 export const lightColors: AppColors = {
   primary: '#0d9488',
   primaryHover: '#0f766e',
