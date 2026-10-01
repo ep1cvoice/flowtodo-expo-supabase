@@ -14,6 +14,7 @@ import CalendarModal from '@/components/tasks/calendar/CalendarModal';
 import DueDateBadge from '@/components/tasks/item/DueDateBadge';
 import { useTodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { getCategoryIcon } from '@/constants/categoryIcons';
 import type { AppColors } from '@/constants/theme';
@@ -67,7 +68,7 @@ interface TaskDetailModalProps {
   canStart: boolean;
   isPomoActive: boolean;
   onClose: () => void;
-  onDelete: () => void | Promise<void>;
+  onDelete: () => void | boolean | Promise<void | boolean>;
   onEdit: () => void;
   onOpenCalendar: () => void;
   onStartPomodoro: () => void;
@@ -99,6 +100,7 @@ export default function TaskDetailModal({
   const CategoryIcon = category ? getCategoryIcon(category.icon) : null;
   const [draft, setDraft] = useState(task.description ?? '');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const descHeight = descriptionHeight(draft);
   const inputRef = useRef<TextInput>(null);
   const draftRef = useRef(draft);
@@ -118,6 +120,10 @@ export default function TaskDetailModal({
     setDraft(next);
     lastSavedRef.current = next.trim();
   }, [task.id, task.description]);
+
+  useEffect(() => {
+    if (!visible) setConfirmDelete(false);
+  }, [visible]);
 
   const saveDescription = async () => {
     const next = draftRef.current.trim();
@@ -201,18 +207,34 @@ export default function TaskDetailModal({
       centered
       cardStyle={styles.card}
       accessory={
-        <CalendarModal
-          embedded
-          visible={showCalendar}
-          selected={dueDate}
-          onClose={() => setShowCalendar(false)}
-          onClear={() => {
-            void handleClearDate();
-          }}
-          onConfirm={(date) => {
-            void handleConfirmDate(date);
-          }}
-        />
+        <>
+          <CalendarModal
+            embedded
+            visible={showCalendar}
+            selected={dueDate}
+            onClose={() => setShowCalendar(false)}
+            onClear={() => {
+              void handleClearDate();
+            }}
+            onConfirm={(date) => {
+              void handleConfirmDate(date);
+            }}
+          />
+          <ConfirmModal
+            embedded
+            visible={confirmDelete}
+            title="Delete task?"
+            message={`"${task.title}" will be permanently deleted.`}
+            onClose={() => {
+              setConfirmDelete(false);
+              void saveDescription();
+            }}
+            onConfirm={async () => {
+              const deleted = await onDelete();
+              if (deleted !== false) setConfirmDelete(false);
+            }}
+          />
+        </>
       }>
       <View
         style={styles.sheetBody}
@@ -359,7 +381,8 @@ export default function TaskDetailModal({
               id="skip-desc-save-delete"
               onPressIn={armSkipSave}
               onPress={() => {
-                void onDelete();
+                setShowCalendar(false);
+                setConfirmDelete(true);
               }}
               style={({ pressed, hovered }) => [
                 styles.deleteBtn,

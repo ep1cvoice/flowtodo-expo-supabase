@@ -9,6 +9,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import CalendarModal from '@/components/tasks/calendar/CalendarModal';
 import EditTaskModal from '@/components/tasks/form/EditTaskModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import DueDateBadge from '@/components/tasks/item/DueDateBadge';
 import MobileActionsSheet from '@/components/tasks/item/MobileActionsSheet';
 import TaskCheckbox from '@/components/tasks/item/TaskCheckbox';
@@ -34,10 +35,8 @@ interface ToDoItemProps {
   task: Task;
   index?: number;
   onToggle: (id: number) => void;
-  onDelete: (id: number) => void;
-  /** Unused on native (react-native-sortables uses Sortable.Handle). Kept for callers. */
+  onDelete: (id: number) => void | Promise<void>;
   drag?: () => void;
-  /** Web: up and down buttons instead of drag. */
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -67,6 +66,7 @@ export default function ToDoItem({
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const isPomoActive = activeTaskId === task.id;
@@ -122,8 +122,12 @@ export default function ToDoItem({
     if (Platform.OS !== 'web') {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-    onDelete(task.id);
+    await onDelete(task.id);
     return true;
+  };
+
+  const requestDelete = () => {
+    setConfirmDelete(true);
   };
 
   const openCalendar = () => {
@@ -218,7 +222,7 @@ export default function ToDoItem({
                 onStartPomodoro={handleStartPomodoro}
                 onOpenCalendar={openCalendar}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                onDelete={requestDelete}
               />
             ) : (
               <TaskMobileTrailing
@@ -226,7 +230,7 @@ export default function ToDoItem({
                 colors={colors}
                 styles={styles}
                 onOpenActions={() => setShowMobileActions(true)}
-                onDelete={handleDelete}
+                onDelete={requestDelete}
               />
             )}
           </View>
@@ -242,6 +246,7 @@ export default function ToDoItem({
         onDelete={async () => {
           const deleted = await handleDelete();
           if (deleted) setShowDetailModal(false);
+          return deleted;
         }}
         onEdit={handleEdit}
         onOpenCalendar={openCalendar}
@@ -255,6 +260,7 @@ export default function ToDoItem({
       <MobileActionsSheet
         visible={showMobileActions}
         canStart={canStart}
+        taskTitle={task.title}
         colors={colors}
         styles={styles}
         onClose={() => setShowMobileActions(false)}
@@ -262,6 +268,17 @@ export default function ToDoItem({
         onOpenCalendar={openCalendar}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      <ConfirmModal
+        visible={confirmDelete}
+        title="Delete task?"
+        message={`"${task.title}" will be permanently deleted.`}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={async () => {
+          const deleted = await handleDelete();
+          if (deleted) setConfirmDelete(false);
+        }}
       />
 
       <EditTaskModal
