@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
+import { tokens, type AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-export function createSettingsStyles(colors: AppColors) {
+export function createSettingsStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -26,7 +25,7 @@ export function createSettingsStyles(colors: AppColors) {
       borderWidth: 1,
       borderColor: colors.borderColor,
       borderRadius: tokens.borderRadius,
-      backgroundColor: colors.bgTodoItem,
+      backgroundColor: isDark ? colors.bgTodoItem : colors.chrome,
       overflow: 'hidden',
     },
     sectionHeader: {
@@ -38,7 +37,7 @@ export function createSettingsStyles(colors: AppColors) {
       ...webInteractive,
     },
     sectionHeaderActive: {
-      backgroundColor: colors.sidebarItemActiveBg,
+      backgroundColor: isDark ? colors.sidebarItemActiveBg : colors.primary,
     },
     sectionHeaderHovered: {
       backgroundColor: colors.todoHighlight,
@@ -57,7 +56,7 @@ export function createSettingsStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
     sectionTitleActive: {
-      color: colors.sidebarItemActiveText,
+      color: isDark ? colors.sidebarItemActiveText : '#ffffff',
     },
     iconRotated: {
       transform: [{ rotate: '45deg' }],
@@ -67,6 +66,7 @@ export function createSettingsStyles(colors: AppColors) {
       borderTopColor: colors.borderColor,
       padding: 16,
       gap: 8,
+      backgroundColor: isDark ? colors.bgTodoItem : colors.bgSurface,
     },
     label: {
       fontSize: 15,
@@ -363,7 +363,7 @@ export function createSettingsStyles(colors: AppColors) {
 export type SettingsStyles = ReturnType<typeof createSettingsStyles>;
 
 export function useSettingsStyles() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createSettingsStyles(colors), [colors]);
-  return { colors, styles };
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createSettingsStyles(colors, isDark), [colors, isDark]);
+  return { colors, styles, isDark };
 }

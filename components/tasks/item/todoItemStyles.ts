@@ -1,22 +1,21 @@
 import { useMemo } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-export function createTodoItemStyles(colors: AppColors) {
+export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
     todoItem: {
       position: 'relative',
       overflow: 'hidden',
       backgroundColor: colors.bgTodoItem,
-      borderRadius: tokens.borderRadius,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: colors.borderColor,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      marginBottom: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 10,
       ...webInteractive,
       ...Platform.select({
         web: { boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' } as object,
@@ -29,12 +28,12 @@ export function createTodoItemStyles(colors: AppColors) {
         },
       }),
     },
-    hasCategory: {
-      paddingRight: 48,
-    },
     itemHovered: {
       borderColor: colors.primary,
       backgroundColor: colors.todoHighlight,
+    },
+    itemHoveredTinted: {
+      borderColor: colors.primary,
     },
     pressed: {
       opacity: 0.96,
@@ -42,19 +41,9 @@ export function createTodoItemStyles(colors: AppColors) {
     controlPressed: {
       opacity: 0.85,
     },
-    categoryGradient: {
-      ...StyleSheet.absoluteFillObject,
-    },
-    categoryBgIcon: {
-      position: 'absolute',
-      right: 8,
-      top: '50%',
-      marginTop: -22,
-      zIndex: 0,
-    },
     todoMainRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 10,
       zIndex: 1,
     },
@@ -79,14 +68,14 @@ export function createTodoItemStyles(colors: AppColors) {
       opacity: 0.35,
     },
     todoCheckbox: {
-      width: 24,
-      height: 24,
+      width: 26,
+      height: 26,
       borderRadius: 8,
-      borderWidth: 2,
+      borderWidth: 1,
       borderColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'transparent',
+      backgroundColor: isDark ? colors.bgSurface : '#ffffff',
       ...webInteractive,
     },
     checkboxHovered: {
@@ -102,98 +91,66 @@ export function createTodoItemStyles(colors: AppColors) {
     },
     checkmark: {
       color: '#ffffff',
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '700',
-      lineHeight: 16,
+      lineHeight: 20,
     },
     todoBody: {
       flex: 1,
       minWidth: 0,
-      justifyContent: 'center',
-    },
-    todoText: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minWidth: 0,
+      gap: 8,
+      paddingTop: 5,
     },
     titleText: {
-      flex: 1,
       flexShrink: 1,
-      minWidth: 48,
-      fontSize: 15,
+      fontSize: 17,
       fontWeight: '700',
       color: colors.textPrimary,
-      lineHeight: 20,
+      lineHeight: 22,
     },
     tagRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
-      gap: 4,
-      flexShrink: 0,
+      gap: 6,
     },
     tagChip: {
-      maxWidth: 56,
-      paddingVertical: 1,
-      paddingHorizontal: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      maxWidth: 180,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
       borderRadius: 999,
-      borderWidth: 1,
+      borderWidth: 1.5,
+      backgroundColor: isDark ? colors.bgSurface : '#ffffff',
     },
+    
     tagChipText: {
-      fontSize: 9,
-      fontWeight: '700',
-      lineHeight: 11,
-    },
-    tagMore: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: colors.textMuted,
+      flexShrink: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 16,
     },
     done: {
       textDecorationLine: 'line-through',
       color: colors.textMuted,
     },
-    todoIndicators: {
+    sideColumn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
       flexShrink: 0,
-    },
-    mobileMetaRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 8,
-      marginLeft: 34,
-      zIndex: 1,
+      gap: 6,
     },
     todoDate: {
-      paddingHorizontal: 5,
-      paddingVertical: 1,
-      borderRadius: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 6,
       ...webInteractive,
-      backgroundColor: colors.todoHighlight,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-    },
-    todoDateHovered: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primaryLight,
-    },
-    todoDateToday: {
-      backgroundColor: colors.primaryLight,
-      borderColor: colors.primary,
-    },
-    todoDatePast: {
-      backgroundColor: colors.pink,
-      borderColor: colors.red,
-    },
-    todoDateCompleted: {
-      backgroundColor: colors.bgSurface,
-      borderColor: colors.borderColor,
     },
     todoDateText: {
-      fontSize: 9,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -222,12 +179,6 @@ export function createTodoItemStyles(colors: AppColors) {
     actionPressed: {
       backgroundColor: colors.todoHighlight,
     },
-    mobileRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexShrink: 0,
-      gap: 6,
-    },
     iconTile: {
       width: 32,
       height: 32,
@@ -239,8 +190,8 @@ export function createTodoItemStyles(colors: AppColors) {
       borderColor: colors.borderColor,
     },
     categoryMark: {
-      width: 24,
-      height: 24,
+      width: 28,
+      height: 28,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -290,7 +241,7 @@ export function createTodoItemStyles(colors: AppColors) {
 export type TodoItemStyles = ReturnType<typeof createTodoItemStyles>;
 
 export function useTodoItemStyles() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createTodoItemStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createTodoItemStyles(colors, isDark), [colors, isDark]);
   return { colors, styles };
 }

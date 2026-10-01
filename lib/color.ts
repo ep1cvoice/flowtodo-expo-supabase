@@ -19,3 +19,8 @@ export function categoryFadeColors(hex: string) {
   const { r, g, b } = hexToRgb(hex);
   return [`rgba(${r},${g},${b},0)`, `rgba(${r},${g},${b},0.3)`] as const;
 }
+
+export function categoryCardWash(hex: string, alpha = 0.2) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}

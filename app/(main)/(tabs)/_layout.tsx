@@ -36,7 +36,7 @@ function DesktopConstrainedHeader({
       style={[
         styles.headerBg,
         {
-          backgroundColor: colors.bgSurface,
+          backgroundColor: colors.chrome,
           borderBottomColor: colors.borderColor,
           paddingTop: insets.top,
         },

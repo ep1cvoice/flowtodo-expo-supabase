@@ -7,8 +7,6 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-
 import CalendarModal from '@/components/tasks/calendar/CalendarModal';
 import EditTaskModal from '@/components/tasks/form/EditTaskModal';
 import DueDateBadge from '@/components/tasks/item/DueDateBadge';
@@ -25,9 +23,10 @@ import { getCategoryIcon } from '@/constants/categoryIcons';
 import { tokens } from '@/constants/theme';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { useTasks } from '@/context/TasksContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { sameDay, startOfDay, toScheduledIso } from '@/lib/calendar/calendarDate';
-import { categoryFadeColors } from '@/lib/color';
+import { categoryCardWash } from '@/lib/color';
 import { toastForError } from '@/lib/networkError';
 import type { Task } from '@/types';
 
@@ -60,6 +59,7 @@ export default function ToDoItem({
 }: ToDoItemProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
+  const { isDark } = useTheme();
   const { colors, styles } = useTodoItemStyles();
   const { showToast } = useToast();
   const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
@@ -80,7 +80,11 @@ export default function ToDoItem({
   const isToday = dueDate ? sameDay(dueDate, todayStart) : false;
   const isPast = dueDate ? startOfDay(dueDate) < todayStart : false;
 
-  const categoryGradientColors = category ? categoryFadeColors(category.color) : null;
+  const categoryWash = category
+    ? categoryCardWash(category.color, isDark ? 0.42 : 0.2)
+    : null;
+  const completedWash = task.done && !isDark && !categoryWash ? colors.chrome : null;
+  const cardWash = categoryWash ?? completedWash;
 
   const handleEdit = () => {
     setShowEditModal(true);
@@ -159,26 +163,11 @@ export default function ToDoItem({
         {...(Platform.OS === 'web' ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,
-          category && !isMobile ? styles.hasCategory : null,
-          hovered ? styles.itemHovered : null,
+          cardWash ? { backgroundColor: cardWash, borderColor: categoryWash ?? colors.borderColor } : null,
+          hovered && !cardWash ? styles.itemHovered : null,
+          hovered && cardWash ? styles.itemHoveredTinted : null,
           pressed ? styles.pressed : null,
         ]}>
-        {categoryGradientColors && (
-          <LinearGradient
-            colors={[...categoryGradientColors]}
-            start={{ x: 0.35, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.categoryGradient}
-            pointerEvents="none"
-          />
-        )}
-
-        {!isMobile && CategoryIconComp && category && (
-          <View style={[styles.categoryBgIcon, { opacity: 0.14 }]} pointerEvents="none">
-            <CategoryIconComp size={44} strokeWidth={1.5} color={category.color} />
-          </View>
-        )}
-
         <View style={styles.todoMainRow}>
           {showReorderButtons ? (
             <TaskReorderButtons
@@ -193,76 +182,62 @@ export default function ToDoItem({
 
           <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
 
-          <Pressable
-            onPress={() => setShowDetailModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel={task.title}
-            accessibilityHint="Show task details"
-            style={styles.todoBody}>
-            <View style={styles.todoText} pointerEvents="none">
-              <Text
-                style={[styles.titleText, task.done && styles.done]}
-                numberOfLines={1}
-                ellipsizeMode="tail">
-                {task.title}
-              </Text>
-            </View>
-          </Pressable>
-
-          <TaskTagChips tags={tags} styles={styles} maxVisible={isMobile ? 1 : 2} />
-
-          {!isMobile && (
-            <View style={styles.todoIndicators}>
-              {!task.done && dueDate ? (
-                <DueDateBadge
-                  date={dueDate}
-                  isToday={isToday}
-                  isPast={isPast}
-                  showHover
-                  styles={styles}
-                  onPress={openCalendar}
-                />
-              ) : null}
-            </View>
-          )}
-
-          {!isMobile && (
-            <TaskDesktopActions
-              taskId={task.id}
-              done={task.done}
-              isPomoActive={isPomoActive}
-              canStart={canStart}
-              colors={colors}
-              styles={styles}
-              onStartPomodoro={handleStartPomodoro}
-              onOpenCalendar={openCalendar}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {isMobile && (
-            <TaskMobileTrailing
-              done={task.done}
-              dueDate={dueDate}
-              isToday={isToday}
-              isPast={isPast}
-              category={category}
-              CategoryIconComp={CategoryIconComp}
-              colors={colors}
-              styles={styles}
-              onOpenCalendar={openCalendar}
-              onOpenActions={() => setShowMobileActions(true)}
-              onDelete={handleDelete}
-            />
-          )}
-        </View>
-
-        {isMobile && isPomoActive ? (
-          <View style={styles.mobileMetaRow}>
-            <PomodoroTimer taskId={task.id} />
+          <View style={styles.todoBody}>
+            <Text
+              style={[styles.titleText, task.done && styles.done]}
+              numberOfLines={2}
+              ellipsizeMode="tail">
+              {task.title}
+            </Text>
+            {dueDate ? (
+              <DueDateBadge
+                date={dueDate}
+                isToday={isToday}
+                isPast={isPast}
+                done={task.done}
+                colors={colors}
+                styles={styles}
+                onPress={openCalendar}
+              />
+            ) : null}
+            <TaskTagChips tags={tags} styles={styles} />
+            {isMobile && isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
           </View>
-        ) : null}
+
+          <View style={styles.sideColumn}>
+            {CategoryIconComp && category ? (
+              <View
+                style={styles.categoryMark}
+                pointerEvents="none"
+                accessible={false}
+                importantForAccessibility="no-hide-descendants">
+                <CategoryIconComp size={22} strokeWidth={2} color={category.color} />
+              </View>
+            ) : null}
+            {!isMobile ? (
+              <TaskDesktopActions
+                taskId={task.id}
+                done={task.done}
+                isPomoActive={isPomoActive}
+                canStart={canStart}
+                colors={colors}
+                styles={styles}
+                onStartPomodoro={handleStartPomodoro}
+                onOpenCalendar={openCalendar}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ) : (
+              <TaskMobileTrailing
+                done={task.done}
+                colors={colors}
+                styles={styles}
+                onOpenActions={() => setShowMobileActions(true)}
+                onDelete={handleDelete}
+              />
+            )}
+          </View>
+        </View>
       </Pressable>
 
       <TaskDetailModal

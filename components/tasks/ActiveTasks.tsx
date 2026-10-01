@@ -249,16 +249,18 @@ export default function ActiveTasks() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <ActiveDayCalendar
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-          dayTaskCounts={dayTaskCounts}
-        />
         {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading tasksâ€¦</Text>
-          </View>
+          <>
+            <ActiveDayCalendar
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              dayTaskCounts={dayTaskCounts}
+            />
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Loading tasks…</Text>
+            </View>
+          </>
         ) : (
           <View style={styles.listArea}>
             {isWeb ? (
@@ -267,6 +269,13 @@ export default function ActiveTasks() {
                 contentContainerStyle={listContentStyle}
                 data={filteredTasks}
                 keyExtractor={(item) => String(item.id)}
+                ListHeaderComponent={
+                  <ActiveDayCalendar
+                    selectedDay={selectedDay}
+                    onSelectDay={setSelectedDay}
+                    dayTaskCounts={dayTaskCounts}
+                  />
+                }
                 ListEmptyComponent={emptyComponent}
                 renderItem={renderWebItem}
                 keyboardShouldPersistTaps="handled"
@@ -277,6 +286,11 @@ export default function ActiveTasks() {
                 style={styles.tasksList}
                 contentContainerStyle={listContentStyle}
                 keyboardShouldPersistTaps="handled">
+                <ActiveDayCalendar
+                  selectedDay={selectedDay}
+                  onSelectDay={setSelectedDay}
+                  dayTaskCounts={dayTaskCounts}
+                />
                 {filteredTasks.length === 0 ? (
                   emptyComponent
                 ) : (
@@ -364,7 +378,6 @@ function createStyles(colors: AppColors) {
     },
     tasksContentEmpty: {
       flexGrow: 1,
-      justifyContent: 'center',
     },
     itemWrap: {
       width: '100%',

@@ -1,5 +1,7 @@
 import { Pressable, Text } from 'react-native';
+import { Calendar } from 'lucide-react-native';
 import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
+import type { AppColors } from '@/constants/theme';
 
 function formatShortDate(date: Date) {
   return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
@@ -9,8 +11,8 @@ interface DueDateBadgeProps {
   date: Date;
   isToday: boolean;
   isPast: boolean;
-  compact?: boolean;
-  showHover?: boolean;
+  done?: boolean;
+  colors: AppColors;
   styles: TodoItemStyles;
   onPress: () => void;
 }
@@ -19,31 +21,37 @@ export default function DueDateBadge({
   date,
   isToday,
   isPast,
-  compact = false,
-  showHover = false,
+  done = false,
+  colors,
   styles,
   onPress,
 }: DueDateBadgeProps) {
+  const iconColor = done
+    ? colors.textMuted
+    : isPast
+      ? colors.red
+      : isToday
+        ? colors.primary
+        : colors.textSecondary;
+
   return (
     <Pressable
       onPress={(e) => {
         e.stopPropagation();
         onPress();
       }}
-      style={({ pressed, hovered }) => [
-        styles.todoDate,
-        isToday && styles.todoDateToday,
-        isPast && styles.todoDatePast,
-        showHover && hovered && styles.todoDateHovered,
-        showHover && pressed && styles.controlPressed,
-      ]}>
+      hitSlop={6}
+      style={({ pressed }) => [styles.todoDate, pressed && styles.controlPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`Due ${formatShortDate(date)}`}>
+      <Calendar size={14} strokeWidth={2.2} color={iconColor} />
       <Text
         style={[
           styles.todoDateText,
-          isToday && styles.todoDateTextToday,
-          isPast && styles.todoDateTextPast,
-        ]}
-        numberOfLines={compact ? 1 : undefined}>
+          isToday && !done && styles.todoDateTextToday,
+          isPast && !done && styles.todoDateTextPast,
+          done && styles.todoDateTextCompleted,
+        ]}>
         {formatShortDate(date)}
       </Text>
     </Pressable>

@@ -22,8 +22,12 @@ export default function SettingsSection({
   onToggle,
   children,
 }: SettingsSectionProps) {
-  const { colors, styles } = useSettingsStyles();
-  const iconColor = open ? colors.sidebarItemActiveText : colors.textSecondary;
+  const { colors, styles, isDark } = useSettingsStyles();
+  const iconColor = open
+    ? isDark
+      ? colors.sidebarItemActiveText
+      : '#ffffff'
+    : colors.textSecondary;
 
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

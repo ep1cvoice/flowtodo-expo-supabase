@@ -34,6 +34,7 @@ interface SheetFrameProps {
   keyboardAvoiding?: boolean;
   maxWidth?: number;
   cardStyle?: StyleProp<ViewStyle>;
+  headerStyle?: StyleProp<ViewStyle>;
   mobileCardStyle?: StyleProp<ViewStyle>;
   accessory?: ReactNode;
   centered?: boolean;
@@ -52,6 +53,7 @@ export default function SheetFrame({
   keyboardAvoiding = false,
   maxWidth = 420,
   cardStyle,
+  headerStyle,
   mobileCardStyle,
   accessory,
   centered = false,
@@ -78,6 +80,7 @@ export default function SheetFrame({
             header === 'bar' && styles.headerBar,
             header === 'bar' && (compactHeader ? styles.headerBarCompact : styles.headerBarDefault),
             header === 'plain' && styles.headerPlain,
+            headerStyle,
           ]}>
           <Text
             style={[
