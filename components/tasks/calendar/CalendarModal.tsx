@@ -23,6 +23,7 @@ interface CalendarModalProps {
   onClose: () => void;
   onClear: () => void;
   onConfirm: (date: Date) => void;
+  embedded?: boolean;
 }
 
 export default function CalendarModal({
@@ -31,6 +32,7 @@ export default function CalendarModal({
   onClose,
   onClear,
   onConfirm,
+  embedded = false,
 }: CalendarModalProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -61,6 +63,7 @@ export default function CalendarModal({
   return (
     <SheetFrame
       visible={visible}
+      embedded={embedded}
       onClose={onClose}
       title="Set due date"
       header="plain"

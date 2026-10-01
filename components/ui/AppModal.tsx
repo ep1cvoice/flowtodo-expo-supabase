@@ -25,23 +25,30 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
     const raise = () => {
       const node = rootRef.current as unknown as HTMLElement | null;
       if (!node || typeof node.parentElement === 'undefined') {
-        if (tries++ < 8) frame = requestAnimationFrame(raise);
+        if (tries++ < 12) frame = requestAnimationFrame(raise);
         return;
       }
 
-      let fixed: HTMLElement | null = null;
+      const layers: HTMLElement[] = [];
       let el: HTMLElement | null = node;
       while (el) {
-        if (window.getComputedStyle(el).position === 'fixed') fixed = el;
+        const position = window.getComputedStyle(el).position;
+        if (position === 'fixed' || el.parentElement === document.body) layers.push(el);
         el = el.parentElement;
       }
-      if (!fixed) {
-        if (tries++ < 8) frame = requestAnimationFrame(raise);
+      if (layers.length === 0) {
+        if (tries++ < 12) frame = requestAnimationFrame(raise);
         return;
       }
 
       webModalZ += 1;
-      fixed.style.zIndex = String(webModalZ);
+      const z = String(webModalZ);
+      for (const layer of layers) {
+        if (layer.parentElement === document.body && window.getComputedStyle(layer).position === 'static') {
+          layer.style.position = 'relative';
+        }
+        layer.style.zIndex = z;
+      }
     };
 
     raise();

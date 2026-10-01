@@ -103,7 +103,7 @@ export default function ActiveTasks() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: isMobile && hasFilters ? '' : 'Active',
+      title: isMobile && hasFilters ? '' : 'All Tasks',
       headerRight: () => (
         <TaskFilterBar
           variant="header"
@@ -258,7 +258,7 @@ export default function ActiveTasks() {
             />
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading tasks…</Text>
+              <Text style={styles.loadingText}>Loading tasksÂ…</Text>
             </View>
           </>
         ) : (

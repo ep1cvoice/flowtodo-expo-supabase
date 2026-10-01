@@ -1,16 +1,65 @@
-import { useMemo } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Keyboard,
+  Platform,
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  StyleSheet,
+  type TextStyle,
+} from 'react-native';
 import { AlarmClock, Calendar, Check, Trash2, X } from 'lucide-react-native';
+import CalendarModal from '@/components/tasks/calendar/CalendarModal';
 import DueDateBadge from '@/components/tasks/item/DueDateBadge';
 import { useTodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { getCategoryIcon } from '@/constants/categoryIcons';
 import type { AppColors } from '@/constants/theme';
+import { useTasks } from '@/context/TasksContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
+import { toScheduledIso } from '@/lib/calendar/calendarDate';
 import { hexToRgb } from '@/lib/color';
+import { toastForError } from '@/lib/networkError';
 import { webInteractive } from '@/utils/pressableWeb';
 import type { Task } from '@/types';
+
+const DESCRIPTION_PLACEHOLDER = 'Click here to write a description';
+const DESC_LINE_HEIGHT = 22;
+const DESC_MAX_HEIGHT = 176;
+const DESC_CHARS_PER_LINE = 46;
+
+function descriptionHeight(text: string) {
+  const source = text.length > 0 ? text : DESCRIPTION_PLACEHOLDER;
+  const lines = source.split('\n').reduce((total, line) => {
+    return total + Math.max(1, Math.ceil(line.length / DESC_CHARS_PER_LINE));
+  }, 0);
+  return Math.min(DESC_MAX_HEIGHT, lines * DESC_LINE_HEIGHT);
+}
+
+type MarkerNode = {
+  nodeType?: number;
+  parentElement?: MarkerNode | null;
+  closest?: (selector: string) => MarkerNode | null;
+};
+
+function pointerMarker(target: unknown): 'field' | 'calendar' | 'skip' | 'outside' | null {
+  if (!target || typeof target !== 'object') return null;
+  const node = target as MarkerNode;
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  if (!el?.closest) return null;
+  if (el.closest('#task-desc-field')) return 'field';
+  if (el.closest('#open-task-calendar')) return 'calendar';
+  if (el.closest('[id^="skip-desc-save"]')) return 'skip';
+  return 'outside';
+}
+
+const webTextCursor: TextStyle =
+  Platform.OS === 'web'
+    ? ({ cursor: 'text', outlineStyle: 'none' } as unknown as TextStyle)
+    : {};
 
 interface TaskDetailModalProps {
   visible: boolean;
@@ -37,30 +86,153 @@ export default function TaskDetailModal({
   isPomoActive,
   onClose,
   onDelete,
-  onOpenCalendar,
   onStartPomodoro,
   onToggleComplete,
 }: TaskDetailModalProps) {
   const { colors, isDark } = useTheme();
+  const { updateTask, setTaskScheduled } = useTasks();
+  const { showToast } = useToast();
   const { styles: todoStyles } = useTodoItemStyles();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const tags = task.tags ?? [];
   const category = task.category;
   const CategoryIcon = category ? getCategoryIcon(category.icon) : null;
-  const description = task.description?.trim() ?? '';
+  const [draft, setDraft] = useState(task.description ?? '');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const descHeight = descriptionHeight(draft);
+  const inputRef = useRef<TextInput>(null);
+  const draftRef = useRef(draft);
+  const focusedRef = useRef(false);
+  const savingRef = useRef(false);
+  const skipSaveRef = useRef(false);
+  const lastSavedRef = useRef((task.description ?? '').trim());
+  draftRef.current = draft;
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
   const showPomodoro = !task.done && (isPomoActive || canStart);
   const showCalendarIcon = !task.done && !dueDate;
   const showAlarmIcon = showPomodoro && !isPomoActive;
 
+  useEffect(() => {
+    if (focusedRef.current) return;
+    const next = task.description ?? '';
+    setDraft(next);
+    lastSavedRef.current = next.trim();
+  }, [task.id, task.description]);
+
+  const saveDescription = async () => {
+    const next = draftRef.current.trim();
+    if (next === lastSavedRef.current || savingRef.current) return;
+
+    savingRef.current = true;
+    try {
+      await updateTask(task.id, {
+        title: task.title,
+        description: next,
+        categoryId: task.categoryId,
+        tagIds: tags.map((tag) => tag.id),
+      });
+      lastSavedRef.current = next;
+      if (!focusedRef.current) setDraft(next);
+    } catch (err) {
+      console.warn('Failed to update description:', err);
+      showToast(toastForError(err, 'Could not save description.'), 'error');
+      if (!focusedRef.current) setDraft(task.description ?? '');
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  const handleClose = () => {
+    void saveDescription();
+    onClose();
+  };
+
+  const dismissInput = () => {
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+  };
+
+  const dismissInputSoon = () => {
+    setTimeout(() => {
+      dismissInput();
+      skipSaveRef.current = false;
+    }, 0);
+  };
+
+  const openDetailCalendar = () => {
+    setTimeout(() => setShowCalendar(true), 0);
+  };
+
+  const handleClearDate = async () => {
+    try {
+      await setTaskScheduled(task.id, null);
+      setShowCalendar(false);
+    } catch (err) {
+      showToast(toastForError(err, 'Could not update date.'), 'error');
+    }
+  };
+
+  const handleConfirmDate = async (date: Date) => {
+    try {
+      await setTaskScheduled(task.id, toScheduledIso(date));
+      setShowCalendar(false);
+    } catch (err) {
+      showToast(toastForError(err, 'Could not update date.'), 'error');
+    }
+  };
+
+  const commitFromOutside = () => {
+    dismissInputSoon();
+    if (skipSaveRef.current) return;
+    void saveDescription();
+  };
+
+  const armSkipSave = () => {
+    skipSaveRef.current = true;
+    dismissInputSoon();
+  };
+
   return (
     <SheetFrame
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
+      keyboardAvoiding
       header="none"
       centered
-      cardStyle={styles.card}>
+      cardStyle={styles.card}
+      accessory={
+        <CalendarModal
+          embedded
+          visible={showCalendar}
+          selected={dueDate}
+          onClose={() => setShowCalendar(false)}
+          onClear={() => {
+            void handleClearDate();
+          }}
+          onConfirm={(date) => {
+            void handleConfirmDate(date);
+          }}
+        />
+      }>
       <View
+        style={styles.sheetBody}
+        onPointerDownCapture={(event) => {
+          const marker = pointerMarker(event.target);
+          if (marker === 'field') return;
+          if (marker === 'calendar') {
+            openDetailCalendar();
+            commitFromOutside();
+            return;
+          }
+          if (marker === 'skip') {
+            armSkipSave();
+            return;
+          }
+          if (marker === 'outside') commitFromOutside();
+        }}>
+      <Pressable
+        accessible={false}
+        onPress={commitFromOutside}
         style={[
           styles.header,
           category ? { backgroundColor: tagTint(category.color, 0.3) } : null,
@@ -71,13 +243,13 @@ export default function TaskDetailModal({
         <View style={styles.titleWrap}>
           <Text style={[styles.title, task.done && styles.done]}>{task.title}</Text>
         </View>
-        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8} accessibilityLabel="Close">
+        <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={8} accessibilityLabel="Close">
           <X size={20} color={colors.textMuted} />
         </Pressable>
-      </View>
+      </Pressable>
 
       <View style={styles.content}>
-        <View style={[styles.meta, description ? styles.metaDivider : null]}>
+        <View style={[styles.meta, styles.metaDivider]}>
           <View style={styles.topRow}>
             <View style={styles.tagWrap}>
               {tags.map((tag) => (
@@ -94,14 +266,29 @@ export default function TaskDetailModal({
                 </View>
               ))}
               {dueDate ? (
-                <DueDateBadge date={dueDate} styles={todoStyles} onPress={onOpenCalendar} />
+                <View id="open-task-calendar">
+                  <DueDateBadge
+                    date={dueDate}
+                    styles={todoStyles}
+                    onPress={() => {
+                      commitFromOutside();
+                      openDetailCalendar();
+                    }}
+                  />
+                </View>
               ) : null}
             </View>
             {showCalendarIcon || showAlarmIcon ? (
               <View style={styles.iconGroup}>
                 {showCalendarIcon ? (
                   <Pressable
-                    onPress={onOpenCalendar}
+                    id="open-task-calendar"
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      commitFromOutside();
+                      openDetailCalendar();
+                    }}
+                    hitSlop={8}
                     style={({ pressed, hovered }) => [
                       styles.iconBtn,
                       (hovered || pressed) && styles.iconBtnPressed,
@@ -113,7 +300,10 @@ export default function TaskDetailModal({
                 ) : null}
                 {showAlarmIcon ? (
                   <Pressable
-                    onPress={onStartPomodoro}
+                    onPress={() => {
+                      commitFromOutside();
+                      onStartPomodoro();
+                    }}
                     style={({ pressed, hovered }) => [
                       styles.iconBtn,
                       (hovered || pressed) && styles.iconBtnPressed,
@@ -132,19 +322,42 @@ export default function TaskDetailModal({
             </View>
           ) : null}
         </View>
-        {description ? (
-          <ScrollView
-            style={[styles.scroll, styles.descriptionSection]}
-            contentContainerStyle={styles.body}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled">
-            <Text style={[styles.description, task.done && styles.done]}>{description}</Text>
-          </ScrollView>
-        ) : null}
+        <View id="task-desc-field" style={styles.descriptionField}>
+          <TextInput
+            ref={inputRef}
+            value={draft}
+            onChangeText={setDraft}
+            onFocus={() => {
+              focusedRef.current = true;
+            }}
+            onBlur={() => {
+              focusedRef.current = false;
+              if (skipSaveRef.current) return;
+              void saveDescription();
+            }}
+            placeholder={DESCRIPTION_PLACEHOLDER}
+            placeholderTextColor={colors.textMuted}
+            multiline
+            scrollEnabled={descHeight >= DESC_MAX_HEIGHT}
+            textAlignVertical="top"
+            underlineColorAndroid="transparent"
+            cursorColor={colors.textPrimary}
+            selectionColor={colors.primary}
+            style={[
+              styles.descriptionInput,
+              webTextCursor,
+              { height: descHeight },
+              task.done && styles.done,
+            ]}
+            accessibilityLabel="Task description"
+          />
+        </View>
 
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
+        <Pressable accessible={false} onPress={commitFromOutside} style={styles.footer}>
+          <View pointerEvents="box-none" style={styles.footerRow}>
             <Pressable
+              id="skip-desc-save-delete"
+              onPressIn={armSkipSave}
               onPress={() => {
                 void onDelete();
               }}
@@ -158,6 +371,8 @@ export default function TaskDetailModal({
             </Pressable>
 
             <Pressable
+              id="skip-desc-save-complete"
+              onPressIn={armSkipSave}
               onPress={() => {
                 void onToggleComplete();
               }}
@@ -173,7 +388,8 @@ export default function TaskDetailModal({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
+      </View>
       </View>
     </SheetFrame>
   );
@@ -214,10 +430,11 @@ function createStyles(colors: AppColors, isDark: boolean) {
       textDecorationLine: 'line-through',
       color: colors.textMuted,
     },
-    content: {
+    sheetBody: {
       flexShrink: 1,
+      width: '100%',
     },
-    scroll: {
+    content: {
       flexShrink: 1,
     },
     meta: {
@@ -246,11 +463,6 @@ function createStyles(colors: AppColors, isDark: boolean) {
       marginLeft: 'auto',
       maxWidth: '100%',
     },
-    body: {
-      paddingHorizontal: 16,
-      paddingTop: 18,
-      paddingBottom: 8,
-    },
     tagWrap: {
       flexGrow: 1,
       flexShrink: 1,
@@ -272,14 +484,17 @@ function createStyles(colors: AppColors, isDark: boolean) {
       fontSize: 13,
       fontWeight: '600',
     },
-    descriptionSection: {
-      flexGrow: 1,
-      paddingVertical: 8,
+    descriptionField: {
       backgroundColor: isDark ? '#011816' : '#e7e9ea',
+      paddingHorizontal: 16,
+      paddingVertical: 16,
     },
-    description: {
+    descriptionInput: {
+      margin: 0,
+      padding: 0,
+      borderWidth: 0,
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: DESC_LINE_HEIGHT,
       color: colors.textSecondary,
     },
     footer: {

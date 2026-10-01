@@ -126,8 +126,8 @@ export default function MainTabsLayout() {
       <Tabs.Screen
         name="active"
         options={{
-          title: 'Active',
-          tabBarLabel: 'Active',
+          title: 'All',
+          tabBarLabel: 'All Tasks',
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} strokeWidth={2} />,
         }}
       />
