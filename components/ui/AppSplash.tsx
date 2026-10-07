@@ -11,7 +11,7 @@ import {
 import { FullWindowOverlay } from 'react-native-screens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Waves } from 'lucide-react-native';
-import { brand } from '@/constants/theme';
+import { brand, lightSplashGlow, lightSplashGradient } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 
 /** Once per session. */
@@ -36,7 +36,7 @@ export default function AppSplash() {
     () =>
       isDark
         ? ([colors.bgPageStart, colors.bgPageMid, '#0f766e'] as const)
-        : (['#eef6f3', '#b8ddd4', '#5eead4'] as const),
+        : lightSplashGradient,
     [isDark, colors.bgPageStart, colors.bgPageMid]
   );
 
@@ -139,7 +139,7 @@ export default function AppSplash() {
         colors={
           isDark
             ? ['rgba(45, 212, 191, 0.22)', 'transparent']
-            : ['rgba(13, 148, 136, 0.18)', 'transparent']
+            : lightSplashGlow
         }
         start={{ x: 0.5, y: 0.35 }}
         end={{ x: 0.5, y: 1 }}

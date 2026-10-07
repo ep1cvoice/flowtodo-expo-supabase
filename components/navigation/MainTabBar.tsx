@@ -12,6 +12,7 @@ const PLUS_SLOT_WIDTH = 76;
 
 export default function MainTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
   const { colors } = useTheme();
+  const chromeColor = colors.chrome;
   const { openCreate } = useCreateTask();
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= tokens.desktopBreakpoint;
@@ -24,7 +25,7 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
       style={[
         styles.bar,
         {
-          backgroundColor: colors.bgSurface,
+          backgroundColor: chromeColor,
           borderTopColor: colors.borderColor,
           paddingBottom: insets.bottom,
           borderTopWidth: isDesktop ? 0 : StyleSheet.hairlineWidth,
@@ -122,7 +123,7 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
     <View
       style={[
         styles.chromeBg,
-        { backgroundColor: colors.bgSurface, borderTopColor: colors.borderColor },
+        { backgroundColor: chromeColor, borderTopColor: colors.borderColor },
       ]}>
       <View style={styles.chromeInner}>{bar}</View>
     </View>

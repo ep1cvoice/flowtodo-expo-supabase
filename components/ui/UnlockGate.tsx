@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Text,
   Pressable,
+  View,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -11,6 +12,7 @@ import { Lock, Unlock, Fingerprint } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import type { AppColors } from '@/constants/theme';
+import { lightSplashGlow, lightSplashGradient } from '@/constants/theme';
 import Heading from '@/components/ui/Heading';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
@@ -107,7 +109,11 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
     };
 
     return (
-      <>
+      <View
+        style={[
+          styles.gate,
+          { backgroundColor: isDark ? colors.bgPageStart : lightSplashGradient[0] },
+        ]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <AuthLayout
           gap={48}
@@ -157,7 +163,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
             <Text style={styles.logoutText}>Log Out</Text>
           </Pressable>
         </AuthLayout>
-      </>
+      </View>
     );
   }
 
@@ -173,13 +179,25 @@ function GateSplash({
   isDark: boolean;
   styles: ReturnType<typeof createStyles>;
 }) {
+  const pageColors = isDark
+    ? ([colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd] as const)
+    : lightSplashGradient;
+
   return (
     <LinearGradient
-      colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
+      colors={[...pageColors]}
       locations={[0, 0.45, 1]}
       start={{ x: 0.1, y: 0 }}
       end={{ x: 0.9, y: 1 }}
       style={styles.loading}>
+      {isDark ? null : (
+        <LinearGradient
+          colors={[...lightSplashGlow]}
+          start={{ x: 0.5, y: 0.35 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <ActivityIndicator size="large" color={colors.primary} />
     </LinearGradient>
@@ -188,6 +206,9 @@ function GateSplash({
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
+    gate: {
+      flex: 1,
+    },
     loading: {
       flex: 1,
       justifyContent: 'center',

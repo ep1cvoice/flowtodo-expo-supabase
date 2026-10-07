@@ -1,5 +1,8 @@
 import { Pressable, Text } from 'react-native';
+import { Calendar } from 'lucide-react-native';
 import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
+
+const DATE_BLUE = '#3b82f6';
 
 function formatShortDate(date: Date) {
   return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
@@ -7,20 +10,12 @@ function formatShortDate(date: Date) {
 
 interface DueDateBadgeProps {
   date: Date;
-  isToday: boolean;
-  isPast: boolean;
-  compact?: boolean;
-  showHover?: boolean;
   styles: TodoItemStyles;
   onPress: () => void;
 }
 
 export default function DueDateBadge({
   date,
-  isToday,
-  isPast,
-  compact = false,
-  showHover = false,
   styles,
   onPress,
 }: DueDateBadgeProps) {
@@ -30,22 +25,12 @@ export default function DueDateBadge({
         e.stopPropagation();
         onPress();
       }}
-      style={({ pressed, hovered }) => [
-        styles.todoDate,
-        isToday && styles.todoDateToday,
-        isPast && styles.todoDatePast,
-        showHover && hovered && styles.todoDateHovered,
-        showHover && pressed && styles.controlPressed,
-      ]}>
-      <Text
-        style={[
-          styles.todoDateText,
-          isToday && styles.todoDateTextToday,
-          isPast && styles.todoDateTextPast,
-        ]}
-        numberOfLines={compact ? 1 : undefined}>
-        {formatShortDate(date)}
-      </Text>
+      hitSlop={6}
+      style={({ pressed }) => [styles.todoDate, pressed && styles.controlPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`Due ${formatShortDate(date)}`}>
+      <Calendar size={14} strokeWidth={2.2} color={DATE_BLUE} />
+      <Text style={styles.todoDateText}>{formatShortDate(date)}</Text>
     </Pressable>
   );
 }

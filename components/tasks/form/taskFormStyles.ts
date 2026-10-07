@@ -4,7 +4,7 @@ import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
 
-export function createTaskFormStyles(colors: AppColors) {
+export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
     card: {
       maxHeight: '100%',
@@ -45,7 +45,7 @@ export function createTaskFormStyles(colors: AppColors) {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.borderColor,
-      backgroundColor: colors.bgSurface,
+      backgroundColor: isDark ? colors.bgSurface : colors.chrome,
       color: colors.textPrimary,
       fontSize: 15,
     },
@@ -130,7 +130,7 @@ export function createTaskFormStyles(colors: AppColors) {
 export type TaskFormStyles = ReturnType<typeof createTaskFormStyles>;
 
 export function useTaskFormStyles() {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createTaskFormStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createTaskFormStyles(colors, isDark), [colors, isDark]);
   return { colors, styles };
 }

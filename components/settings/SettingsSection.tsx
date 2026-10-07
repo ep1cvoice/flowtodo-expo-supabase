@@ -22,8 +22,12 @@ export default function SettingsSection({
   onToggle,
   children,
 }: SettingsSectionProps) {
-  const { colors, styles } = useSettingsStyles();
-  const iconColor = open ? colors.sidebarItemActiveText : colors.textSecondary;
+  const { colors, styles, isDark } = useSettingsStyles();
+  const iconColor = open
+    ? isDark
+      ? colors.sidebarItemActiveText
+      : '#ffffff'
+    : colors.textSecondary;
 
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -44,11 +48,9 @@ export default function SettingsSection({
           <Icon size={22} color={iconColor} />
           <Text style={[styles.sectionTitle, open && styles.sectionTitleActive]}>{title}</Text>
         </View>
-        <Plus
-          size={22}
-          color={iconColor}
-          style={open ? styles.iconRotated : undefined}
-        />
+        <View style={open ? styles.iconRotated : styles.iconRest} collapsable={false}>
+          <Plus size={22} color={iconColor} />
+        </View>
       </Pressable>
       {open ? <View style={styles.sectionBody}>{children}</View> : null}
     </View>

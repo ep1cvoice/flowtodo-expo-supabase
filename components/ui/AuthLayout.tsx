@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
+import { lightSplashGlow, lightSplashGradient, tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardHeight } from '@/lib/useKeyboardBottomInset';
 
@@ -25,20 +25,31 @@ interface AuthLayoutProps {
 export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= tokens.desktopBreakpoint;
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const keyboardInset = useKeyboardHeight();
   const keyboardOpen = keyboardInset > 0;
+  const pageColors = isDark
+    ? ([colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd] as const)
+    : lightSplashGradient;
 
   return (
     <View style={styles.root} collapsable={false}>
       <LinearGradient
-        colors={[colors.bgPageStart, colors.bgPageMid, colors.bgPageEnd]}
+        colors={[...pageColors]}
         locations={[0, 0.45, 1]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
       />
+      {isDark ? null : (
+        <LinearGradient
+          colors={[...lightSplashGlow]}
+          start={{ x: 0.5, y: 0.35 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+        />
+      )}
       <SafeAreaView style={styles.authLayout}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
