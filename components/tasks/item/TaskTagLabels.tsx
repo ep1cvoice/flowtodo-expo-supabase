@@ -2,23 +2,20 @@ import { Text, View } from 'react-native';
 import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import type { Tag } from '@/types';
 
-interface TaskTagChipsProps {
+interface TaskTagLabelsProps {
   tags: Tag[];
   styles: TodoItemStyles;
 }
 
-export default function TaskTagChips({ tags, styles }: TaskTagChipsProps) {
+export default function TaskTagLabels({ tags, styles }: TaskTagLabelsProps) {
   if (tags.length === 0) return null;
 
   return (
     <View style={styles.tagRow} pointerEvents="none">
       {tags.map((tag) => (
-        <View key={tag.id} style={[styles.tagChip, { borderColor: tag.color }]}>
-          
-          <Text style={[styles.tagChipText, { color: tag.color }]} numberOfLines={1}>
-            # {tag.name}
-          </Text>
-        </View>
+        <Text key={tag.id} style={[styles.tagLabel, { color: tag.color }]} numberOfLines={1}>
+          #{tag.name}
+        </Text>
       ))}
     </View>
   );

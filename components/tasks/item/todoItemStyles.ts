@@ -43,9 +43,19 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
     },
     todoMainRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: 10,
       zIndex: 1,
+    },
+    todoContent: {
+      flex: 1,
+      minWidth: 0,
+      gap: 8,
+    },
+    todoTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     reorderButtons: {
       marginLeft: -4,
@@ -98,8 +108,6 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
     todoBody: {
       flex: 1,
       minWidth: 0,
-      gap: 8,
-      paddingTop: 5,
     },
     titleText: {
       flexShrink: 1,
@@ -111,23 +119,16 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
     tagRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 6,
-    },
-    tagChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      maxWidth: 180,
-      paddingVertical: 4,
-      paddingHorizontal: 6,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      backgroundColor: isDark ? colors.bgSurface : '#ffffff',
-    },
-    
-    tagChipText: {
+      justifyContent: 'flex-end',
       flexShrink: 1,
+      maxWidth: '100%',
+      columnGap: 8,
+      rowGap: 2,
+      marginLeft: 'auto',
+    },
+    tagLabel: {
+      flexShrink: 1,
+      maxWidth: '100%',
       fontSize: 13,
       fontWeight: '600',
       lineHeight: 16,
@@ -145,7 +146,14 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      flexWrap: 'nowrap',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginLeft: 36,
+    },
+    metaControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 0,
       gap: 6,
     },
     todoDate: {

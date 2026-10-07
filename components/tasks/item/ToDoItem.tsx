@@ -17,7 +17,7 @@ import TaskDesktopActions from '@/components/tasks/item/TaskDesktopActions';
 import TaskDetailModal from '@/components/tasks/item/TaskDetailModal';
 import TaskMobileTrailing from '@/components/tasks/item/TaskMobileTrailing';
 import TaskReorderButtons from '@/components/tasks/item/TaskReorderButtons';
-import TaskTagChips from '@/components/tasks/item/TaskTagChips';
+import TaskTagLabels from '@/components/tasks/item/TaskTagLabels';
 import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
 import { useTodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import { getCategoryIcon } from '@/constants/categoryIcons';
@@ -181,58 +181,66 @@ export default function ToDoItem({
             />
           ) : null}
 
-          <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
+          <View style={styles.todoContent}>
+            <View style={styles.todoTitleRow}>
+              <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
 
-          <View style={styles.todoBody}>
-            <Text
-              style={[styles.titleText, task.done && styles.done]}
-              numberOfLines={2}
-              ellipsizeMode="tail">
-              {task.title}
-            </Text>
-            {dueDate || isPomoActive ? (
-              <View style={styles.metaRow}>
-                {dueDate ? (
-                  <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
+              <View style={styles.todoBody}>
+                <Text
+                  style={[styles.titleText, task.done && styles.done]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail">
+                  {task.title}
+                </Text>
+              </View>
+
+              <View style={styles.sideColumn}>
+                {CategoryIconComp && category ? (
+                  <View
+                    style={styles.categoryMark}
+                    pointerEvents="none"
+                    accessible={false}
+                    importantForAccessibility="no-hide-descendants">
+                    <CategoryIconComp size={22} strokeWidth={2} color={category.color} />
+                  </View>
                 ) : null}
-                {isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
+                {!isMobile ? (
+                  <TaskDesktopActions
+                    taskId={task.id}
+                    done={task.done}
+                    isPomoActive={isPomoActive}
+                    canStart={canStart}
+                    colors={colors}
+                    styles={styles}
+                    onStartPomodoro={handleStartPomodoro}
+                    onOpenCalendar={openCalendar}
+                    onEdit={handleEdit}
+                    onDelete={requestDelete}
+                  />
+                ) : (
+                  <TaskMobileTrailing
+                    done={task.done}
+                    colors={colors}
+                    styles={styles}
+                    onOpenActions={() => setShowMobileActions(true)}
+                    onDelete={requestDelete}
+                  />
+                )}
+              </View>
+            </View>
+            {dueDate || isPomoActive || tags.length > 0 ? (
+              <View style={styles.metaRow}>
+                {dueDate || isPomoActive ? (
+                  <View style={styles.metaControls}>
+                    {dueDate ? (
+                      <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
+                    ) : null}
+                    {isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
+                  </View>
+                ) : null}
+                <TaskTagLabels tags={tags} styles={styles} />
               </View>
             ) : null}
-            <TaskTagChips tags={tags} styles={styles} />
-          </View>
-
-          <View style={styles.sideColumn}>
-            {CategoryIconComp && category ? (
-              <View
-                style={styles.categoryMark}
-                pointerEvents="none"
-                accessible={false}
-                importantForAccessibility="no-hide-descendants">
-                <CategoryIconComp size={22} strokeWidth={2} color={category.color} />
-              </View>
-            ) : null}
-            {!isMobile ? (
-              <TaskDesktopActions
-                taskId={task.id}
-                done={task.done}
-                isPomoActive={isPomoActive}
-                canStart={canStart}
-                colors={colors}
-                styles={styles}
-                onStartPomodoro={handleStartPomodoro}
-                onOpenCalendar={openCalendar}
-                onEdit={handleEdit}
-                onDelete={requestDelete}
-              />
-            ) : (
-              <TaskMobileTrailing
-                done={task.done}
-                colors={colors}
-                styles={styles}
-                onOpenActions={() => setShowMobileActions(true)}
-                onDelete={requestDelete}
-              />
-            )}
           </View>
         </View>
       </Pressable>
