@@ -19,18 +19,40 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
 
   useEffect(() => {
     if (!visible || Platform.OS !== 'web') return;
-    const node = rootRef.current as unknown as HTMLElement | null;
-    if (!node || typeof node.parentElement === 'undefined') return;
+    let frame = 0;
+    let tries = 0;
 
-    let el: HTMLElement | null = node;
-    while (el) {
-      if (window.getComputedStyle(el).position === 'fixed') {
-        webModalZ += 1;
-        el.style.zIndex = String(webModalZ);
-        break;
+    const raise = () => {
+      const node = rootRef.current as unknown as HTMLElement | null;
+      if (!node || typeof node.parentElement === 'undefined') {
+        if (tries++ < 12) frame = requestAnimationFrame(raise);
+        return;
       }
-      el = el.parentElement;
-    }
+
+      const layers: HTMLElement[] = [];
+      let el: HTMLElement | null = node;
+      while (el) {
+        const position = window.getComputedStyle(el).position;
+        if (position === 'fixed' || el.parentElement === document.body) layers.push(el);
+        el = el.parentElement;
+      }
+      if (layers.length === 0) {
+        if (tries++ < 12) frame = requestAnimationFrame(raise);
+        return;
+      }
+
+      webModalZ += 1;
+      const z = String(webModalZ);
+      for (const layer of layers) {
+        if (layer.parentElement === document.body && window.getComputedStyle(layer).position === 'static') {
+          layer.style.position = 'relative';
+        }
+        layer.style.zIndex = z;
+      }
+    };
+
+    raise();
+    return () => cancelAnimationFrame(frame);
   }, [visible]);
 
   return (

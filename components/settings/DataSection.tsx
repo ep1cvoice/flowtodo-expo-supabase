@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, Switch, Text, View } from 'react-native';
 import { Fingerprint, Lock, Trash2 } from 'lucide-react-native';
-import { confirmDestructive } from '@/components/settings/confirmDestructive';
 import SettingsSection from '@/components/settings/SettingsSection';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useSettingsStyles } from '@/components/settings/settingsStyles';
 import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
@@ -22,6 +22,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
   const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useAuth();
   const [deviceSupportsUnlock, setDeviceSupportsUnlock] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
+  const [pendingBulk, setPendingBulk] = useState<'active' | 'completed' | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,44 +58,26 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
 
   const confirmDeleteAllActive = () => {
     if (activeTasks.length === 0) {
-      Alert.alert('Nothing to delete', 'There are no active tasks.');
+      showToast('There are no active tasks.', 'error');
       return;
     }
-    confirmDestructive({
-      title: 'Delete all active tasks?',
-      message: `This will remove ${activeTasks.length} active task(s).`,
-      onConfirm: async () => {
-        try {
-          await deleteAllActive();
-          showToast('Active tasks deleted.');
-        } catch (err) {
-          showToast(toastForError(err, 'Could not delete tasks.'), 'error');
-        }
-      },
-    });
+    setPendingBulk('active');
   };
 
   const confirmDeleteAllCompleted = () => {
     if (completedCount === 0) {
-      Alert.alert('Nothing to delete', 'There are no completed tasks.');
+      showToast('There are no completed tasks.', 'error');
       return;
     }
-    confirmDestructive({
-      title: 'Delete all completed tasks?',
-      message: `This will remove ${completedCount} completed task(s).`,
-      onConfirm: async () => {
-        try {
-          await deleteAllCompleted();
-          showToast('Completed tasks deleted.');
-        } catch (err) {
-          showToast(toastForError(err, 'Could not delete tasks.'), 'error');
-        }
-      },
-    });
+    setPendingBulk('completed');
   };
 
+  const pendingCount = pendingBulk === 'active' ? activeTasks.length : completedCount;
+  const pendingNoun = pendingCount === 1 ? 'task' : 'tasks';
+
   return (
-    <SettingsSection title="Data" Icon={Trash2} open={open} onToggle={onToggle}>
+    <>
+      <SettingsSection title="Data" Icon={Trash2} open={open} onToggle={onToggle}>
       {open ? (
         <>
           <View style={styles.encryptionInfo}>
@@ -160,6 +143,35 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
           </Pressable>
         </>
       ) : null}
-    </SettingsSection>
+      </SettingsSection>
+      <ConfirmModal
+        visible={pendingBulk !== null}
+        title={
+          pendingBulk === 'completed' ? 'Delete all completed tasks?' : 'Delete all active tasks?'
+        }
+        message={
+          pendingBulk === 'completed'
+            ? `This will permanently delete ${completedCount} completed ${pendingNoun}.`
+            : `This will permanently delete ${activeTasks.length} active ${pendingNoun}.`
+        }
+        onClose={() => setPendingBulk(null)}
+        onConfirm={async () => {
+          const kind = pendingBulk;
+          try {
+            if (kind === 'active') {
+              await deleteAllActive();
+              showToast('Active tasks deleted.');
+            } else if (kind === 'completed') {
+              await deleteAllCompleted();
+              showToast('Completed tasks deleted.');
+            }
+          } catch (err) {
+            showToast(toastForError(err, 'Could not delete tasks.'), 'error');
+          } finally {
+            setPendingBulk(null);
+          }
+        }}
+      />
+    </>
   );
 }

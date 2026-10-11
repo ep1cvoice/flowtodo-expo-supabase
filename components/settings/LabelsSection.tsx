@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Plus, Tags, Trash2 } from 'lucide-react-native';
-import { confirmDestructive } from '@/components/settings/confirmDestructive';
 import SettingsSection from '@/components/settings/SettingsSection';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useSettingsStyles } from '@/components/settings/settingsStyles';
 import CategoryModal from '@/components/tasks/form/CategoryModal';
 import TagModal from '@/components/tasks/form/TagModal';
@@ -35,6 +35,11 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
   const [filterLimitSaving, setFilterLimitSaving] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<
+    | { kind: 'category'; id: number; name: string }
+    | { kind: 'tag'; id: number; name: string }
+    | null
+  >(null);
 
   const handleFilterLimitsSave = async () => {
     setFilterLimitErr('');
@@ -57,36 +62,28 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
     showToast('Filter limit saved.');
   };
 
-  const confirmDeleteCategory = (id: number, name: string) => {
-    confirmDestructive({
-      title: 'Remove category?',
-      message: `Remove "${name}"? Tasks keep their title; this category will be cleared.`,
-      confirmLabel: 'Remove',
-      onConfirm: async () => {
-        try {
-          await deleteCategory(id);
-          showToast('Category removed.');
-        } catch (err) {
-          showToast(toastForError(err, 'Could not remove category.'), 'error');
-        }
-      },
-    });
-  };
-
-  const confirmDeleteTag = (id: number, name: string) => {
-    confirmDestructive({
-      title: 'Remove tag?',
-      message: `Remove "#${name}"? It will be removed from any tasks that use it.`,
-      confirmLabel: 'Remove',
-      onConfirm: async () => {
-        try {
-          await deleteTag(id);
-          showToast('Tag removed.');
-        } catch (err) {
-          showToast(toastForError(err, 'Could not remove tag.'), 'error');
-        }
-      },
-    });
+  const confirmRemove = async () => {
+    if (!pendingRemove) return;
+    const current = pendingRemove;
+    try {
+      if (current.kind === 'category') {
+        await deleteCategory(current.id);
+        showToast('Category removed.');
+      } else {
+        await deleteTag(current.id);
+        showToast('Tag removed.');
+      }
+    } catch (err) {
+      showToast(
+        toastForError(
+          err,
+          current.kind === 'category' ? 'Could not remove category.' : 'Could not remove tag.'
+        ),
+        'error'
+      );
+    } finally {
+      setPendingRemove(null);
+    }
   };
 
   return (
@@ -153,7 +150,9 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
                         </Text>
                       </View>
                       <Pressable
-                        onPress={() => confirmDeleteCategory(cat.id, cat.name)}
+                        onPress={() =>
+                          setPendingRemove({ kind: 'category', id: cat.id, name: cat.name })
+                        }
                         hitSlop={8}
                         style={({ pressed, hovered }) => [
                           styles.manageDeleteBtn,
@@ -194,7 +193,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
                         </Text>
                       </View>
                       <Pressable
-                        onPress={() => confirmDeleteTag(tag.id, tag.name)}
+                        onPress={() => setPendingRemove({ kind: 'tag', id: tag.id, name: tag.name })}
                         hitSlop={8}
                         style={({ pressed, hovered }) => [
                           styles.manageDeleteBtn,
@@ -211,6 +210,18 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
           </>
         ) : null}
       </SettingsSection>
+      <ConfirmModal
+        visible={pendingRemove !== null}
+        title={pendingRemove?.kind === 'tag' ? 'Remove tag?' : 'Remove category?'}
+        message={
+          pendingRemove?.kind === 'tag'
+            ? `Remove "#${pendingRemove.name}"? It will be removed from any tasks that use it.`
+            : `Remove "${pendingRemove?.name ?? ''}"? Tasks keep their title; this category will be cleared.`
+        }
+        confirmLabel="Remove"
+        onClose={() => setPendingRemove(null)}
+        onConfirm={confirmRemove}
+      />
       <CategoryModal
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}

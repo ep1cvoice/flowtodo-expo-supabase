@@ -14,7 +14,9 @@ import TagChipPicker from '@/components/tasks/form/TagChipPicker';
 import TagModal from '@/components/tasks/form/TagModal';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { useTasks } from '@/context/TasksContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { categoryCardWash } from '@/lib/color';
 import { toastForError } from '@/lib/networkError';
 import { validateTaskTitle, type TaskFormInput } from '@/lib/tasks/taskValidation';
 
@@ -55,6 +57,7 @@ export default function TaskFormModal({
   onSubmit,
   onClose,
 }: TaskFormModalProps) {
+  const { isDark } = useTheme();
   const { colors, styles } = useTaskFormStyles();
   const { showToast } = useToast();
   const { addCategory, addTag } = useTasks();
@@ -67,6 +70,14 @@ export default function TaskFormModal({
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
+  const headerStyle = !isDark
+    ? {
+        backgroundColor: selectedCategory
+          ? categoryCardWash(selectedCategory.color, 0.3)
+          : colors.chrome,
+      }
+    : undefined;
   const [showTagModal, setShowTagModal] = useState(false);
 
   const applyInitial = (values: TaskFormInput) => {
@@ -130,6 +141,7 @@ export default function TaskFormModal({
       closeDisabled={disableCloseWhileSubmitting && submitting}
       keyboardAvoiding
       cardStyle={styles.card}
+      headerStyle={headerStyle}
       accessory={
         <>
           <CategoryModal

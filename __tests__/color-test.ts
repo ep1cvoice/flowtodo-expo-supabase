@@ -1,4 +1,4 @@
-import { categoryFadeColors, hexToRgb } from '@/lib/color';
+import { categoryCardWash, categoryFadeColors, hexToRgb } from '@/lib/color';
 
 describe('hexToRgb', () => {
   it('parses 6-digit hex', () => {
@@ -7,6 +7,12 @@ describe('hexToRgb', () => {
 
   it('parses 3-digit hex', () => {
     expect(hexToRgb('#0d8')).toEqual({ r: 0, g: 221, b: 136 });
+  });
+});
+
+describe('categoryCardWash', () => {
+  it('tints a hex color at the given alpha', () => {
+    expect(categoryCardWash('#00ff00', 0.2)).toBe('rgba(0,255,0,0.2)');
   });
 });
 

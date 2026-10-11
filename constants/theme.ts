@@ -1,8 +1,3 @@
-/**
- * FlowTodo — Ocean Flow palette (light + dark).
- * Use ThemeContext / useTheme() for reactive colors.
- */
-
 export type ThemeMode = 'auto' | 'light' | 'dark';
 
 export type AppColors = {
@@ -32,10 +27,13 @@ export type AppColors = {
   overlayBg: string;
   todoHighlight: string;
   sidebarLogoutHover: string;
+  chrome: string;
 };
 
+export const lightSplashGradient = ['#eef6f3', '#b8ddd4', '#5eead4'] as const;
+export const lightSplashGlow = ['rgba(13, 148, 136, 0.18)', 'transparent'] as const;
+
 export const lightColors: AppColors = {
-  // Soft Mist — fog/sage atmosphere 
   primary: '#0d9488',
   primaryHover: '#0f766e',
   primaryLight: 'rgba(13, 148, 136, 0.18)',
@@ -43,14 +41,14 @@ export const lightColors: AppColors = {
   redHover: '#dc2626',
   green: '#22c55e',
   pink: '#fbcfe8',
-  bgPageStart: '#eef6f3',
-  bgPageMid: '#d5e8e2',
-  bgPageEnd: '#c5ddd5',
-  bgSurface: '#fafcfb',
-  bgContent: '#dce9e4',
-  bgTodoItem: '#fafcfb',
-  bgAuthCard: 'rgba(250, 252, 251, 0.9)',
-  bgCardHover: '#e8f2ee',
+  bgPageStart: '#ffffff',
+  bgPageMid: '#ffffff',
+  bgPageEnd: '#ffffff',
+  bgSurface: '#ffffff',
+  bgContent: '#ffffff',
+  bgTodoItem: '#ffffff',
+  bgAuthCard: 'rgba(255, 255, 255, 0.94)',
+  bgCardHover: '#f4f4f5',
   textPrimary: '#0c3d38',
   textSecondary: '#3a5f59',
   textMuted: '#6b8a84',
@@ -62,10 +60,10 @@ export const lightColors: AppColors = {
   overlayBg: 'rgba(0, 0, 0, 0.35)',
   todoHighlight: 'rgba(13, 148, 136, 0.12)',
   sidebarLogoutHover: 'rgba(239, 68, 68, 0.08)',
+  chrome: '#d7eee6',
 };
 
 export const darkColors: AppColors = {
-  // Deep Ocean — night version of Ocean Flow
   primary: '#2dd4bf',
   primaryHover: '#14b8a6',
   primaryLight: 'rgba(45, 212, 191, 0.2)',
@@ -92,9 +90,9 @@ export const darkColors: AppColors = {
   overlayBg: 'rgba(2, 28, 27, 0.72)',
   todoHighlight: 'rgba(45, 212, 191, 0.1)',
   sidebarLogoutHover: 'rgba(251, 113, 133, 0.16)',
+  chrome: '#0a3d3a',
 };
 
-/** Default export for non-reactive StyleSheets (light). Prefer useTheme().colors */
 export const colors = lightColors;
 
 export const tokens = {

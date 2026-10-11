@@ -18,6 +18,11 @@ import { Buffer } from 'buffer';
 
 const DEK_STORAGE_KEY = 'flowtodo_dek_v1';
 
+/** Android and iOS only. The web module does not implement these methods. */
+async function secureStoreReady(): Promise<boolean> {
+  return SecureStore.isAvailableAsync();
+}
+
 export interface SecureDekOptions {
   /** Shown on the native biometric/PIN prompt (Android + iOS). */
   promptMessage?: string;
@@ -29,6 +34,7 @@ export interface SecureDekOptions {
  * toggle — fall back to password-only.
  */
 export async function isDeviceUnlockAvailable(): Promise<boolean> {
+  if (!(await secureStoreReady())) return false;
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const isEnrolled = await LocalAuthentication.isEnrolledAsync();
   // Some Android devices support device-credential (PIN) fallback even
@@ -45,6 +51,9 @@ export async function saveDekToSecureStore(
   dek: Uint8Array,
   options: SecureDekOptions = {}
 ): Promise<void> {
+  if (!(await secureStoreReady())) {
+    throw new Error('Secure storage is not available on this device.');
+  }
   const dekBase64 = Buffer.from(dek).toString('base64');
 
   await SecureStore.setItemAsync(DEK_STORAGE_KEY, dekBase64, {
@@ -65,6 +74,7 @@ export async function saveDekToSecureStore(
 export async function loadDekFromSecureStore(
   options: SecureDekOptions = {}
 ): Promise<Uint8Array | null> {
+  if (!(await secureStoreReady())) return null;
   const dekBase64 = await SecureStore.getItemAsync(DEK_STORAGE_KEY, {
     requireAuthentication: true,
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -78,6 +88,7 @@ export async function loadDekFromSecureStore(
 
 /** Call on explicit logout, password change, or "forget this device". */
 export async function clearDekFromSecureStore(): Promise<void> {
+  if (!(await secureStoreReady())) return;
   await SecureStore.deleteItemAsync(DEK_STORAGE_KEY);
 }
 
@@ -87,11 +98,13 @@ export async function hasStoredDek(): Promise<boolean> {
   // existence, which is bad UX. expo-secure-store doesn't expose a
   // no-auth "exists" check for protected items, so track this with an
   // unprotected sentinel flag instead.
+  if (!(await secureStoreReady())) return false;
   const flag = await SecureStore.getItemAsync(`${DEK_STORAGE_KEY}_flag`);
   return flag === '1';
 }
 
 async function setStoredFlag(value: boolean): Promise<void> {
+  if (!(await secureStoreReady())) return;
   if (value) {
     await SecureStore.setItemAsync(`${DEK_STORAGE_KEY}_flag`, '1');
   } else {

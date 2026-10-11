@@ -34,9 +34,12 @@ interface SheetFrameProps {
   keyboardAvoiding?: boolean;
   maxWidth?: number;
   cardStyle?: StyleProp<ViewStyle>;
+  headerStyle?: StyleProp<ViewStyle>;
   mobileCardStyle?: StyleProp<ViewStyle>;
+  overlayStyle?: StyleProp<ViewStyle>;
   accessory?: ReactNode;
   centered?: boolean;
+  embedded?: boolean;
 }
 
 export default function SheetFrame({
@@ -52,9 +55,12 @@ export default function SheetFrame({
   keyboardAvoiding = false,
   maxWidth = 420,
   cardStyle,
+  headerStyle,
   mobileCardStyle,
+  overlayStyle,
   accessory,
   centered = false,
+  embedded = false,
 }: SheetFrameProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < SHEET_MOBILE_BREAKPOINT;
@@ -78,6 +84,7 @@ export default function SheetFrame({
             header === 'bar' && styles.headerBar,
             header === 'bar' && (compactHeader ? styles.headerBarCompact : styles.headerBarDefault),
             header === 'plain' && styles.headerPlain,
+            headerStyle,
           ]}>
           <Text
             style={[
@@ -105,7 +112,9 @@ export default function SheetFrame({
   );
 
   const overlay = (
-    <Pressable style={[styles.overlay, isMobile && !centered && styles.overlayMobile]} onPress={onClose}>
+    <Pressable
+      style={[styles.overlay, isMobile && !centered && styles.overlayMobile, overlayStyle]}
+      onPress={onClose}>
       {card}
     </Pressable>
   );
@@ -120,6 +129,11 @@ export default function SheetFrame({
     overlay
   );
 
+  if (embedded) {
+    if (!visible) return null;
+    return <View style={styles.embeddedHost}>{body}</View>;
+  }
+
   return (
     <AppModal visible={visible} onClose={onClose}>
       {body}
@@ -131,6 +145,14 @@ export default function SheetFrame({
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     flex: { flex: 1 },
+    embeddedHost: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 40,
+    },
     overlay: {
       flex: 1,
       alignItems: 'center',

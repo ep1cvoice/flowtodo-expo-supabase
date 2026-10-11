@@ -456,7 +456,7 @@ function createStyles(colors: AppColors) {
       paddingTop: 8,
       paddingBottom: 4,
       gap: 2,
-      backgroundColor: colors.bgSurface,
+      backgroundColor: colors.chrome,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderColor,
     },

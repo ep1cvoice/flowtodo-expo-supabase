@@ -1,6 +1,5 @@
 import { Pressable, View } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2 } from 'lucide-react-native';
-import PomodoroTimer from '@/components/tasks/pomodoro/PomodoroTimer';
 import type { TodoItemStyles } from '@/components/tasks/item/todoItemStyles';
 import type { AppColors } from '@/constants/theme';
 
@@ -18,7 +17,6 @@ interface TaskDesktopActionsProps {
 }
 
 export default function TaskDesktopActions({
-  taskId,
   done,
   isPomoActive,
   canStart,
@@ -33,9 +31,7 @@ export default function TaskDesktopActions({
     <View style={styles.todoActions}>
       {!done && (
         <>
-          {isPomoActive ? (
-            <PomodoroTimer taskId={taskId} />
-          ) : canStart ? (
+          {!isPomoActive && canStart ? (
             <Pressable
               style={({ pressed, hovered }) => [
                 styles.todoActionBtn,

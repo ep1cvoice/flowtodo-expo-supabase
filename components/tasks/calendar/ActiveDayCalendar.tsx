@@ -7,8 +7,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
+import { tokens, type AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import { buildDayStrip, sameDay, startOfDay, toDayKey } from '@/lib/calendar/calendarDate';
 import { webInteractive } from '@/utils/pressableWeb';
@@ -181,7 +180,7 @@ function createStyles(colors: AppColors) {
       borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.borderColor,
-      backgroundColor: colors.bgSurface,
+      backgroundColor: colors.chrome,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 1,
