@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import type { AppColors } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { webInteractive } from '@/utils/pressableWeb';
+import { useAutoFocus } from '@/lib/useAutoFocus';
 
 interface TagModalProps {
   visible: boolean;
@@ -29,6 +30,8 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>('#64748b');
   const [nameError, setNameError] = useState('');
+  const nameRef = useRef<TextInput>(null);
+  useAutoFocus(nameRef, visible);
 
   useEffect(() => {
     if (!visible) return;
@@ -84,10 +87,10 @@ export default function TagModal({ visible, tag = null, onSave, onClose }: TagMo
                   }}
                   placeholder="e.g. urgent, idea, blocked..."
                   placeholderTextColor={colors.textMuted}
-                  autoFocus
                   maxLength={30}
                   autoCapitalize="none"
                   style={[styles.input, nameError ? styles.inputError : null]}
+                  ref={nameRef}
                 />
                 {!!nameError && <Text style={styles.inputErrorMsg}>{nameError}</Text>}
               </View>

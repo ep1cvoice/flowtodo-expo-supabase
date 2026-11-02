@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import type { AppColors } from '@/constants/theme';
 import { tokens } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import { useAutoFocus } from '@/lib/useAutoFocus';
 
 type InputType = 'text' | 'email' | 'password';
 
@@ -47,6 +48,8 @@ export default function Field({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  useAutoFocus(inputRef, !!autoFocus && editable);
 
   const isPassword = type === 'password';
   const secure = isPassword && !showPassword;
@@ -86,7 +89,6 @@ export default function Field({
           secureTextEntry={secure}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
-          autoFocus={autoFocus}
           editable={editable}
           keyboardType={type === 'email' ? 'email-address' : 'default'}
           returnKeyType={onSubmitEditing ? 'go' : 'done'}
@@ -94,6 +96,7 @@ export default function Field({
           textContentType={type === 'password' ? 'password' : type === 'email' ? 'emailAddress' : 'none'}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          ref={inputRef}
         />
 
         {isPassword && (
