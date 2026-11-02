@@ -41,6 +41,7 @@ export default function AddTaskModal({
         tagIds: defaultTagIds,
       }}
       resetOnClose
+      autoFocusTitle
       failLog="Failed to add task:"
       successToast="Task created."
       onSubmit={(values) =>

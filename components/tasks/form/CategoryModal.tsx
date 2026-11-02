@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import type { AppColors } from '@/constants/theme';
 import SheetFrame from '@/components/ui/SheetFrame';
 import { useTheme } from '@/context/ThemeContext';
 import { webInteractive } from '@/utils/pressableWeb';
+import { useAutoFocus } from '@/lib/useAutoFocus';
 
 interface CategoryModalProps {
   visible: boolean;
@@ -36,6 +37,8 @@ export default function CategoryModal({
   const [selectedColor, setSelectedColor] = useState<string>(PALETTE_COLORS[0]);
   const [selectedIcon, setSelectedIcon] = useState<CategoryIcon>(CATEGORY_ICONS[0]);
   const [nameError, setNameError] = useState('');
+  const nameRef = useRef<TextInput>(null);
+  useAutoFocus(nameRef, visible);
 
   useEffect(() => {
     if (!visible) return;
@@ -90,9 +93,9 @@ export default function CategoryModal({
                   }}
                   placeholder="e.g. Work, Health..."
                   placeholderTextColor={colors.textMuted}
-                  autoFocus
                   maxLength={15}
                   style={[styles.input, nameError ? styles.inputError : null]}
+                  ref={nameRef}
                 />
                 {!!nameError && <Text style={styles.inputErrorMsg}>{nameError}</Text>}
               </View>

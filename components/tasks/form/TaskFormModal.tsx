@@ -18,6 +18,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { categoryCardWash } from '@/lib/color';
 import { toastForError } from '@/lib/networkError';
+import { useAutoFocus } from '@/lib/useAutoFocus';
 import { validateTaskTitle, type TaskFormInput } from '@/lib/tasks/taskValidation';
 
 export type { TaskFormInput };
@@ -34,6 +35,7 @@ interface TaskFormModalProps {
   syncKey?: unknown;
   disableCloseWhileSubmitting?: boolean;
   resetOnClose?: boolean;
+  autoFocusTitle?: boolean;
   failLog: string;
   successToast: string;
   onSubmit: (values: TaskFormInput) => void | Promise<void>;
@@ -52,6 +54,7 @@ export default function TaskFormModal({
   syncKey,
   disableCloseWhileSubmitting = false,
   resetOnClose = false,
+  autoFocusTitle = false,
   failLog,
   successToast,
   onSubmit,
@@ -69,6 +72,8 @@ export default function TaskFormModal({
   const [inputError, setInputError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  const titleRef = useRef<TextInput>(null);
+  useAutoFocus(titleRef, visible && autoFocusTitle);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
   const headerStyle = !isDark
@@ -184,6 +189,7 @@ export default function TaskFormModal({
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Task Title</Text>
                 <TextInput
+                  ref={titleRef}
                   value={title}
                   onChangeText={handleTitleChange}
                   placeholder="Enter task title..."
