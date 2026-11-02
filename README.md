@@ -5,7 +5,7 @@
 A port of [NextTodo](https://github.com/matt400/NextTodo) to **Expo (React Native)** + **Supabase**: iOS, Android and web from a single codebase.
 
 **Live (web):** [flowtodo-expo-supabase.vercel.app](https://flowtodo-expo-supabase.vercel.app)  
-**v1.0.0:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.0) (the APK is attached to the release).
+**v1.0.1:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.1) (the APK is attached to the release).
 
 ## Screenshots
 
