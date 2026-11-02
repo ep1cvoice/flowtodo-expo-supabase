@@ -5,7 +5,7 @@
 Порт [NextTodo](https://github.com/matt400/NextTodo) на **Expo (React Native)** + **Supabase**: iOS, Android і веб з однієї кодової бази.
 
 **Live (веб):** [flowtodo-expo-supabase.vercel.app](https://flowtodo-expo-supabase.vercel.app)  
-**v1.0.0:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.0) (APK додано до релізу).
+**v1.0.1:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.1) (APK додано до релізу).
 
 ## Скриншоти
 
