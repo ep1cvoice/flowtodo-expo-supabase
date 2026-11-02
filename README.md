@@ -1,9 +1,11 @@
 # FlowTodo
 
-Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** + **Supabase** — iOS, Android i web z jednej bazy kodu.
+**English** · [Polski](README.pl.md) · [Українська](README.ua.md)
+
+A port of [NextTodo](https://github.com/matt400/NextTodo) to **Expo (React Native)** + **Supabase**: iOS, Android and web from a single codebase.
 
 **Live (web):** [flowtodo-expo-supabase.vercel.app](https://flowtodo-expo-supabase.vercel.app)  
-**v1.0.0:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.0) — APK in v1.0.0 release.
+**v1.0.0:** [Release](https://github.com/ep1cvoice/flowtodo-expo-supabase/releases/tag/v1.0.0) (the APK is attached to the release).
 
 ## Screenshots
 
@@ -18,47 +20,47 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 
 ## Status
 
-**v1.0** — core flow jest spięty z Supabase (auth, tasks, pomodoro, settings).
+**v1.0**: the core flow is wired to Supabase (auth, tasks, Pomodoro, settings).
 
-| Obszar | Stan |
-|--------|------|
+| Area | State |
+|------|-------|
 | Auth (login / register / session) | Supabase Auth + `profiles` |
-| Change password / delete account | Settings + RPC `delete_own_account` |
-| Theme + Pomodoro duration | Zapis w `profiles` |
-| Tasks / categories / tags | Supabase + RLS; demo seed dla nowych userów |
-| Pomodoro timer + historia | Tabela `pomodoros` + UI |
-| Splash screen | Brand overlay przy starcie sesji |
-| Drag & drop / reorder | Native: long-press; web: ↑/↓; `sort_order` w DB |
-| Toasty | Globalny `ToastContext` / `ToastHost` |
+| Change password / delete account | Settings + `delete_own_account` RPC |
+| Theme + Pomodoro duration | Stored in `profiles` |
+| Tasks / categories / tags | Supabase + RLS; demo seed for new users |
+| Pomodoro timer + history | `pomodoros` table + UI |
+| Splash screen | Brand overlay on session start |
+| Drag & drop / reorder | Native: long-press; web: ↑/↓; `sort_order` in the DB |
+| Toasts | Global `ToastContext` / `ToastHost` |
 | Haptics | Drag, complete, delete (native) |
 | Network awareness | Offline banner + refetch on reconnect; network toasts |
 
 ## Stack
 
-| Warstwa | Wybór |
-|---------|--------|
+| Layer | Choice |
+|-------|--------|
 | Framework | Expo SDK **54** + Expo Router |
-| Package manager | **Bun** (`bun.lock`) — Node.js LTS still needed for some Expo commands |
+| Package manager | **Bun** (`bun.lock`); Node.js LTS is still needed for some Expo commands |
 | UI | React Native + `react-native-web`, StyleSheet |
-| Ikony | `lucide-react-native` |
-| Auth / DB | Supabase (`supabase-js`), sesja w AsyncStorage |
+| Icons | `lucide-react-native` |
+| Auth / DB | Supabase (`supabase-js`), session in AsyncStorage |
 | Gestures / DnD | `gesture-handler`, `reanimated`, `react-native-sortables` |
 | Feedback | `expo-haptics`, custom toasts |
-| Dźwięk | `expo-av` (alarm Pomodoro) |
+| Sound | `expo-av` (Pomodoro alarm) |
 
 ## Supabase migrations
 
-Kolejność w `supabase/migrations/`:
+Order in `supabase/migrations/`:
 
-1. `001_profiles.sql` — profil + settings
-2. `002_tasks_domain.sql` — tasks / categories / tags + RLS
-3. `003_grants.sql` — GRANTy dla `authenticated`
-4. `004_delete_own_account.sql` — RPC usuwania konta
-5. `005_pomodoros.sql` — sesje i historia Pomodoro
-6. `006_tasks_completed_at.sql` — `completed_at` na taskach
-7. `007_filter_limits.sql` — wspólny limit filtrów (`max_filter_selections`, 5–30)
+1. `001_profiles.sql`: profile + settings
+2. `002_tasks_domain.sql`: tasks / categories / tags + RLS
+3. `003_grants.sql`: grants for `authenticated`
+4. `004_delete_own_account.sql`: account deletion RPC
+5. `005_pomodoros.sql`: Pomodoro sessions and history
+6. `006_tasks_completed_at.sql`: `completed_at` on tasks
+7. `007_filter_limits.sql`: shared filter limit (`max_filter_selections`, 5–30)
 
-Odpal migracje w projekcie Supabase (SQL Editor albo CLI) w tej kolejności na świeżej bazie.
+On a fresh database, run the migrations in this order (SQL Editor or CLI).
 
 ## Run
 
@@ -66,35 +68,35 @@ Install [Bun](https://bun.sh/docs/installation), then:
 
 ```bash
 bun install
-cp .env.example .env   # uzupełnij klucze lokalnie
+cp .env.example .env   # fill in your keys locally
 bun start -- -c
 ```
 
-`w` = web · Expo Go = QR z terminala · SDK celowo **54** pod aktualne Expo Go.
+`w` = web · Expo Go = scan the QR code from the terminal · SDK **54** on purpose, to match the current Expo Go.
 
-| Zadanie | Komenda |
-|---------|---------|
+| Task | Command |
+|------|---------|
 | Dev server | `bun start` |
 | Android | `bun run android` |
 | iOS | `bun run ios` |
 | Web | `bun run web` |
-| Dodać bibliotekę Expo | `bun expo install <pkg>` |
+| Add an Expo library | `bun expo install <pkg>` |
 
 ## Android APK
 
 ```bash
 bunx eas-cli login
-bunx eas-cli build:configure   # once — links Expo projectId into app.json
+bunx eas-cli build:configure   # once: links the Expo projectId into app.json
 bunx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://YOUR.supabase.co" --visibility plaintext --non-interactive
 bunx eas-cli env:set preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your_anon_key" --visibility sensitive --non-interactive
 bunx eas-cli build -p android --profile preview
 ```
 
-Profil `preview` w `eas.json` buduje **APK** (nie AAB). Po buildzie Expo daje link do pobrania — na telefonie trzeba zezwolić na instalację z nieznanych źródeł. EAS używa Buna, bo w repo jest `bun.lock`.
+The `preview` profile in `eas.json` builds an **APK** (not an AAB). After the build, Expo gives you a download link; on the phone you need to allow installs from unknown sources. EAS uses Bun because the repo has a `bun.lock`.
 
 ## Web (Vercel)
 
-Push na `main` odpala deploy. Env na Vercelu (build-time): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Config: `vercel.json`.
+A push to `main` triggers a deploy. Vercel env vars (build time): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Config: `vercel.json`.
 
 ## Tests
 
@@ -102,7 +104,7 @@ Push na `main` odpala deploy. Env na Vercelu (build-time): `EXPO_PUBLIC_SUPABASE
 bun run test
 ```
 
-Używaj `bun run test`, nie `bun test` — to drugi runner, nie Jest.
+Use `bun run test`, not `bun test`: that one is Bun's own runner, not Jest.
 
 Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
-Must-have coverage for now: auth validation (+ login smoke), network errors, task/pomo mappers, filtered reorder, offline banner.
+Current must-have coverage: auth validation (+ login smoke test), network errors, task/Pomodoro mappers, filtered reorder, offline banner.
