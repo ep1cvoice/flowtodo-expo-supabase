@@ -71,7 +71,7 @@ describe('getActiveEmptyCopy', () => {
         validTagIds: [],
       })
     ).toEqual({
-      title: 'You have no tasks for this day',
+      title: 'No tasks for this day',
       text: 'Create a task or pick another day',
     });
   });
