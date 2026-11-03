@@ -108,7 +108,7 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterati
     return new Uint8Array(derived);
   }
 
-  const deriveViaWebView = (global as { deriveKeyViaWebView?: (
+  const deriveViaWebView = (globalThis as { deriveKeyViaWebView?: (
     password: string,
     saltBase64: string,
     iterations: number
@@ -157,7 +157,10 @@ function gcmDecrypt(key: Uint8Array, iv: Uint8Array, combined: Uint8Array): Uint
       Buffer.from(iv)
     );
     decipher.setAuthTag(tag as Buffer);
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(ciphertext)),
+      decipher.final(),
+    ]);
     return new Uint8Array(plaintext);
   }
   return gcm(key, iv).decrypt(combined);

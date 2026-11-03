@@ -112,7 +112,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
                   value={biometricUnlockAvailable}
                   onValueChange={handleBiometricToggle}
                   disabled={biometricBusy}
-                  trackColor={{ false: colors.border, true: colors.primary }}
+                  trackColor={{ false: colors.borderColor, true: colors.primary }}
                 />
               </View>
             </View>

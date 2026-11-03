@@ -74,7 +74,7 @@ export const Pbkdf2WebView = () => {
   }>>({});
 
   useEffect(() => {
-    (global as { deriveKeyViaWebView?: typeof derive }).deriveKeyViaWebView = derive;
+    (globalThis as { deriveKeyViaWebView?: typeof derive }).deriveKeyViaWebView = derive;
 
     function derive(password: string, saltBase64: string, iterations: number) {
       return new Promise<string>((resolve, reject) => {
@@ -99,7 +99,7 @@ export const Pbkdf2WebView = () => {
     }
 
     return () => {
-      delete (global as { deriveKeyViaWebView?: unknown }).deriveKeyViaWebView;
+      delete (globalThis as { deriveKeyViaWebView?: unknown }).deriveKeyViaWebView;
       Object.values(pendingRequests.current).forEach((req) => {
         clearTimeout(req.timer);
         req.reject(new Error('WebView PBKDF2 unmounted'));
