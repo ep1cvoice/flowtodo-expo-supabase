@@ -39,7 +39,7 @@ Port [NextTodo](https://github.com/matt400/NextTodo) na **Expo (React Native)** 
 
 | Warstwa | Wybór |
 |---------|-------|
-| Framework | Expo SDK **54** + Expo Router |
+| Framework | Expo SDK **57** + Expo Router |
 | Menedżer pakietów | **Bun** (`bun.lock`); Node.js LTS nadal potrzebny do części komend Expo |
 | UI | React Native + `react-native-web`, StyleSheet |
 | Ikony | `lucide-react-native` |
@@ -72,7 +72,7 @@ cp .env.example .env   # uzupełnij klucze lokalnie
 bun start -- -c
 ```
 
-`w` = web · Expo Go = kod QR z terminala · SDK celowo **54**, pod aktualne Expo Go.
+`w` = web · Expo Go = kod QR z terminala · SDK celowo **57**, pod aktualne Expo Go.
 
 | Zadanie | Komenda |
 |---------|---------|

@@ -39,7 +39,7 @@
 
 | Рівень | Вибір |
 |--------|-------|
-| Фреймворк | Expo SDK **54** + Expo Router |
+| Фреймворк | Expo SDK **57** + Expo Router |
 | Менеджер пакетів | **Bun** (`bun.lock`); Node.js LTS усе ще потрібен для деяких команд Expo |
 | UI | React Native + `react-native-web`, StyleSheet |
 | Іконки | `lucide-react-native` |
@@ -72,7 +72,7 @@ cp .env.example .env   # заповніть ключі локально
 bun start -- -c
 ```
 
-`w` = веб · Expo Go = QR-код у терміналі · SDK навмисно **54**, під актуальний Expo Go.
+`w` = веб · Expo Go = QR-код у терміналі · SDK навмисно **57**, під актуальний Expo Go.
 
 | Завдання | Команда |
 |----------|---------|

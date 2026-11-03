@@ -39,7 +39,7 @@ A port of [NextTodo](https://github.com/matt400/NextTodo) to **Expo (React Nativ
 
 | Layer | Choice |
 |-------|--------|
-| Framework | Expo SDK **54** + Expo Router |
+| Framework | Expo SDK **57** + Expo Router |
 | Package manager | **Bun** (`bun.lock`); Node.js LTS is still needed for some Expo commands |
 | UI | React Native + `react-native-web`, StyleSheet |
 | Icons | `lucide-react-native` |
@@ -72,7 +72,7 @@ cp .env.example .env   # fill in your keys locally
 bun start -- -c
 ```
 
-`w` = web · Expo Go = scan the QR code from the terminal · SDK **54** on purpose, to match the current Expo Go.
+`w` = web · Expo Go = scan the QR code from the terminal · SDK **57** on purpose, to match the current Expo Go.
 
 | Task | Command |
 |------|---------|
