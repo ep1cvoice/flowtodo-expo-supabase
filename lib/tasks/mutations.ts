@@ -1,4 +1,4 @@
-import { encryptField, hashForUniqueness } from '@/lib/crypto';
+import { encryptedColumns } from '@/lib/crypto/encryptedColumns';
 import { mapCategory, mapTag } from '@/lib/tasks/taskMappers';
 import { encryptTaskFields } from '@/lib/tasks/encryptTaskFields';
 import type { AddCategoryInput, AddTagInput } from '@/lib/tasks/types';
@@ -82,10 +82,6 @@ export async function insertEncryptedCategory(
   dek: Uint8Array,
   input: AddCategoryInput
 ): Promise<Category> {
-  const trimmedName = input.name.trim();
-  const nameEnc = await encryptField(dek, trimmedName);
-  const nameHash = hashForUniqueness(dek, trimmedName);
-
   const { data, error } = await supabase
     .from('categories')
     .insert({
@@ -93,9 +89,7 @@ export async function insertEncryptedCategory(
       name: '', // plaintext no longer written — real value in name_enc
       color: input.color,
       icon: String(input.icon),
-      name_enc: nameEnc.ciphertext,
-      name_iv: nameEnc.iv,
-      name_hash: nameHash,
+      ...(await encryptedColumns(dek, 'name', input.name, { hash: true })),
     })
     .select('*')
     .single();
@@ -109,19 +103,13 @@ export async function insertEncryptedTag(
   dek: Uint8Array,
   input: AddTagInput
 ): Promise<Tag> {
-  const trimmedName = input.name.trim();
-  const nameEnc = await encryptField(dek, trimmedName);
-  const nameHash = hashForUniqueness(dek, trimmedName);
-
   const { data, error } = await supabase
     .from('tags')
     .insert({
       user_id: userId,
       name: '', // plaintext no longer written — real value in name_enc
       color: input.color,
-      name_enc: nameEnc.ciphertext,
-      name_iv: nameEnc.iv,
-      name_hash: nameHash,
+      ...(await encryptedColumns(dek, 'name', input.name, { hash: true })),
     })
     .select('*')
     .single();

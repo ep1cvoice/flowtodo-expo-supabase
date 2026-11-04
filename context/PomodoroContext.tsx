@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTasks } from '@/context/TasksContext';
 import { mapActivePomo, mapPomoRecord } from '@/lib/pomodoro/pomoMappers';
 import { registerPomodoroLogoutSnapshot } from '@/lib/pomodoro/pomodoroLogoutBridge';
-import { encryptField } from '@/lib/crypto';
+import { encryptedColumns } from '@/lib/crypto/encryptedColumns';
 import { requireDek } from '@/lib/auth/requireDek';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
@@ -175,16 +175,13 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       const taskName = tasks.find((t) => t.id === taskId)?.title ?? 'Task';
       const now = new Date().toISOString();
 
-      const taskNameEnc = await encryptField(activeDek, taskName);
-
       const { data, error } = await supabase
         .from('pomodoros')
         .insert({
           user_id: userId,
           task_id: taskId,
           task_name: '', // plaintext no longer written — real value in task_name_enc
-          task_name_enc: taskNameEnc.ciphertext,
-          task_name_iv: taskNameEnc.iv,
+          ...(await encryptedColumns(activeDek, 'task_name', taskName)),
           duration: durationSec,
           elapsed: 0,
           started_at: now,
@@ -251,8 +248,6 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       tasks.find((t) => t.id === activePomo.taskId)?.title ??
       'Deleted task';
 
-    const taskNameEnc = await encryptField(activeDek, taskName);
-
     const { error } = await supabase
       .from('pomodoros')
       .update({
@@ -260,8 +255,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         ended_at: endedAt,
         paused_at: null,
         task_name: '', // plaintext no longer written — real value in task_name_enc
-        task_name_enc: taskNameEnc.ciphertext,
-        task_name_iv: taskNameEnc.iv,
+        ...(await encryptedColumns(activeDek, 'task_name', taskName)),
       })
       .eq('id', activePomo.id)
       .eq('user_id', userId);
