@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
-import CalendarTasks from '@/components/tasks/CalendarTasks';
-import ScreenBackground from '@/components/ui/ScreenBackground';
-import { tokens } from '@/constants/theme';
+import CalendarTasks from '@/features/tasks/components/CalendarTasks';
+import ScreenBackground from '@/shared/ui/ScreenBackground';
+import { tokens } from '@/shared/constants/theme';
 
 export default function CalendarScreen() {
   return (

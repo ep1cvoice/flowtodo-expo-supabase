@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
-import { validateLogin } from '@/lib/auth/authValidation';
-import { toastForError } from '@/lib/networkError';
-import Heading from '@/components/ui/Heading';
-import Field from '@/components/ui/Field';
-import Button from '@/components/ui/Button';
-import Linking from '@/components/ui/Linking';
-import AuthLayout, { LoggingInOverlay } from '@/components/ui/AuthLayout';
+import { useAuth } from '@/core/auth/AuthContext';
+import { useToast } from '@/shared/providers/ToastContext';
+import { validateLogin } from '@/core/auth/authValidation';
+import { toastForError } from '@/shared/lib/networkError';
+import Heading from '@/shared/ui/Heading';
+import Field from '@/shared/ui/Field';
+import Button from '@/shared/ui/Button';
+import Linking from '@/shared/ui/Linking';
+import AuthLayout, { LoggingInOverlay } from '@/shared/ui/AuthLayout';
 
 export default function LoginScreen() {
   const [values, setValues] = useState({ email: '', password: '' });
