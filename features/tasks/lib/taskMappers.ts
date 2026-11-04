@@ -1,4 +1,4 @@
-import { decryptField } from '@/core/crypto';
+import { decryptColumn, decryptOptionalColumn } from '@/core/crypto/decryptColumn';
 import type { Category, Tag, Task } from '@/types';
 import type { Database } from '@/types/database';
 
@@ -11,25 +11,17 @@ export type TaskQueryRow = TaskRow & {
   task_tags: { tags: TagRow | null }[] | null;
 };
 
-/** Odszyfrowuje pole z enc+iv. Brak DEK, brak enc/iv lub błąd deszyfrowania → pusty string. */
-function resolveField(
-  dek: Uint8Array | null,
-  encrypted: string | null,
-  iv: string | null
-): string {
-  if (!dek || !encrypted || !iv) return '';
-  try {
-    return decryptField(dek, encrypted, iv);
-  } catch (err) {
-    console.warn('Failed to decrypt field:', err);
-    return '';
-  }
-}
+// All mappers below throw DecryptionError (see core/crypto/decryptColumn) when a value
+// cannot be decrypted: missing DEK, missing ciphertext/IV, or a failed decryption.
 
 export function mapCategory(row: CategoryRow, dek: Uint8Array | null): Category {
   return {
     id: Number(row.id),
-    name: resolveField(dek, row.name_enc, row.name_iv),
+    name: decryptColumn(dek, row.name_enc, row.name_iv, {
+      table: 'categories',
+      id: row.id,
+      column: 'name',
+    }),
     color: row.color,
     icon: row.icon,
   };
@@ -38,7 +30,11 @@ export function mapCategory(row: CategoryRow, dek: Uint8Array | null): Category 
 export function mapTag(row: TagRow, dek: Uint8Array | null): Tag {
   return {
     id: Number(row.id),
-    name: resolveField(dek, row.name_enc, row.name_iv),
+    name: decryptColumn(dek, row.name_enc, row.name_iv, {
+      table: 'tags',
+      id: row.id,
+      column: 'name',
+    }),
     color: row.color,
   };
 }
@@ -51,8 +47,17 @@ export function mapTask(row: TaskQueryRow, dek: Uint8Array | null): Task {
 
   return {
     id: Number(row.id),
-    title: resolveField(dek, row.title_enc, row.title_iv),
-    description: resolveField(dek, row.description_enc, row.description_iv),
+    title: decryptColumn(dek, row.title_enc, row.title_iv, {
+      table: 'tasks',
+      id: row.id,
+      column: 'title',
+    }),
+    // An empty description is stored as NULL (encryptedColumns with emptyAsNull).
+    description: decryptOptionalColumn(dek, row.description_enc, row.description_iv, {
+      table: 'tasks',
+      id: row.id,
+      column: 'description',
+    }),
     done: row.done,
     scheduled: row.scheduled,
     completedAt: row.completed_at,

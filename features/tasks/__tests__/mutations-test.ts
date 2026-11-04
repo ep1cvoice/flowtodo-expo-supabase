@@ -54,13 +54,14 @@ describe('insertEncryptedTask', () => {
     const tags = createBuilder();
     from.mockReturnValueOnce(tasks).mockReturnValueOnce(tags);
 
-    await insertEncryptedTask(base);
+    const id = await insertEncryptedTask(base);
 
+    expect(id).toBe(7);
     const [payload] = callsOf(tasks, 'insert')[0];
+    expect(payload).not.toHaveProperty('title');
+    expect(payload).not.toHaveProperty('description');
     expect(payload).toMatchObject({
       user_id: 'u1',
-      title: '',
-      description: '',
       title_enc: 'title_ct',
       description_enc: 'desc_ct',
       category_id: 3,
@@ -139,7 +140,6 @@ describe('insertEncryptedTag', () => {
     expect(hashForUniqueness).toHaveBeenCalledWith(dek, 'Work');
     expect(callsOf(builder, 'insert')[0][0]).toEqual({
       user_id: 'u1',
-      name: '',
       color: '#fff',
       name_enc: 'ct',
       name_iv: 'iv',

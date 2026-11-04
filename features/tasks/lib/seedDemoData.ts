@@ -4,88 +4,53 @@ import {
   DEMO_TASKS,
   scheduledAtNoon,
 } from '@/features/tasks/demoSeed';
-import { supabase } from '@/core/supabase/client';
+import {
+  insertEncryptedCategory,
+  insertEncryptedTag,
+  insertEncryptedTask,
+} from '@/features/tasks/lib/mutations';
 
 /**
  * Inserts demo categories, tags, and active tasks for a brand-new empty account.
+ * Everything is written encrypted with the user's DEK (plaintext columns no longer exist).
  * Completed stays empty. Idempotent only via caller (seed when workspace is empty).
  */
-export async function seedDemoData(userId: string): Promise<void> {
-  const { data: categories, error: catError } = await supabase
-    .from('categories')
-    .insert(
-      DEMO_CATEGORIES.map((c) => ({
-        user_id: userId,
+export async function seedDemoData(userId: string, dek: Uint8Array): Promise<void> {
+  const categoryEntries = await Promise.all(
+    DEMO_CATEGORIES.map(async (c) => {
+      const category = await insertEncryptedCategory(userId, dek, {
         name: c.name,
         color: c.color,
         icon: c.icon,
-      }))
-    )
-    .select('id, name');
+      });
+      return [c.key, category.id] as const;
+    })
+  );
+  const categoryIdByKey = new Map<string, number>(categoryEntries);
 
-  if (catError) throw catError;
+  const tagEntries = await Promise.all(
+    DEMO_TAGS.map(async (t) => {
+      const tag = await insertEncryptedTag(userId, dek, { name: t.name, color: t.color });
+      return [t.key, tag.id] as const;
+    })
+  );
+  const tagIdByKey = new Map<string, number>(tagEntries);
 
-  const categoryIdByKey = new Map<string, number>();
-  for (const demo of DEMO_CATEGORIES) {
-    const row = categories?.find((c) => c.name === demo.name);
-    if (row) categoryIdByKey.set(demo.key, Number(row.id));
-  }
-
-  const { data: tags, error: tagError } = await supabase
-    .from('tags')
-    .insert(
-      DEMO_TAGS.map((t) => ({
-        user_id: userId,
-        name: t.name,
-        color: t.color,
-      }))
-    )
-    .select('id, name');
-
-  if (tagError) throw tagError;
-
-  const tagIdByKey = new Map<string, number>();
-  for (const demo of DEMO_TAGS) {
-    const row = tags?.find((t) => t.name === demo.name);
-    if (row) tagIdByKey.set(demo.key, Number(row.id));
-  }
-
-  const { data: tasks, error: taskError } = await supabase
-    .from('tasks')
-    .insert(
-      DEMO_TASKS.map((t) => ({
-        user_id: userId,
-        title: t.title,
-        description: t.description,
-        done: false,
-        sort_order: t.sortOrder,
-        category_id:
-          t.categoryKey != null ? (categoryIdByKey.get(t.categoryKey) ?? null) : null,
-        scheduled:
-          t.scheduledOffsetDays != null ? scheduledAtNoon(t.scheduledOffsetDays) : null,
-      }))
-    )
-    .select('id, title');
-
-  if (taskError) throw taskError;
-
-  const taskIdByTitle = new Map<string, number>();
-  for (const row of tasks ?? []) {
-    taskIdByTitle.set(row.title, Number(row.id));
-  }
-
-  const links: { task_id: number; tag_id: number }[] = [];
+  // Sequential on purpose: keeps insertion order stable for the task list.
   for (const demo of DEMO_TASKS) {
-    const taskId = taskIdByTitle.get(demo.title);
-    if (taskId == null) continue;
-    for (const tagKey of demo.tagKeys) {
-      const tagId = tagIdByKey.get(tagKey);
-      if (tagId != null) links.push({ task_id: taskId, tag_id: tagId });
-    }
-  }
-
-  if (links.length > 0) {
-    const { error: linkError } = await supabase.from('task_tags').insert(links);
-    if (linkError) throw linkError;
+    await insertEncryptedTask({
+      userId,
+      dek,
+      title: demo.title,
+      description: demo.description,
+      categoryId:
+        demo.categoryKey != null ? (categoryIdByKey.get(demo.categoryKey) ?? null) : null,
+      tagIds: demo.tagKeys
+        .map((key) => tagIdByKey.get(key))
+        .filter((id): id is number => id != null),
+      scheduled:
+        demo.scheduledOffsetDays != null ? scheduledAtNoon(demo.scheduledOffsetDays) : null,
+      sortOrder: demo.sortOrder,
+    });
   }
 }

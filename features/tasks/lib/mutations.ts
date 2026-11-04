@@ -14,15 +14,13 @@ export async function insertEncryptedTask(options: {
   tagIds: number[];
   scheduled: string | null;
   sortOrder: number;
-}) {
+}): Promise<number> {
   const enc = await encryptTaskFields(options.dek, options.title, options.description);
 
   const { data, error } = await supabase
     .from('tasks')
     .insert({
       user_id: options.userId,
-      title: '', // plaintext no longer written — real value in title_enc
-      description: '', // plaintext no longer written — real value in description_enc
       category_id: options.categoryId,
       sort_order: options.sortOrder,
       done: false,
@@ -40,6 +38,8 @@ export async function insertEncryptedTask(options: {
     );
     if (tagError) throw tagError;
   }
+
+  return Number(data.id);
 }
 
 export async function updateEncryptedTask(options: {
@@ -56,8 +56,6 @@ export async function updateEncryptedTask(options: {
   const { error } = await supabase
     .from('tasks')
     .update({
-      title: '', // plaintext no longer written — real value in title_enc
-      description: '', // plaintext no longer written — real value in description_enc
       category_id: options.categoryId,
       ...enc,
     })
@@ -86,7 +84,6 @@ export async function insertEncryptedCategory(
     .from('categories')
     .insert({
       user_id: userId,
-      name: '', // plaintext no longer written — real value in name_enc
       color: input.color,
       icon: String(input.icon),
       ...(await encryptedColumns(dek, 'name', input.name, { hash: true })),
@@ -107,7 +104,6 @@ export async function insertEncryptedTag(
     .from('tags')
     .insert({
       user_id: userId,
-      name: '', // plaintext no longer written — real value in name_enc
       color: input.color,
       ...(await encryptedColumns(dek, 'name', input.name, { hash: true })),
     })

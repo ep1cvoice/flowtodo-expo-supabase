@@ -12,10 +12,8 @@ import type { Category, Tag, Task } from '@/types';
 export const TASK_SELECT = `
   id,
   user_id,
-  title,
   title_enc,
   title_iv,
-  description,
   description_enc,
   description_iv,
   done,
@@ -25,8 +23,8 @@ export const TASK_SELECT = `
   category_id,
   created_at,
   updated_at,
-  categories ( id, user_id, name, name_enc, name_iv, name_hash, color, icon, created_at ),
-  task_tags ( tags ( id, user_id, name, name_enc, name_iv, name_hash, color, created_at ) )
+  categories ( id, user_id, name_enc, name_iv, name_hash, color, icon, created_at ),
+  task_tags ( tags ( id, user_id, name_enc, name_iv, name_hash, color, created_at ) )
 `;
 
 export function mapTaskRows(
@@ -68,8 +66,8 @@ export async function fetchCompletedPage(
 
 export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null) {
   const [categoriesRes, tagsRes, activeRes, countRes, completedPage] = await Promise.all([
-    supabase.from('categories').select('*').eq('user_id', userId).order('name'),
-    supabase.from('tags').select('*').eq('user_id', userId).order('name'),
+    supabase.from('categories').select('*').eq('user_id', userId),
+    supabase.from('tags').select('*').eq('user_id', userId),
     supabase
       .from('tasks')
       .select(TASK_SELECT)
@@ -89,8 +87,12 @@ export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null)
   if (activeRes.error) throw activeRes.error;
   if (countRes.error) throw countRes.error;
 
-  const categories: Category[] = (categoriesRes.data ?? []).map((row) => mapCategory(row, dek));
-  const tags: Tag[] = (tagsRes.data ?? []).map((row) => mapTag(row, dek));
+  // Names are encrypted, so the database cannot sort by them — sort after decrypting.
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+  const categories: Category[] = (categoriesRes.data ?? [])
+    .map((row) => mapCategory(row, dek))
+    .sort(byName);
+  const tags: Tag[] = (tagsRes.data ?? []).map((row) => mapTag(row, dek)).sort(byName);
   const activeTasks = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek);
   const completedTasks = sortCompletedTasks(completedPage.page);
 

@@ -180,7 +180,6 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         .insert({
           user_id: userId,
           task_id: taskId,
-          task_name: '', // plaintext no longer written — real value in task_name_enc
           ...(await encryptedColumns(activeDek, 'task_name', taskName)),
           duration: durationSec,
           elapsed: 0,
@@ -254,7 +253,6 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         elapsed,
         ended_at: endedAt,
         paused_at: null,
-        task_name: '', // plaintext no longer written — real value in task_name_enc
         ...(await encryptedColumns(activeDek, 'task_name', taskName)),
       })
       .eq('id', activePomo.id)

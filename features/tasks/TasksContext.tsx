@@ -139,8 +139,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           snapshot.activeTasks.length === 0 &&
           snapshot.completedTasks.length === 0;
 
-        if (isEmpty) {
-          await withTimeout(seedDemoData(userId), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
+        // Seeding needs the DEK; when it is not available yet the effect re-runs once it is.
+        if (isEmpty && dek) {
+          await withTimeout(seedDemoData(userId, dek), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
           if (cancelled) return;
           await withTimeout(refresh(userId), TASKS_REFRESH_TIMEOUT_MS, 'refreshTasksAfterSeed');
         }

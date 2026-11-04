@@ -107,9 +107,18 @@ describe('initial load', () => {
 
     const { result } = await renderTasks();
 
-    expect(seed).toHaveBeenCalledWith('u1');
+    expect(seed).toHaveBeenCalledWith('u1', dek);
     expect(fetchSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([9]);
+  });
+
+  it('does not seed while the DEK is not available', async () => {
+    mockAuthState.dek = null;
+    fetchSnapshot.mockResolvedValue(snapshotWith([]));
+
+    await renderTasks();
+
+    expect(seed).not.toHaveBeenCalled();
   });
 
   it('does not query anything when signed out', async () => {
