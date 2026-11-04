@@ -10,7 +10,6 @@ import {
   encryptDekWithPassword,
   generateEncryptionMaterial,
 } from '@/lib/crypto';
-import { migrateUserEncryption } from '@/lib/crypto/migrateEncryption';
 import { withRetry } from '@/lib/retry';
 import { withTimeout } from '@/lib/withTimeout';
 import { supabase } from '@/supabase/client';
@@ -171,9 +170,6 @@ export async function resolveDekFromPassword(options: {
       decryptedDek,
       options.password,
       iterations
-    );
-    void migrateUserEncryption(options.userId, decryptedDek).catch((err) =>
-      console.warn('Background encryption migration failed:', err)
     );
 
     return { ok: true, dek: decryptedDek };

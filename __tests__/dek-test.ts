@@ -15,9 +15,6 @@ jest.mock('@/lib/crypto', () => ({
   encryptDekWithPassword: jest.fn(),
   generateEncryptionMaterial: jest.fn(),
 }));
-jest.mock('@/lib/crypto/migrateEncryption', () => ({
-  migrateUserEncryption: jest.fn().mockResolvedValue(undefined),
-}));
 jest.mock('@/lib/retry', () => ({ withRetry: (fn: () => Promise<unknown>) => fn() }));
 jest.mock('@/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
 
@@ -26,7 +23,6 @@ import {
   encryptDekWithPassword,
   generateEncryptionMaterial,
 } from '@/lib/crypto';
-import { migrateUserEncryption } from '@/lib/crypto/migrateEncryption';
 import { supabase } from '@/supabase/client';
 import { resolveDekFromPassword } from '@/lib/auth/dek';
 
@@ -64,7 +60,6 @@ describe('resolveDekFromPassword', () => {
 
     expect(res).toEqual({ ok: true, dek: theDek });
     expect(decrypt).toHaveBeenCalledWith('pw', 's', 'e', 'i', 210000);
-    expect(migrateUserEncryption).toHaveBeenCalledWith('u1', theDek);
   });
 
   it('returns a readable error when the profile fetch fails', async () => {

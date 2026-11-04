@@ -11,28 +11,25 @@ export type TaskQueryRow = TaskRow & {
   task_tags: { tags: TagRow | null }[] | null;
 };
 
-/** Odszyfrowuje pole jeśli dostępne są enc+iv i mamy DEK; inaczej fallback na plaintext kolumnę. */
+/** Odszyfrowuje pole z enc+iv. Brak DEK, brak enc/iv lub błąd deszyfrowania → pusty string. */
 function resolveField(
   dek: Uint8Array | null,
   encrypted: string | null,
-  iv: string | null,
-  plaintextFallback: string
+  iv: string | null
 ): string {
-  if (dek && encrypted && iv) {
-    try {
-      return decryptField(dek, encrypted, iv);
-    } catch (err) {
-      console.warn('Failed to decrypt field, falling back to plaintext:', err);
-      return plaintextFallback;
-    }
+  if (!dek || !encrypted || !iv) return '';
+  try {
+    return decryptField(dek, encrypted, iv);
+  } catch (err) {
+    console.warn('Failed to decrypt field:', err);
+    return '';
   }
-  return plaintextFallback;
 }
 
 export function mapCategory(row: CategoryRow, dek: Uint8Array | null): Category {
   return {
     id: Number(row.id),
-    name: resolveField(dek, row.name_enc, row.name_iv, row.name),
+    name: resolveField(dek, row.name_enc, row.name_iv),
     color: row.color,
     icon: row.icon,
   };
@@ -41,7 +38,7 @@ export function mapCategory(row: CategoryRow, dek: Uint8Array | null): Category 
 export function mapTag(row: TagRow, dek: Uint8Array | null): Tag {
   return {
     id: Number(row.id),
-    name: resolveField(dek, row.name_enc, row.name_iv, row.name),
+    name: resolveField(dek, row.name_enc, row.name_iv),
     color: row.color,
   };
 }
@@ -54,8 +51,8 @@ export function mapTask(row: TaskQueryRow, dek: Uint8Array | null): Task {
 
   return {
     id: Number(row.id),
-    title: resolveField(dek, row.title_enc, row.title_iv, row.title),
-    description: resolveField(dek, row.description_enc, row.description_iv, row.description ?? ''),
+    title: resolveField(dek, row.title_enc, row.title_iv),
+    description: resolveField(dek, row.description_enc, row.description_iv),
     done: row.done,
     scheduled: row.scheduled,
     completedAt: row.completed_at,
