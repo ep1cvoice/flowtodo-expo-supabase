@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Mail, Lock, User } from 'lucide-react-native';
-import Heading from '@/components/ui/Heading';
-import Field from '@/components/ui/Field';
-import Button from '@/components/ui/Button';
-import Linking from '@/components/ui/Linking';
-import AuthLayout from '@/components/ui/AuthLayout';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
-import { validateRegister } from '@/lib/auth/authValidation';
-import { toastForError } from '@/lib/networkError';
+import Heading from '@/shared/ui/Heading';
+import Field from '@/shared/ui/Field';
+import Button from '@/shared/ui/Button';
+import Linking from '@/shared/ui/Linking';
+import AuthLayout from '@/shared/ui/AuthLayout';
+import { useAuth } from '@/core/auth/AuthContext';
+import { useToast } from '@/shared/providers/ToastContext';
+import { validateRegister } from '@/core/auth/authValidation';
+import { toastForError } from '@/shared/lib/networkError';
 
 export default function RegisterScreen() {
   const [values, setValues] = useState({

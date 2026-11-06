@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
-import ActiveTasks from '@/components/tasks/ActiveTasks';
-import ScreenBackground from '@/components/ui/ScreenBackground';
-import { tokens } from '@/constants/theme';
+import ActiveTasks from '@/features/tasks/components/ActiveTasks';
+import ScreenBackground from '@/shared/ui/ScreenBackground';
+import { tokens } from '@/shared/constants/theme';
 
 export default function ActiveTasksScreen() {
   return (

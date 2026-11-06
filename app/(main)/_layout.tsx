@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { Redirect, Stack, type Href } from 'expo-router';
-import OfflineBanner from '@/components/ui/OfflineBanner';
-import { useAuth } from '@/context/AuthContext';
+import OfflineBanner from '@/shared/ui/OfflineBanner';
+import { useAuth } from '@/core/auth/AuthContext';
 
 export default function MainLayout() {
   const { isAuthenticated, loading } = useAuth();

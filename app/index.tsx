@@ -1,5 +1,5 @@
 import { Redirect, type Href } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/core/auth/AuthContext';
 
 export default function Index() {
   const { isAuthenticated, loading } = useAuth();

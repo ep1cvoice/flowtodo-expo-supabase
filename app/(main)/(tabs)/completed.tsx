@@ -8,23 +8,23 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { useTasks } from '@/context/TasksContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useToast } from '@/context/ToastContext';
-import ToDoItem from '@/components/tasks/item/ToDoItem';
+import { useTasks } from '@/features/tasks/TasksContext';
+import { useTheme } from '@/shared/providers/ThemeContext';
+import { useToast } from '@/shared/providers/ToastContext';
+import ToDoItem from '@/features/tasks/components/item/ToDoItem';
 import TaskSearchBar, {
   TASK_LIST_INSET,
   TaskSearchToggle,
-} from '@/components/tasks/filters/TaskSearchBar';
-import EmptyState from '@/components/ui/EmptyState';
-import ScreenBackground from '@/components/ui/ScreenBackground';
-import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
-import { groupCompletedTasks } from '@/lib/tasks/completedGroups';
-import { toastForError } from '@/lib/networkError';
-import { filterTasksBySearch } from '@/lib/tasks/taskSearch';
-import { useTaskSearch } from '@/lib/tasks/useTaskSearch';
-import { webInteractive } from '@/utils/pressableWeb';
+} from '@/features/tasks/components/filters/TaskSearchBar';
+import EmptyState from '@/shared/ui/EmptyState';
+import ScreenBackground from '@/shared/ui/ScreenBackground';
+import type { AppColors } from '@/shared/constants/theme';
+import { tokens } from '@/shared/constants/theme';
+import { groupCompletedTasks } from '@/features/tasks/lib/completedGroups';
+import { toastForError } from '@/shared/lib/networkError';
+import { filterTasksBySearch } from '@/features/tasks/lib/taskSearch';
+import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
+import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export default function CompletedTasksScreen() {
   const navigation = useNavigation();

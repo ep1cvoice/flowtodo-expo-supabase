@@ -20,7 +20,6 @@ export type Database = {
           created_at: string
           icon: string
           id: number
-          name: string
           name_enc: string | null
           name_hash: string | null
           name_iv: string | null
@@ -31,7 +30,6 @@ export type Database = {
           created_at?: string
           icon?: string
           id?: number
-          name: string
           name_enc?: string | null
           name_hash?: string | null
           name_iv?: string | null
@@ -42,7 +40,6 @@ export type Database = {
           created_at?: string
           icon?: string
           id?: number
-          name?: string
           name_enc?: string | null
           name_hash?: string | null
           name_iv?: string | null
@@ -68,7 +65,6 @@ export type Database = {
           paused_at: string | null
           started_at: string
           task_id: number | null
-          task_name: string
           task_name_enc: string | null
           task_name_iv: string | null
           user_id: string
@@ -82,7 +78,6 @@ export type Database = {
           paused_at?: string | null
           started_at?: string
           task_id?: number | null
-          task_name?: string
           task_name_enc?: string | null
           task_name_iv?: string | null
           user_id: string
@@ -96,7 +91,6 @@ export type Database = {
           paused_at?: string | null
           started_at?: string
           task_id?: number | null
-          task_name?: string
           task_name_enc?: string | null
           task_name_iv?: string | null
           user_id?: string
@@ -177,7 +171,6 @@ export type Database = {
           color: string
           created_at: string
           id: number
-          name: string
           name_enc: string | null
           name_hash: string | null
           name_iv: string | null
@@ -187,7 +180,6 @@ export type Database = {
           color?: string
           created_at?: string
           id?: number
-          name: string
           name_enc?: string | null
           name_hash?: string | null
           name_iv?: string | null
@@ -197,7 +189,6 @@ export type Database = {
           color?: string
           created_at?: string
           id?: number
-          name?: string
           name_enc?: string | null
           name_hash?: string | null
           name_iv?: string | null
@@ -248,14 +239,12 @@ export type Database = {
           category_id: number | null
           completed_at: string | null
           created_at: string
-          description: string
           description_enc: string | null
           description_iv: string | null
           done: boolean
           id: number
           scheduled: string | null
           sort_order: number
-          title: string
           title_enc: string | null
           title_iv: string | null
           updated_at: string
@@ -265,14 +254,12 @@ export type Database = {
           category_id?: number | null
           completed_at?: string | null
           created_at?: string
-          description?: string
           description_enc?: string | null
           description_iv?: string | null
           done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
-          title: string
           title_enc?: string | null
           title_iv?: string | null
           updated_at?: string
@@ -282,14 +269,12 @@ export type Database = {
           category_id?: number | null
           completed_at?: string | null
           created_at?: string
-          description?: string
           description_enc?: string | null
           description_iv?: string | null
           done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
-          title?: string
           title_enc?: string | null
           title_iv?: string | null
           updated_at?: string
