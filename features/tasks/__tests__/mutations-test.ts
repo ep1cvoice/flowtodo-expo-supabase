@@ -107,25 +107,39 @@ describe('insertEncryptedTask', () => {
 });
 
 describe('updateEncryptedTask', () => {
-  it('filters by id and user_id, then clears and re-inserts tags', async () => {
-    const update = createBuilder();
-    const del = createBuilder();
-    const ins = createBuilder();
-    from.mockReturnValueOnce(update).mockReturnValueOnce(del).mockReturnValueOnce(ins);
+  const opts = {
+    userId: 'u1',
+    dek,
+    id: 9,
+    title: 'a',
+    description: 'b',
+    categoryId: null,
+    tagIds: [4],
+  };
 
-    await updateEncryptedTask({
-      userId: 'u1',
-      dek,
-      id: 9,
-      title: 'a',
-      description: 'b',
-      categoryId: null,
-      tagIds: [4],
+  it('updates the task and its tags in one atomic RPC call', async () => {
+    const rpc = supabase.rpc as jest.Mock;
+    rpc.mockResolvedValueOnce({ error: null });
+
+    await updateEncryptedTask(opts);
+
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('update_task_with_tags', {
+      p_task_id: 9,
+      p_category_id: null,
+      p_title_enc: 'title_ct',
+      p_title_iv: 'title_iv',
+      p_description_enc: 'desc_ct',
+      p_description_iv: 'desc_iv',
+      p_tag_ids: [4],
     });
+  });
 
-    expect(callsOf(update, 'eq')).toEqual([['id', 9], ['user_id', 'u1']]);
-    expect(callsOf(del, 'delete')).toHaveLength(1);
-    expect(callsOf(ins, 'insert')[0][0]).toEqual([{ task_id: 9, tag_id: 4 }]);
+  it('throws if the RPC fails', async () => {
+    const err = new Error('boom');
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ error: err });
+    await expect(updateEncryptedTask(opts)).rejects.toBe(err);
   });
 });
 

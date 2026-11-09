@@ -53,26 +53,18 @@ export async function updateEncryptedTask(options: {
 }) {
   const enc = await encryptTaskFields(options.dek, options.title, options.description);
 
-  const { error } = await supabase
-    .from('tasks')
-    .update({
-      category_id: options.categoryId,
-      ...enc,
-    })
-    .eq('id', options.id)
-    .eq('user_id', options.userId);
+  // Single RPC => task update and tag replacement commit or roll back together.
+  const { error } = await supabase.rpc('update_task_with_tags', {
+    p_task_id: options.id,
+    p_category_id: options.categoryId,
+    p_title_enc: enc.title_enc,
+    p_title_iv: enc.title_iv,
+    p_description_enc: enc.description_enc,
+    p_description_iv: enc.description_iv,
+    p_tag_ids: options.tagIds,
+  });
 
   if (error) throw error;
-
-  const { error: clearError } = await supabase.from('task_tags').delete().eq('task_id', options.id);
-  if (clearError) throw clearError;
-
-  if (options.tagIds.length > 0) {
-    const { error: tagError } = await supabase
-      .from('task_tags')
-      .insert(options.tagIds.map((tag_id) => ({ task_id: options.id, tag_id })));
-    if (tagError) throw tagError;
-  }
 }
 
 export async function insertEncryptedCategory(

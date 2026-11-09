@@ -304,6 +304,18 @@ export type Database = {
     Functions: {
       delete_own_account: { Args: never; Returns: undefined }
       reorder_tasks: { Args: { p_items: Json }; Returns: undefined }
+      update_task_with_tags: {
+        Args: {
+          p_task_id: number
+          p_category_id: number | null
+          p_title_enc: string | null
+          p_title_iv: string | null
+          p_description_enc: string | null
+          p_description_iv: string | null
+          p_tag_ids: number[]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
