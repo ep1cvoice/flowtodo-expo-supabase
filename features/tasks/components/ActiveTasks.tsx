@@ -5,7 +5,6 @@ import {
   Platform,
   View,
   Text,
-  StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from 'expo-router';
@@ -15,19 +14,16 @@ import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { useToast } from '@/shared/providers/ToastContext';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
-import { CREATE_TASK_FAB_CLEARANCE } from '@/features/tasks/components/form/CreateTaskButton';
+import { createActiveTasksStyles } from '@/features/tasks/components/activeTasksStyles';
 import TaskFilterBar from '@/features/tasks/components/filters/TaskFilterBar';
 import TaskFilterSheet from '@/features/tasks/components/filters/TaskFilterSheet';
-import TaskSearchBar, { TASK_LIST_INSET } from '@/features/tasks/components/filters/TaskSearchBar';
+import TaskSearchBar from '@/features/tasks/components/filters/TaskSearchBar';
 import TaskSortSheet from '@/features/tasks/components/filters/TaskSortMenu';
 import ActiveDayCalendar from '@/features/tasks/components/calendar/ActiveDayCalendar';
 import EmptyState from '@/shared/ui/EmptyState';
-import type { AppColors } from '@/shared/constants/theme';
 import { tokens } from '@/shared/constants/theme';
-import { toastForError } from '@/shared/lib/networkError';
-import { applyFilteredReorder } from '@/features/tasks/lib/taskReorder';
+import { useTaskReorder } from '@/features/tasks/lib/useTaskReorder';
 import { useActiveTaskFilters } from '@/features/tasks/lib/useActiveTaskFilters';
 import type { Task } from '@/types';
 
@@ -38,9 +34,8 @@ export default function ActiveTasks() {
   const { width } = useWindowDimensions();
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
-  const { showToast } = useToast();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const { categories, tags, loading, reorderTasks } = useTasks();
+  const styles = useMemo(() => createActiveTasksStyles(colors), [colors]);
+  const { categories, tags, loading } = useTasks();
   const { setScheduledDay } = useCreateTask();
   const {
     activeTasks,
@@ -118,53 +113,12 @@ export default function ActiveTasks() {
     openSortSheet,
   ]);
 
-  const persistOrder = useCallback(
-    (orderedActive: Task[]) => {
-      void reorderTasks(
-        orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
-      ).catch((err) => {
-        console.warn('Failed to reorder tasks:', err?.message ?? err);
-        showToast(toastForError(err, 'Could not save order.'), 'error');
-      });
-    },
-    [reorderTasks, showToast]
-  );
-
-  const persistVisibleOrder = useCallback(
-    (reorderedFiltered: Task[]) => {
-      persistOrder(
-        hasListConstraints
-          ? applyFilteredReorder(activeTasks, reorderedFiltered)
-          : reorderedFiltered
-      );
-    },
-    [activeTasks, hasListConstraints, persistOrder]
-  );
-
-  const handleDragEnd = useCallback(
-    ({ data }: { data: Task[] }) => {
-      if (!canReorder) return;
-      if (data === filteredTasks) return;
-      persistVisibleOrder(data);
-    },
-    [canReorder, filteredTasks, persistVisibleOrder]
-  );
-
-  const moveTask = useCallback(
-    (taskId: number, direction: -1 | 1) => {
-      if (!canReorder) return;
-      const list = [...filteredTasks];
-      const index = list.findIndex((task) => task.id === taskId);
-      const swapIndex = index + direction;
-      if (index < 0 || swapIndex < 0 || swapIndex >= list.length) return;
-      const next = [...list];
-      const tmp = next[index];
-      next[index] = next[swapIndex];
-      next[swapIndex] = tmp;
-      persistVisibleOrder(next);
-    },
-    [canReorder, filteredTasks, persistVisibleOrder]
-  );
+  const { handleDragEnd, moveTask } = useTaskReorder({
+    activeTasks,
+    filteredTasks,
+    canReorder,
+    hasListConstraints,
+  });
 
   const renderNativeItem = useCallback<SortableGridRenderItem<Task>>(
     ({ item, index }) => (
@@ -321,62 +275,4 @@ export default function ActiveTasks() {
       />
     </View>
   );
-}
-
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'visible',
-    },
-    contentInset: {
-      flex: 1,
-      minHeight: 0,
-      paddingHorizontal: TASK_LIST_INSET,
-      paddingTop: TASK_LIST_INSET,
-      overflow: 'visible',
-    },
-    listArea: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'visible',
-    },
-    tasksList: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'visible',
-    },
-    tasksContent: {
-      flexGrow: 1,
-    },
-    tasksContentPad: {
-      paddingBottom: CREATE_TASK_FAB_CLEARANCE,
-    },
-    tasksContentDragPad: {
-      paddingTop: 6,
-    },
-    tasksContentEmpty: {
-      flexGrow: 1,
-    },
-    itemWrap: {
-      width: '100%',
-      overflow: 'visible',
-    },
-    itemHandle: {
-      width: '100%',
-    },
-    loadingState: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      paddingVertical: 40,
-    },
-    loadingText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textMuted,
-    },
-  });
 }
