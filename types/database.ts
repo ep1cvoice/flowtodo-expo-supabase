@@ -303,6 +303,7 @@ export type Database = {
     }
     Functions: {
       delete_own_account: { Args: never; Returns: undefined }
+      reorder_tasks: { Args: { p_items: Json }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

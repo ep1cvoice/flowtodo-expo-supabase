@@ -1,6 +1,6 @@
 import { callsOf, createBuilder } from '@/test/supabaseMock';
 
-jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn() } }));
+jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
 jest.mock('@/core/crypto', () => ({
   encryptField: jest.fn(async () => ({ ciphertext: 'ct', iv: 'iv' })),
   hashForUniqueness: jest.fn(() => 'hash'),
@@ -167,14 +167,25 @@ describe('simple mutations', () => {
     });
   });
 
-  it('updateTaskSortOrders throws if any update fails', async () => {
+  it('updateTaskSortOrders calls reorder_tasks RPC once', async () => {
+    const rpc = supabase.rpc as jest.Mock;
+    rpc.mockResolvedValueOnce({ error: null });
+    await updateTaskSortOrders('u1', [
+      { id: 1, sortOrder: 0 },
+      { id: 2, sortOrder: 1 },
+    ]);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('reorder_tasks', {
+      p_items: [
+        { id: 1, sort_order: 0 },
+        { id: 2, sort_order: 1 },
+      ],
+    });
+  });
+
+  it('updateTaskSortOrders throws if the RPC fails', async () => {
     const err = new Error('boom');
-    from.mockReturnValueOnce(createBuilder()).mockReturnValueOnce(createBuilder({ error: err }));
-    await expect(
-      updateTaskSortOrders('u1', [
-        { id: 1, sortOrder: 0 },
-        { id: 2, sortOrder: 1 },
-      ])
-    ).rejects.toBe(err);
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ error: err });
+    await expect(updateTaskSortOrders('u1', [{ id: 1, sortOrder: 0 }])).rejects.toBe(err);
   });
 });

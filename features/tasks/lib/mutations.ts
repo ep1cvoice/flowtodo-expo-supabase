@@ -162,15 +162,12 @@ export async function deleteTasksByDone(userId: string, done: boolean) {
 }
 
 export async function updateTaskSortOrders(
-  userId: string,
+  _userId: string,
   items: { id: number; sortOrder: number }[]
 ) {
-  const results = await Promise.all(
-    items.map(({ id, sortOrder }) =>
-      supabase.from('tasks').update({ sort_order: sortOrder }).eq('id', id).eq('user_id', userId)
-    )
-  );
-
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  if (items.length === 0) return;
+  const { error } = await supabase.rpc('reorder_tasks', {
+    p_items: items.map(({ id, sortOrder }) => ({ id, sort_order: sortOrder })),
+  });
+  if (error) throw error;
 }
