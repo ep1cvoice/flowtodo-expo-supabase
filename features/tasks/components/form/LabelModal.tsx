@@ -15,6 +15,7 @@ import { createLabelModalStyles } from '@/features/tasks/components/form/labelMo
 import SheetFrame from '@/shared/ui/SheetFrame';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useAutoFocus } from '@/shared/lib/useAutoFocus';
+import { logger } from '@/shared/lib/logger';
 
 type BaseProps = {
   visible: boolean;
@@ -119,7 +120,7 @@ export default function LabelModal(props: LabelModalProps) {
       }
       onClose();
     } catch (err) {
-      console.warn(`Failed to save ${kind}:`, err);
+      logger.warn(`Failed to save ${kind}:`, err);
       setNameError(strings.label.saveFailed(kind));
     }
   };

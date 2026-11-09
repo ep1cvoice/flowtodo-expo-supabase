@@ -5,6 +5,7 @@ import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
 import { applyFilteredReorder } from '@/features/tasks/lib/taskReorder';
 import type { Task } from '@/types';
+import { logger } from '@/shared/lib/logger';
 
 type Params = {
   activeTasks: Task[];
@@ -27,7 +28,7 @@ export function useTaskReorder({
       void reorderTasks(
         orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
       ).catch((err) => {
-        console.warn('Failed to reorder tasks:', err?.message ?? err);
+        logger.warn('Failed to reorder tasks:', err?.message ?? err);
         showToast(toastForError(err, strings.tasks.saveOrderFailed), 'error');
       });
     },

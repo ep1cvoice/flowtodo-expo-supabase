@@ -1,5 +1,6 @@
 import type { PomoData } from '@/types';
 import { pausePomodoroRow } from '@/features/pomodoro/lib/mutations';
+import { logger } from '@/shared/lib/logger';
 
 type Snapshot = { userId: string; pomo: PomoData };
 
@@ -33,6 +34,6 @@ export async function pausePomodoroBeforeLogout() {
   try {
     await pausePomodoroRow({ userId, id: pomo.id, elapsed, pausedAt, onlyActive: true });
   } catch (err) {
-    console.warn('Failed to pause pomodoro on logout:', (err as Error)?.message ?? err);
+    logger.warn('Failed to pause pomodoro on logout:', (err as Error)?.message ?? err);
   }
 }

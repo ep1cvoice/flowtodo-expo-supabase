@@ -4,6 +4,7 @@ import SheetFrame from '@/shared/ui/SheetFrame';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import { logger } from '@/shared/lib/logger';
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -52,7 +53,7 @@ export default function ConfirmModal({
     try {
       await onConfirm();
     } catch (err) {
-      console.warn('Confirmation action failed:', err);
+      logger.warn('Confirmation action failed:', err);
     } finally {
       pendingRef.current = false;
       setPending(false);

@@ -20,6 +20,7 @@ import { categoryCardWash } from '@/shared/lib/color';
 import { toastForError } from '@/shared/lib/networkError';
 import { useAutoFocus } from '@/shared/lib/useAutoFocus';
 import { validateTaskTitle, type TaskFormInput } from '@/features/tasks/lib/taskValidation';
+import { logger } from '@/shared/lib/logger';
 
 export type { TaskFormInput };
 
@@ -130,7 +131,7 @@ export default function TaskFormModal({
       if (resetOnClose) reset();
       onClose();
     } catch (err) {
-      console.warn(failLog, err);
+      logger.warn(failLog, err);
       showToast(toastForError(err, strings.tasks.saveFailed), 'error');
       submittingRef.current = false;
       setSubmitting(false);
@@ -159,7 +160,7 @@ export default function TaskFormModal({
                 setCategoryId(created.id);
                 showToast(strings.form.categoryCreated);
               } catch (err) {
-                console.warn('Failed to create category:', err);
+                logger.warn('Failed to create category:', err);
                 showToast(toastForError(err, strings.form.saveCategoryFailed), 'error');
                 throw err;
               }
@@ -175,7 +176,7 @@ export default function TaskFormModal({
                 setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
                 showToast(strings.form.tagCreated);
               } catch (err) {
-                console.warn('Failed to create tag:', err);
+                logger.warn('Failed to create tag:', err);
                 showToast(toastForError(err, strings.form.saveTagFailed), 'error');
                 throw err;
               }

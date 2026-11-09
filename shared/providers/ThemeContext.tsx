@@ -7,6 +7,7 @@ import {
   type AppColors,
   type ThemeMode,
 } from '@/shared/constants/theme';
+import { logger } from '@/shared/lib/logger';
 
 const STORAGE_KEY = 'flowtodo.theme';
 
@@ -61,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
       }
       const { error } = await updateProfile({ theme: next });
-      if (error) console.warn('Failed to persist theme:', error);
+      if (error) logger.warn('Failed to persist theme:', error);
       return { error };
     },
     [user, updateProfile]

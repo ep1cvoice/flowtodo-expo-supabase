@@ -24,6 +24,7 @@ import type {
 } from '@/features/tasks/lib/types';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
+import { logger } from '@/shared/lib/logger';
 
 export type { AddCategoryInput, AddTagInput, AddTaskInput, TaskFormInput, UpdateTaskInput };
 
@@ -135,7 +136,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           await withTimeout(refresh(userId), TASKS_REFRESH_TIMEOUT_MS, 'refreshTasksAfterSeed');
         }
       } catch (err) {
-        console.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
+        logger.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -151,7 +152,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     try {
       await withTimeout(refresh(user.id), TASKS_REFRESH_TIMEOUT_MS, 'refetchTasks');
     } catch (err) {
-      console.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
+      logger.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
     }
   }, [user, refresh]);
 
@@ -169,7 +170,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       setCompletedCursor(nextCursor);
       setHasMoreCompleted(hasMore);
     } catch (err) {
-      console.warn('Failed to load more completed:', (err as Error)?.message ?? err);
+      logger.warn('Failed to load more completed:', (err as Error)?.message ?? err);
       throw err;
     } finally {
       setLoadingMoreCompleted(false);

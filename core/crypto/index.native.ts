@@ -11,6 +11,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { gcm } from '@noble/ciphers/aes.js';
 import { withTimeout } from '@/shared/lib/withTimeout';
+import { logger } from '@/shared/lib/logger';
 
 export interface EncryptedField {
   ciphertext: string; // Base64
@@ -71,7 +72,7 @@ function tryLoadQuickCrypto(): QuickCryptoModule | null {
     const mod = require('react-native-quick-crypto');
     return (mod?.default ?? mod) as QuickCryptoModule;
   } catch (err) {
-    console.warn(
+    logger.warn(
       '[crypto] react-native-quick-crypto unavailable. Using @noble fallback.',
       err instanceof Error ? err.message : err
     );
@@ -124,14 +125,14 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterati
       );
       return fromBase64(keyBase64);
     } catch (err) {
-      console.warn(
+      logger.warn(
         '[crypto] WebView PBKDF2 failed, using @noble.',
         err instanceof Error ? err.message : err
       );
     }
   }
 
-  console.warn('[crypto] Using @noble PBKDF2 fallback.');
+  logger.warn('[crypto] Using @noble PBKDF2 fallback.');
   const passBytes = new TextEncoder().encode(password);
   return pbkdf2(sha256, passBytes, salt, { c: iterations, dkLen: DEK_BYTES });
 }

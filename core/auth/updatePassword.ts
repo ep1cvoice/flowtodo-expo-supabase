@@ -6,6 +6,7 @@ import {
 import { encryptDekWithPassword } from '@/core/crypto';
 import { withRetry } from '@/shared/lib/retry';
 import { supabase } from '@/core/supabase/client';
+import { logger } from '@/shared/lib/logger';
 
 export async function rewrapDekAndUpdatePassword(options: {
   userId: string;
@@ -65,7 +66,7 @@ export async function rewrapDekAndUpdatePassword(options: {
       { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
   } catch (err) {
-    console.warn('Failed to re-encrypt DEK:', err);
+    logger.warn('Failed to re-encrypt DEK:', err);
     return {
       error:
         'Unable to update encryption. Password was not changed — try again.',
@@ -75,7 +76,7 @@ export async function rewrapDekAndUpdatePassword(options: {
   const { error } = await supabase.auth.updateUser({ password: options.newPassword });
 
   if (error) {
-    console.error('Auth password update failed, rolling back encrypted_dek:', error);
+    logger.error('Auth password update failed, rolling back encrypted_dek:', error);
 
     try {
       await withRetry(
@@ -98,7 +99,7 @@ export async function rewrapDekAndUpdatePassword(options: {
         { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
       );
     } catch (rollbackErr) {
-      console.error('CRITICAL: rollback of encrypted_dek also failed:', rollbackErr);
+      logger.error('CRITICAL: rollback of encrypted_dek also failed:', rollbackErr);
       return {
         error:
           'Critical password change error. Contact support — your data is safe, but requires manual recovery.',

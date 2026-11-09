@@ -14,6 +14,7 @@ import {
 import { withRetry } from '@/shared/lib/retry';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
+import { logger } from '@/shared/lib/logger';
 
 type DekMaterial = {
   salt: string;
@@ -60,10 +61,10 @@ async function upgradeKdfIterationsInBackground(
       .eq('id', userId);
 
     if (error) {
-      console.warn('KDF iterations upgrade failed:', error.message);
+      logger.warn('KDF iterations upgrade failed:', error.message);
     }
   } catch (err) {
-    console.warn('KDF iterations upgrade threw:', err);
+    logger.warn('KDF iterations upgrade threw:', err);
   }
 }
 
@@ -93,7 +94,7 @@ async function backfillDekMaterial(
       { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
   } catch (err) {
-    console.warn('Failed to backfill encryption material:', err);
+    logger.warn('Failed to backfill encryption material:', err);
     return { ok: false, error: strings.auth.errors.configureEncryption };
   }
 
@@ -175,7 +176,7 @@ export async function resolveDekFromPassword(options: {
 
     return { ok: true, dek: decryptedDek };
   } catch (err) {
-    console.warn(options.decryptFailLog, err);
+    logger.warn(options.decryptFailLog, err);
     return { ok: false, error: options.decryptFailError };
   }
 }

@@ -24,6 +24,7 @@ import {
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
+import { logger } from '@/shared/lib/logger';
 
 const POMO_REFRESH_TIMEOUT_MS = 12_000;
 
@@ -99,7 +100,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
           startedAt: new Date().toISOString(),
         });
       } catch (err) {
-        console.warn('Failed to resume pomodoro after login:', (err as Error)?.message ?? err);
+        logger.warn('Failed to resume pomodoro after login:', (err as Error)?.message ?? err);
         setActivePomo(active);
         return;
       }
@@ -121,7 +122,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     withTimeout(refresh(user.id, { resumeIfPaused: true }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
       .catch((err) => {
-        console.warn('Failed to load pomodoros:', err?.message ?? err);
+        logger.warn('Failed to load pomodoros:', err?.message ?? err);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -137,7 +138,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     try {
       await withTimeout(refresh(user.id), POMO_REFRESH_TIMEOUT_MS, 'refetchPomodoro');
     } catch (err) {
-      console.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
+      logger.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
     }
   }, [user, refresh]);
 

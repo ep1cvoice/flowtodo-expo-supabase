@@ -10,6 +10,7 @@ import {
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
+import { logger } from '@/shared/lib/logger';
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,7 +50,7 @@ export async function fetchProfile(
         await wait(PROFILE_RETRY_DELAY_MS * attempt);
         return fetchProfile(userId, email, attempt + 1);
       }
-      console.warn('fetchProfile failed after retries:', error?.message);
+      logger.warn('fetchProfile failed after retries:', error?.message);
       return null;
     }
 
@@ -73,7 +74,7 @@ export async function fetchProfile(
       await wait(PROFILE_RETRY_DELAY_MS * attempt);
       return fetchProfile(userId, email, attempt + 1);
     }
-    console.warn('fetchProfile threw after retries:', (err as Error)?.message ?? err);
+    logger.warn('fetchProfile threw after retries:', (err as Error)?.message ?? err);
     return null;
   }
 }

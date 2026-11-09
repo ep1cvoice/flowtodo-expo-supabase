@@ -16,6 +16,7 @@ import TaskDescriptionField from '@/features/tasks/components/item/taskDetail/Ta
 import TaskDetailFooter from '@/features/tasks/components/item/taskDetail/TaskDetailFooter';
 import { createTaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
 import { pointerMarker } from '@/features/tasks/components/item/taskDetail/taskDetailUtils';
+import { logger } from '@/shared/lib/logger';
 
 interface TaskDetailModalProps {
   visible: boolean;
@@ -86,7 +87,7 @@ export default function TaskDetailModal({
       lastSavedRef.current = next;
       if (!focusedRef.current) setDraft(next);
     } catch (err) {
-      console.warn(strings.tasks.descriptionSaveLog, err);
+      logger.warn(strings.tasks.descriptionSaveLog, err);
       showToast(toastForError(err, strings.tasks.saveDescriptionFailed), 'error');
       if (!focusedRef.current) setDraft(task.description ?? '');
     } finally {

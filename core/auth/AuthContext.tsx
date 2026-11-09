@@ -13,6 +13,7 @@ import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogou
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
+import { logger } from '@/shared/lib/logger';
 
 /**
  * Session/profile state only. The DEK and biometric unlock live in
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isMounted) setUserState(profile);
         }
       } catch (err) {
-        console.warn('Session bootstrap failed:', (err as Error)?.message ?? err);
+        logger.warn('Session bootstrap failed:', (err as Error)?.message ?? err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -81,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
-        console.warn('onAuthStateChange profile load failed:', (err as Error)?.message ?? err);
+        logger.warn('onAuthStateChange profile load failed:', (err as Error)?.message ?? err);
         if (session?.user && isMounted) {
           setUserState(minimalUserFromSession(session.user.id, session.user.email));
         }
@@ -127,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // prompt after first login) — signIn only puts it in memory.
         return { error: null };
       } catch (err) {
-        console.warn('signIn failed:', (err as Error)?.message ?? err);
+        logger.warn('signIn failed:', (err as Error)?.message ?? err);
         return { error: toastForError(err, strings.auth.login.signInFailed) };
       } finally {
         setIsAuthenticating(false);
@@ -151,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null };
     } catch (unexpectedError) {
-      console.error(strings.auth.register.unexpectedErrorLog, unexpectedError);
+      logger.error(strings.auth.register.unexpectedErrorLog, unexpectedError);
       return { error: strings.auth.register.unexpectedError };
     } finally {
       setIsAuthenticating(false);

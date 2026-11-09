@@ -18,6 +18,7 @@ import {
   hasStoredDek,
 } from '@/core/auth/secureStorage';
 import type { User } from '@/types';
+import { logger } from '@/shared/lib/logger';
 
 type Result = { error: string | null };
 type SessionUser = Pick<User, 'id' | 'email'>;
@@ -70,7 +71,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
         if (isMounted) setBiometricUnlockAvailable(stored);
       })
       .catch((err) => {
-        console.warn('hasStoredDek failed:', (err as Error)?.message ?? err);
+        logger.warn('hasStoredDek failed:', (err as Error)?.message ?? err);
       });
     return () => {
       isMounted = false;
@@ -109,7 +110,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           applyDek(resolved.dek);
           return { error: null };
         } catch (err) {
-          console.warn('unlock failed:', (err as Error)?.message ?? err);
+          logger.warn('unlock failed:', (err as Error)?.message ?? err);
           return { error: toastForError(err, strings.auth.unlock.failed) };
         }
       },
@@ -127,7 +128,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
         } catch (err) {
           // User cancelled the prompt, auth failed, or hardware unavailable —
           // caller should fall back to showing the password unlock screen.
-          console.warn('unlockWithBiometrics failed:', (err as Error)?.message ?? err);
+          logger.warn('unlockWithBiometrics failed:', (err as Error)?.message ?? err);
           return { error: strings.auth.errors.authFailedUsePassword };
         }
       },
@@ -144,7 +145,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           setBiometricUnlockAvailable(true);
           return { error: null };
         } catch (err) {
-          console.warn('enableBiometricUnlock failed:', (err as Error)?.message ?? err);
+          logger.warn('enableBiometricUnlock failed:', (err as Error)?.message ?? err);
           return { error: strings.auth.errors.saveKeySecureStorage };
         }
       },
