@@ -70,6 +70,13 @@ interface TasksContextValue {
 
 const TasksContext = createContext<TasksContextValue | null>(null);
 
+type OptimisticSlice =
+  | 'activeTasks'
+  | 'completedTasks'
+  | 'completedCount'
+  | 'categories'
+  | 'tags';
+
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { dek } = useEncryption();
@@ -200,6 +207,31 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return user.id;
   };
 
+  /**
+   * Applies an optimistic state change, persists it, and restores the previous
+   * values of the given state slices if persisting fails (then rethrows).
+   */
+  const runOptimistic = async (
+    slices: OptimisticSlice[],
+    apply: () => void,
+    persist: () => Promise<void>
+  ) => {
+    const snapshot: Record<OptimisticSlice, () => void> = {
+      activeTasks: ((v) => () => setActiveTasks(v))(activeTasks),
+      completedTasks: ((v) => () => setCompletedTasks(v))(completedTasks),
+      completedCount: ((v) => () => setCompletedCount(v))(completedCount),
+      categories: ((v) => () => setCategories(v))(categories),
+      tags: ((v) => () => setTags(v))(tags),
+    };
+    apply();
+    try {
+      await persist();
+    } catch (error) {
+      slices.forEach((slice) => snapshot[slice]());
+      throw error;
+    }
+  };
+
   const addTask = async ({
     title,
     description,
@@ -271,24 +303,34 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCategory = async (id: number) => {
     const userId = requireUserId();
-    await deleteCategoryForUser(userId, id);
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    const clearCategory = (t: Task): Task =>
-      t.categoryId === id ? { ...t, categoryId: null, category: null } : t;
-    setActiveTasks((prev) => prev.map(clearCategory));
-    setCompletedTasks((prev) => prev.map(clearCategory));
+    await runOptimistic(
+      ['categories', 'activeTasks', 'completedTasks'],
+      () => {
+        setCategories((prev) => prev.filter((c) => c.id !== id));
+        const clearCategory = (t: Task): Task =>
+          t.categoryId === id ? { ...t, categoryId: null, category: null } : t;
+        setActiveTasks((prev) => prev.map(clearCategory));
+        setCompletedTasks((prev) => prev.map(clearCategory));
+      },
+      () => deleteCategoryForUser(userId, id)
+    );
   };
 
   const deleteTag = async (id: number) => {
     const userId = requireUserId();
-    await deleteTagForUser(userId, id);
-    setTags((prev) => prev.filter((t) => t.id !== id));
-    const stripTag = (t: Task): Task => ({
-      ...t,
-      tags: (t.tags ?? []).filter((tag) => tag.id !== id),
-    });
-    setActiveTasks((prev) => prev.map(stripTag));
-    setCompletedTasks((prev) => prev.map(stripTag));
+    await runOptimistic(
+      ['tags', 'activeTasks', 'completedTasks'],
+      () => {
+        setTags((prev) => prev.filter((t) => t.id !== id));
+        const stripTag = (t: Task): Task => ({
+          ...t,
+          tags: (t.tags ?? []).filter((tag) => tag.id !== id),
+        });
+        setActiveTasks((prev) => prev.map(stripTag));
+        setCompletedTasks((prev) => prev.map(stripTag));
+      },
+      () => deleteTagForUser(userId, id)
+    );
   };
 
   const toggleTask = async (id: number) => {
@@ -299,40 +341,25 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
     const nextDone = !current.done;
     const nextCompletedAt = nextDone ? new Date().toISOString() : null;
-    const nextTask: Task = {
-      ...current,
-      done: nextDone,
-      completedAt: nextCompletedAt,
-    };
+    const nextTask: Task = { ...current, done: nextDone, completedAt: nextCompletedAt };
 
-    if (nextDone) {
-      setActiveTasks((prev) => prev.filter((t) => t.id !== id));
-      setCompletedTasks((prev) => mergeCompletedTasks([nextTask], prev));
-      setCompletedCount((n) => n + 1);
-    } else {
-      setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
-      setActiveTasks((prev) =>
-        [...prev, nextTask].sort((a, b) => a.sortOrder - b.sortOrder)
-      );
-      setCompletedCount((n) => Math.max(0, n - 1));
-    }
-
-    try {
-      await setTaskDoneRow(userId, id, nextDone, nextCompletedAt);
-    } catch (error) {
-      if (nextDone) {
-        setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
-        setActiveTasks((prev) =>
-          [...prev, current].sort((a, b) => a.sortOrder - b.sortOrder)
-        );
-        setCompletedCount((n) => Math.max(0, n - 1));
-      } else {
-        setActiveTasks((prev) => prev.filter((t) => t.id !== id));
-        setCompletedTasks((prev) => mergeCompletedTasks([current], prev));
-        setCompletedCount((n) => n + 1);
-      }
-      throw error;
-    }
+    await runOptimistic(
+      ['activeTasks', 'completedTasks', 'completedCount'],
+      () => {
+        if (nextDone) {
+          setActiveTasks((prev) => prev.filter((t) => t.id !== id));
+          setCompletedTasks((prev) => mergeCompletedTasks([nextTask], prev));
+          setCompletedCount((n) => n + 1);
+        } else {
+          setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
+          setActiveTasks((prev) =>
+            [...prev, nextTask].sort((a, b) => a.sortOrder - b.sortOrder)
+          );
+          setCompletedCount((n) => Math.max(0, n - 1));
+        }
+      },
+      () => setTaskDoneRow(userId, id, nextDone, nextCompletedAt)
+    );
   };
 
   const deleteTask = async (id: number) => {
@@ -362,21 +389,18 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
     if (items.length === 0) return;
     const userId = requireUserId();
-    const previous = activeTasks;
     const orderMap = new Map(items.map((item) => [item.id, item.sortOrder]));
 
-    setActiveTasks((current) =>
-      current.map((task) =>
-        orderMap.has(task.id) ? { ...task, sortOrder: orderMap.get(task.id)! } : task
-      )
+    await runOptimistic(
+      ['activeTasks'],
+      () =>
+        setActiveTasks((current) =>
+          current.map((task) =>
+            orderMap.has(task.id) ? { ...task, sortOrder: orderMap.get(task.id)! } : task
+          )
+        ),
+      () => updateTaskSortOrders(userId, items)
     );
-
-    try {
-      await updateTaskSortOrders(userId, items);
-    } catch (error) {
-      setActiveTasks(previous);
-      throw error;
-    }
   };
 
   return (
