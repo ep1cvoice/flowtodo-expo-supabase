@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, Text, View } from 'react-native';
 import { Check, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
@@ -34,7 +35,7 @@ export default function TaskDetailFooter({
             (hovered || pressed) && styles.deleteBtnPressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Delete task">
+          accessibilityLabel={strings.tasks.deleteTask}>
           <Trash2 size={18} strokeWidth={2.2} color={colors.red} />
         </Pressable>
 
@@ -47,10 +48,10 @@ export default function TaskDetailFooter({
             (hovered || pressed) && styles.completeBtnPressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel={done ? 'Mark as incomplete' : 'Mark as completed'}>
+          accessibilityLabel={done ? strings.tasks.markIncomplete : strings.tasks.markCompleted}>
           <Check size={15} strokeWidth={2.4} color="#fff" />
           <Text style={styles.completeBtnText} numberOfLines={1}>
-            Completed
+            {strings.tasks.completedLabel}
           </Text>
         </Pressable>
       </View>

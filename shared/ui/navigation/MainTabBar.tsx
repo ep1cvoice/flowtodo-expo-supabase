@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { createElement } from 'react';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Plus } from 'lucide-react-native';
@@ -89,7 +90,7 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
                 <Pressable
                   onPress={() => openCreate(focusedRoute)}
                   accessibilityRole="button"
-                  accessibilityLabel="Create new task"
+                  accessibilityLabel={strings.nav.createTask}
                   style={({ pressed, hovered }) => [
                     styles.plus,
                     { backgroundColor: pressed || hovered ? colors.primaryHover : colors.primary },

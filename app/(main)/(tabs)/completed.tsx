@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useLayoutEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -69,7 +70,7 @@ export default function CompletedTasksScreen() {
     try {
       await loadMoreCompleted();
     } catch (err) {
-      showToast(toastForError(err, 'Could not load more tasks.'), 'error');
+      showToast(toastForError(err, strings.tasks.loadMoreFailed), 'error');
     }
   }, [loadMoreCompleted, showToast]);
 
@@ -85,7 +86,7 @@ export default function CompletedTasksScreen() {
           {loading ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading tasks…</Text>
+              <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
           ) : (
             <SectionList
@@ -98,11 +99,11 @@ export default function CompletedTasksScreen() {
               ListEmptyComponent={
                 <EmptyState
                   variant="plain"
-                  title={hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                  title={hasSearch ? strings.tasks.empty.noMatchSearch.title : strings.tasks.noCompleted}
                   text={
                     hasSearch
-                      ? 'Try a different search term'
-                      : 'Mark a task as done to see it here'
+                      ? strings.tasks.empty.noMatchSearch.text
+                      : strings.tasks.noCompletedHint
                   }
                 />
               }
@@ -118,17 +119,17 @@ export default function CompletedTasksScreen() {
                         loadingMoreCompleted && styles.loadMoreBtnDisabled,
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel="Load more completed tasks">
+                      accessibilityLabel={strings.tasks.loadMoreCompleted}>
                       {loadingMoreCompleted ? (
                         <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
-                        <Text style={styles.loadMoreText}>Load more</Text>
+                        <Text style={styles.loadMoreText}>{strings.tasks.loadMore}</Text>
                       )}
                     </Pressable>
                   </View>
                 ) : hasSearch && hasMoreCompleted ? (
                   <Text style={styles.searchHint}>
-                    Search covers loaded tasks only. Clear search to load more.
+                    {strings.tasks.searchLoadedOnly}
                   </Text>
                 ) : null
               }

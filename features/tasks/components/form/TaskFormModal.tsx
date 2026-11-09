@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -130,7 +131,7 @@ export default function TaskFormModal({
       onClose();
     } catch (err) {
       console.warn(failLog, err);
-      showToast(toastForError(err, 'Could not save task.'), 'error');
+      showToast(toastForError(err, strings.tasks.saveFailed), 'error');
       submittingRef.current = false;
       setSubmitting(false);
     }
@@ -156,10 +157,10 @@ export default function TaskFormModal({
               try {
                 const created = await addCategory({ name, color, icon: icon as CategoryIcon });
                 setCategoryId(created.id);
-                showToast('Category created.');
+                showToast(strings.form.categoryCreated);
               } catch (err) {
                 console.warn('Failed to create category:', err);
-                showToast(toastForError(err, 'Could not save category.'), 'error');
+                showToast(toastForError(err, strings.form.saveCategoryFailed), 'error');
                 throw err;
               }
             }}
@@ -172,10 +173,10 @@ export default function TaskFormModal({
               try {
                 const created = await addTag({ name, color });
                 setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
-                showToast('Tag created.');
+                showToast(strings.form.tagCreated);
               } catch (err) {
                 console.warn('Failed to create tag:', err);
-                showToast(toastForError(err, 'Could not save tag.'), 'error');
+                showToast(toastForError(err, strings.form.saveTagFailed), 'error');
                 throw err;
               }
             }}
@@ -188,12 +189,12 @@ export default function TaskFormModal({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Task Title</Text>
+                <Text style={styles.label}>{strings.form.taskTitle}</Text>
                 <TextInput
                   ref={titleRef}
                   value={title}
                   onChangeText={handleTitleChange}
-                  placeholder="Enter task title..."
+                  placeholder={strings.form.taskTitlePlaceholder}
                   placeholderTextColor={colors.textMuted}
                   style={[styles.input, inputError ? styles.inputError : null]}
                 />
@@ -201,11 +202,11 @@ export default function TaskFormModal({
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Description (optional)</Text>
+                <Text style={styles.label}>{strings.form.description}</Text>
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Enter description..."
+                  placeholder={strings.form.descriptionPlaceholder}
                   placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
@@ -216,12 +217,12 @@ export default function TaskFormModal({
 
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>Category (optional)</Text>
+                  <Text style={styles.label}>{strings.form.category}</Text>
                   <Pressable
                     onPress={() => setShowCategoryModal(true)}
                     hitSlop={8}
                     style={styles.newLinkBtn}>
-                    <Text style={styles.newLink}>+ New</Text>
+                    <Text style={styles.newLink}>{strings.form.newLink}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.categoryList}>
@@ -236,7 +237,7 @@ export default function TaskFormModal({
                         styles.categoryChipText,
                         categoryId === null && styles.categoryChipTextSelected,
                       ]}>
-                      No category
+                      {strings.form.noCategory}
                     </Text>
                   </Pressable>
                   {categories.map((cat) => {
@@ -283,7 +284,7 @@ export default function TaskFormModal({
                     pressed && !submitting && styles.cancelPressed,
                     submitting && styles.btnDisabled,
                   ]}>
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelText}>{strings.common.cancel}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSubmit}

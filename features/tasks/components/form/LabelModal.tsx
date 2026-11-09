@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
@@ -45,33 +46,33 @@ interface KindConfig {
 const CONFIG: Record<LabelModalProps['kind'], KindConfig> = {
   category: {
     noun: 'Category',
-    placeholder: 'e.g. Work, Health...',
+    placeholder: strings.label.categoryPlaceholder,
     maxLength: 15,
     defaultColor: PALETTE_COLORS[0],
     hasIcon: true,
     validate: (value) => {
-      if (!value.trim()) return 'Name is required';
-      if (value.length > 15) return 'Name must be 15 characters or less';
+      if (!value.trim()) return strings.label.nameRequired;
+      if (value.length > 15) return strings.label.categoryNameTooLong;
       if (!/^[\p{L}\p{N}\s\-]+$/u.test(value.trim())) {
-        return 'Only letters, numbers, spaces and hyphens allowed';
+        return strings.label.categoryNameChars;
       }
       return '';
     },
   },
   tag: {
     noun: 'Tag',
-    placeholder: 'e.g. urgent, idea, blocked...',
+    placeholder: strings.label.tagPlaceholder,
     maxLength: 30,
     defaultColor: '#64748b',
     hasIcon: false,
     autoCapitalize: 'none',
     validate: (value) => {
-      if (!value.trim()) return 'Name is required';
-      if (value.startsWith('#')) return "Don't include the # — it's added automatically";
-      if (/\s/.test(value)) return 'Tag names cannot contain spaces';
-      if (value.length > 30) return 'Name must be 30 characters or less';
+      if (!value.trim()) return strings.label.nameRequired;
+      if (value.startsWith('#')) return strings.label.tagNameHash;
+      if (/\s/.test(value)) return strings.label.tagNameSpaces;
+      if (value.length > 30) return strings.label.tagNameTooLong;
       if (!/^[\p{L}\p{N}_\-]+$/u.test(value.trim())) {
-        return 'Only letters, numbers, underscores and hyphens allowed';
+        return strings.label.tagNameChars;
       }
       return '';
     },
@@ -119,7 +120,7 @@ export default function LabelModal(props: LabelModalProps) {
       onClose();
     } catch (err) {
       console.warn(`Failed to save ${kind}:`, err);
-      setNameError(`Could not save ${kind}. Try again.`);
+      setNameError(strings.label.saveFailed(kind));
     }
   };
 
@@ -135,7 +136,7 @@ export default function LabelModal(props: LabelModalProps) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{strings.common.name}</Text>
           <TextInput
             value={name}
             onChangeText={(value) => {
@@ -153,7 +154,7 @@ export default function LabelModal(props: LabelModalProps) {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Color</Text>
+          <Text style={styles.label}>{strings.label.color}</Text>
           <View style={styles.colorGrid}>
             {PALETTE_COLORS.map((color) => {
               const selected = selectedColor === color;
@@ -175,7 +176,7 @@ export default function LabelModal(props: LabelModalProps) {
 
         {cfg.hasIcon && (
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Icon</Text>
+            <Text style={styles.label}>{strings.label.icon}</Text>
             <View style={styles.iconGrid}>
               {CATEGORY_ICONS.map((iconKey) => {
                 const Icon = CATEGORY_ICON_MAP[iconKey];
@@ -211,7 +212,7 @@ export default function LabelModal(props: LabelModalProps) {
               styles.cancel,
               (hovered || pressed) && styles.cancelPressed,
             ]}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{strings.common.cancel}</Text>
           </Pressable>
           <Pressable
             onPress={handleSave}
@@ -220,7 +221,7 @@ export default function LabelModal(props: LabelModalProps) {
               styles.save,
               (hovered || pressed) && styles.savePressed,
             ]}>
-            <Text style={styles.saveText}>Save</Text>
+            <Text style={styles.saveText}>{strings.common.save}</Text>
           </Pressable>
         </View>
       </ScrollView>

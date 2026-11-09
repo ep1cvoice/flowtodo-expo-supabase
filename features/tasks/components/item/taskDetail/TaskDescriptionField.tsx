@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import type { RefObject } from 'react';
 import { TextInput, View } from 'react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
@@ -48,7 +49,7 @@ export default function TaskDescriptionField({
         cursorColor={colors.textPrimary}
         selectionColor={colors.primary}
         style={[styles.descriptionInput, webTextCursor, { height }, done && styles.done]}
-        accessibilityLabel="Task description"
+        accessibilityLabel={strings.tasks.taskDescription}
       />
     </View>
   );

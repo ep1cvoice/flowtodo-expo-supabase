@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import {
   View,
@@ -68,7 +69,7 @@ export default function TaskSortSheet({
     <SheetFrame
       visible={visible}
       onClose={onClose}
-      title="Sort tasks"
+      title={strings.tasks.sortTasks}
       compactHeader
       cardStyle={styles.card}>
       <View style={styles.body}>
@@ -108,7 +109,7 @@ export default function TaskSortSheet({
                 styles.doneBtn,
                 (hovered || pressed) && styles.doneBtnPressed,
               ]}>
-              <Text style={styles.doneBtnText}>Done</Text>
+              <Text style={styles.doneBtnText}>{strings.common.done}</Text>
             </Pressable>
           </View>
     </SheetFrame>

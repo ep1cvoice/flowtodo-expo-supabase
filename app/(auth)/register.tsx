@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Mail, Lock, User } from 'lucide-react-native';
@@ -51,13 +52,13 @@ export default function RegisterScreen() {
 
   return (
     <AuthLayout gap={32}>
-      <Heading title="Create Account" text="Sign up to get started" />
+      <Heading title={strings.auth.register.title} text={strings.auth.register.subtitle} />
 
       <Field
         innerText="Enter your email"
         Icon={Mail}
         type="email"
-        label="Email"
+        label={strings.common.email}
         value={values.email}
         onChangeText={(t) => setField('email', t)}
         error={submitted ? errors.email : ''}
@@ -67,7 +68,7 @@ export default function RegisterScreen() {
         innerText="Enter your username"
         Icon={User}
         type="text"
-        label="Username"
+        label={strings.auth.register.username}
         value={values.username}
         onChangeText={(t) => setField('username', t)}
         error={submitted ? errors.username : ''}
@@ -78,7 +79,7 @@ export default function RegisterScreen() {
         innerText="Enter your password"
         Icon={Lock}
         type="password"
-        label="Password"
+        label={strings.common.password}
         value={values.password}
         onChangeText={(t) => setField('password', t)}
         error={submitted ? errors.password : ''}
@@ -88,13 +89,13 @@ export default function RegisterScreen() {
         innerText="Confirm your password"
         Icon={Lock}
         type="password"
-        label="Confirm password"
+        label={strings.auth.register.confirmPassword}
         value={values.confirmPassword}
         onChangeText={(t) => setField('confirmPassword', t)}
         error={submitted ? errors.confirmPassword : ''}
       />
 
-      <Button inner={submitting ? 'Creating…' : 'Create account'} onPress={handleSubmit} />
+      <Button inner={submitting ? strings.auth.register.submitting : strings.auth.register.submit} onPress={handleSubmit} />
       <Linking to={'/(auth)/login' as Href} innerText="Already have an account? Sign in" />
     </AuthLayout>
   );

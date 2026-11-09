@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, View } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import type { AppColors } from '@/shared/constants/theme';
@@ -30,7 +31,7 @@ export default function TaskReorderButtons({
         disabled={!canMoveUp}
         hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel="Move task up"
+        accessibilityLabel={strings.tasks.moveUp}
         style={({ pressed, hovered }) => [
           styles.reorderBtn,
           !canMoveUp && styles.reorderBtnDisabled,
@@ -50,7 +51,7 @@ export default function TaskReorderButtons({
         disabled={!canMoveDown}
         hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel="Move task down"
+        accessibilityLabel={strings.tasks.moveDown}
         style={({ pressed, hovered }) => [
           styles.reorderBtn,
           !canMoveDown && styles.reorderBtnDisabled,

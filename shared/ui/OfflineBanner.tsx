@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +30,7 @@ export default function OfflineBanner() {
       accessibilityLiveRegion="polite">
       <View style={styles.bar}>
         <WifiOff size={16} color="#fff" strokeWidth={2.2} />
-        <Text style={styles.text}>No internet connection</Text>
+        <Text style={styles.text}>{strings.nav.offline}</Text>
       </View>
     </View>
   );

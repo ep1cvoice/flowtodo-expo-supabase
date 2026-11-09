@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import {
   PROFILE_RETRY_ATTEMPTS,
   PROFILE_RETRY_DELAY_MS,
@@ -18,7 +19,7 @@ export async function rewrapDekAndUpdatePassword(options: {
     password: options.currentPassword,
   });
   if (reauthError) {
-    return { error: 'Current password is incorrect' };
+    return { error: strings.auth.errors.currentPasswordIncorrect };
   }
 
   const { data: currentProfile, error: fetchError } = await supabase
@@ -33,7 +34,7 @@ export async function rewrapDekAndUpdatePassword(options: {
     !currentProfile?.encrypted_dek ||
     !currentProfile?.dek_iv
   ) {
-    return { error: 'Unable to read current encryption data.' };
+    return { error: strings.auth.errors.readEncryptionData };
   }
 
   const { salt, encryptedDek, dekIv, kdfIterations } = await encryptDekWithPassword(
@@ -59,7 +60,7 @@ export async function rewrapDekAndUpdatePassword(options: {
           .select('id');
 
         if (updateError) throw updateError;
-        if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+        if (!updated || updated.length === 0) throw new Error(strings.auth.errors.profileNotReady);
       },
       { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
@@ -104,7 +105,7 @@ export async function rewrapDekAndUpdatePassword(options: {
       };
     }
 
-    return { error: 'Error changing password. Try again.' };
+    return { error: strings.auth.errors.changePasswordFailed };
   }
 
   await supabase

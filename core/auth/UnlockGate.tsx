@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Text,
@@ -110,17 +111,17 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <AuthLayout
           gap={48}
-          overlay={submitting ? <LoggingInOverlay message="Unlocking..." /> : null}>
+          overlay={submitting ? <LoggingInOverlay message={strings.auth.unlock.unlocking} /> : null}>
           <Heading
-            title="Unlock application"
+            title={strings.auth.unlock.title}
             icon={Unlock}
-            text="Enter your password to decrypt your data"
+            text={strings.auth.unlock.subtitle}
           />
           <Field
             innerText="Enter your password"
             Icon={Lock}
             type="password"
-            label="Password"
+            label={strings.common.password}
             value={password}
             onChangeText={(text) => {
               setPassword(text);
@@ -142,7 +143,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
                 submitting && styles.logoutDisabled,
               ]}>
               <Fingerprint size={18} color={colors.sidebarLogoutText} />
-              <Text style={styles.logoutText}>Try biometric unlock again</Text>
+              <Text style={styles.logoutText}>{strings.auth.unlock.tryBiometric}</Text>
             </Pressable>
           )}
           <Pressable
@@ -153,7 +154,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
               (hovered || pressed) && styles.logoutPressed,
               submitting && styles.logoutDisabled,
             ]}>
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Text style={styles.logoutText}>{strings.auth.logOut}</Text>
           </Pressable>
         </AuthLayout>
       </View>

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Zap } from 'lucide-react-native';
@@ -27,7 +28,7 @@ export default function ProductivitySection({ open, onToggle }: ProductivitySect
     setPomodoroErr('');
     const value = Number(pomodoroTime);
     if (!Number.isFinite(value) || value < 1 || value > 60) {
-      setPomodoroErr('Time must be between 1 and 60 minutes');
+      setPomodoroErr(strings.settings.productivity.timeRange);
       return;
     }
 
@@ -39,15 +40,15 @@ export default function ProductivitySection({ open, onToggle }: ProductivitySect
       showToast(toastForError(error, error), 'error');
       return;
     }
-    showToast('Pomodoro time saved.');
+    showToast(strings.settings.productivity.timeSaved);
   };
 
   return (
-    <SettingsSection title="Productivity" Icon={Zap} open={open} onToggle={onToggle}>
+    <SettingsSection title={strings.settings.productivity.title} Icon={Zap} open={open} onToggle={onToggle}>
       {open ? (
         <>
-          <Text style={styles.label}>Pomodoro</Text>
-          <Text style={styles.description}>Focus duration for new sessions</Text>
+          <Text style={styles.label}>{strings.settings.productivity.pomodoro}</Text>
+          <Text style={styles.description}>{strings.settings.productivity.pomodoroHint}</Text>
           <View style={styles.pomodoroRow}>
             <TextInput
               value={pomodoroTime}
@@ -59,7 +60,7 @@ export default function ProductivitySection({ open, onToggle }: ProductivitySect
               style={styles.pomodoroInput}
               placeholderTextColor={colors.textMuted}
             />
-            <Text style={styles.description}>min</Text>
+            <Text style={styles.description}>{strings.settings.productivity.minutes}</Text>
             <Pressable
               style={({ pressed, hovered }) => [
                 styles.primaryBtn,
@@ -69,15 +70,15 @@ export default function ProductivitySection({ open, onToggle }: ProductivitySect
               disabled={pomodoroSaving}
               onPress={handlePomodoroSave}>
               <Text style={styles.primaryBtnText}>
-                {pomodoroSaving ? 'Saving…' : 'Set Time'}
+                {pomodoroSaving ? strings.common.saving : strings.settings.productivity.setTime}
               </Text>
             </Pressable>
           </View>
           {!!pomodoroErr && <Text style={styles.errorInfo}>{pomodoroErr}</Text>}
 
           <View style={styles.historyBlock}>
-            <Text style={styles.label}>Recent sessions</Text>
-            <Text style={styles.description}>Last 5 Pomodoros (synced to your account)</Text>
+            <Text style={styles.label}>{strings.settings.productivity.recentSessions}</Text>
+            <Text style={styles.description}>{strings.settings.productivity.recentSessionsHint}</Text>
             <PomodoroHistory />
           </View>
         </>

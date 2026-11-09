@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
             onPress={handleLogout}>
             <View style={styles.logoutStart}>
               <LogOut size={20} color={colors.sidebarLogoutText} strokeWidth={2} />
-              <Text style={styles.logoutText}>Log Out</Text>
+              <Text style={styles.logoutText}>{strings.auth.logOut}</Text>
             </View>
           </Pressable>
         </View>

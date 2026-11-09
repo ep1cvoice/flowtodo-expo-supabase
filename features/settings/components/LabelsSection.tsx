@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Plus, Tags, Trash2 } from 'lucide-react-native';
@@ -44,7 +45,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
     setFilterLimitErr('');
     const value = Number(filterLimit);
     if (!Number.isFinite(value) || value < FILTER_LIMIT_MIN || value > FILTER_LIMIT_MAX) {
-      setFilterLimitErr(`Limit must be between ${FILTER_LIMIT_MIN} and ${FILTER_LIMIT_MAX}`);
+      setFilterLimitErr(strings.settings.labels.filterLimitRange(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX));
       return;
     }
 
@@ -58,7 +59,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
       return;
     }
     setFilterLimit(String(next));
-    showToast('Filter limit saved.');
+    showToast(strings.settings.labels.filterLimitSaved);
   };
 
   const confirmRemove = async () => {
@@ -67,16 +68,16 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
     try {
       if (current.kind === 'category') {
         await deleteCategory(current.id);
-        showToast('Category removed.');
+        showToast(strings.settings.labels.categoryRemoved);
       } else {
         await deleteTag(current.id);
-        showToast('Tag removed.');
+        showToast(strings.settings.labels.tagRemoved);
       }
     } catch (err) {
       showToast(
         toastForError(
           err,
-          current.kind === 'category' ? 'Could not remove category.' : 'Could not remove tag.'
+          current.kind === 'category' ? strings.settings.labels.removeCategoryFailed : strings.settings.labels.removeTagFailed
         ),
         'error'
       );
@@ -87,16 +88,16 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
 
   return (
     <>
-      <SettingsSection title="Categories & Tags" Icon={Tags} open={open} onToggle={onToggle}>
+      <SettingsSection title={strings.settings.labels.title} Icon={Tags} open={open} onToggle={onToggle}>
         {open ? (
           <>
-            <Text style={styles.label}>Active filter limit</Text>
+            <Text style={styles.label}>{strings.settings.labels.filterLimit}</Text>
             <Text style={styles.description}>
               Shared max for selected categories + tags ({FILTER_LIMIT_MIN}–{FILTER_LIMIT_MAX})
             </Text>
             <View style={styles.filterLimitBlock}>
               <View style={styles.filterLimitRow}>
-                <Text style={styles.filterLimitLabel}>Max selected</Text>
+                <Text style={styles.filterLimitLabel}>{strings.settings.labels.maxSelected}</Text>
                 <TextInput
                   value={filterLimit}
                   onChangeText={(val) => {
@@ -125,7 +126,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
 
             <View style={styles.labelBlock}>
               <View style={styles.labelBlockHeader}>
-                <Text style={styles.label}>Categories</Text>
+                <Text style={styles.label}>{strings.common.categories}</Text>
                 <Pressable
                   style={({ pressed, hovered }) => [
                     styles.addLinkBtn,
@@ -133,11 +134,11 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
                   ]}
                   onPress={() => setShowCategoryModal(true)}>
                   <Plus size={14} color={colors.primary} />
-                  <Text style={styles.addLinkText}>Add category</Text>
+                  <Text style={styles.addLinkText}>{strings.settings.labels.addCategory}</Text>
                 </Pressable>
               </View>
               {categories.length === 0 ? (
-                <Text style={styles.description}>No categories yet.</Text>
+                <Text style={styles.description}>{strings.settings.labels.noCategories}</Text>
               ) : (
                 <View style={styles.manageList}>
                   {categories.map((cat) => (
@@ -168,7 +169,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
 
             <View style={styles.labelBlock}>
               <View style={styles.labelBlockHeader}>
-                <Text style={styles.label}>Tags</Text>
+                <Text style={styles.label}>{strings.common.tags}</Text>
                 <Pressable
                   style={({ pressed, hovered }) => [
                     styles.addLinkBtn,
@@ -176,11 +177,11 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
                   ]}
                   onPress={() => setShowTagModal(true)}>
                   <Plus size={14} color={colors.primary} />
-                  <Text style={styles.addLinkText}>Add tag</Text>
+                  <Text style={styles.addLinkText}>{strings.settings.labels.addTag}</Text>
                 </Pressable>
               </View>
               {tags.length === 0 ? (
-                <Text style={styles.description}>No tags yet.</Text>
+                <Text style={styles.description}>{strings.settings.labels.noTags}</Text>
               ) : (
                 <View style={styles.manageList}>
                   {tags.map((tag) => (
@@ -211,13 +212,13 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
       </SettingsSection>
       <ConfirmModal
         visible={pendingRemove !== null}
-        title={pendingRemove?.kind === 'tag' ? 'Remove tag?' : 'Remove category?'}
+        title={pendingRemove?.kind === 'tag' ? strings.settings.labels.removeTagTitle : strings.settings.labels.removeCategoryTitle}
         message={
           pendingRemove?.kind === 'tag'
-            ? `Remove "#${pendingRemove.name}"? It will be removed from any tasks that use it.`
-            : `Remove "${pendingRemove?.name ?? ''}"? Tasks keep their title; this category will be cleared.`
+            ? strings.settings.labels.removeTagMessage(pendingRemove.name)
+            : strings.settings.labels.removeCategoryMessage(pendingRemove?.name ?? '')
         }
-        confirmLabel="Remove"
+        confirmLabel={strings.settings.labels.remove}
         onClose={() => setPendingRemove(null)}
         onConfirm={confirmRemove}
       />
@@ -228,9 +229,9 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
         onSave={async (name, color, icon) => {
           try {
             await addCategory({ name, color, icon: icon as CategoryIcon });
-            showToast('Category created.');
+            showToast(strings.settings.labels.categoryCreated);
           } catch (err) {
-            showToast(toastForError(err, 'Could not save category.'), 'error');
+            showToast(toastForError(err, strings.settings.labels.saveCategoryFailed), 'error');
             throw new Error('category save failed');
           }
         }}
@@ -242,9 +243,9 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
         onSave={async (name, color) => {
           try {
             await addTag({ name, color });
-            showToast('Tag created.');
+            showToast(strings.settings.labels.tagCreated);
           } catch (err) {
-            showToast(toastForError(err, 'Could not save tag.'), 'error');
+            showToast(toastForError(err, strings.settings.labels.saveTagFailed), 'error');
             throw new Error('tag save failed');
           }
         }}

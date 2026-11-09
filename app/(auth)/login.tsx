@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
@@ -23,7 +24,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (params.registered === '1') {
-      showToast('Account created. You can now log in.');
+      showToast(strings.auth.login.accountCreated);
     }
   }, [params.registered, showToast]);
 
@@ -49,13 +50,13 @@ export default function LoginScreen() {
 
   return (
     <AuthLayout gap={48} overlay={loggingIn ? <LoggingInOverlay /> : null}>
-      <Heading title="Welcome Back" text="Sign in to manage your tasks" />
+      <Heading title={strings.auth.login.title} text={strings.auth.login.subtitle} />
       <Field
         innerText="Enter your email"
         Icon={Mail}
         id="email"
         type="email"
-        label="Email"
+        label={strings.common.email}
         value={values.email}
         onChangeText={(text) => {
           setValues((prev) => ({ ...prev, email: text }));
@@ -68,7 +69,7 @@ export default function LoginScreen() {
         Icon={Lock}
         id="password"
         type="password"
-        label="Password"
+        label={strings.common.password}
         value={values.password}
         onChangeText={(text) => {
           setValues((prev) => ({ ...prev, password: text }));

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useMemo } from 'react';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
@@ -16,7 +17,7 @@ export function useTaskActions() {
       try {
         await toggleTask(id);
       } catch (err) {
-        showToast(toastForError(err, 'Could not update task.'), 'error');
+        showToast(toastForError(err, strings.tasks.updateFailed), 'error');
       }
     },
     [toggleTask, showToast]
@@ -26,9 +27,9 @@ export function useTaskActions() {
     async (id: number) => {
       try {
         await deleteTask(id);
-        showToast('Task deleted.');
+        showToast(strings.tasks.deleted);
       } catch (err) {
-        showToast(toastForError(err, 'Could not delete task.'), 'error');
+        showToast(toastForError(err, strings.tasks.deleteFailed), 'error');
       }
     },
     [deleteTask, showToast]

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, Text, View } from 'react-native';
 import { AlarmClock, Calendar } from 'lucide-react-native';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
@@ -78,7 +79,7 @@ export default function TaskDetailMeta({
                   (hovered || pressed) && styles.iconBtnPressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Set due date">
+                accessibilityLabel={strings.tasks.setDueDate}>
                 <Calendar size={16} strokeWidth={2.2} color={colors.textSecondary} />
               </Pressable>
             ) : null}
@@ -93,7 +94,7 @@ export default function TaskDetailMeta({
                   (hovered || pressed) && styles.iconBtnPressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Start pomodoro">
+                accessibilityLabel={strings.tasks.startPomodoro}>
                 <AlarmClock size={16} strokeWidth={2.2} color={colors.textSecondary} />
               </Pressable>
             ) : null}

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useState } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Fingerprint, Lock, Trash2 } from 'lucide-react-native';
@@ -43,14 +44,14 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
         if (error) {
           showToast(error, 'error');
         } else {
-          showToast('Biometric unlock enabled.');
+          showToast(strings.settings.data.biometricEnabled);
         }
       } else {
         await disableBiometricUnlock();
-        showToast('Biometric unlock disabled.');
+        showToast(strings.settings.data.biometricDisabled);
       }
     } catch (err) {
-      showToast(toastForError(err, 'Could not update biometric unlock.'), 'error');
+      showToast(toastForError(err, strings.settings.data.biometricFailed), 'error');
     } finally {
       setBiometricBusy(false);
     }
@@ -58,7 +59,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
 
   const confirmDeleteAllActive = () => {
     if (activeTasks.length === 0) {
-      showToast('There are no active tasks.', 'error');
+      showToast(strings.settings.data.noActive, 'error');
       return;
     }
     setPendingBulk('active');
@@ -66,7 +67,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
 
   const confirmDeleteAllCompleted = () => {
     if (completedCount === 0) {
-      showToast('There are no completed tasks.', 'error');
+      showToast(strings.settings.data.noCompleted, 'error');
       return;
     }
     setPendingBulk('completed');
@@ -77,18 +78,16 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
 
   return (
     <>
-      <SettingsSection title="Data" Icon={Trash2} open={open} onToggle={onToggle}>
+      <SettingsSection title={strings.settings.data.title} Icon={Trash2} open={open} onToggle={onToggle}>
       {open ? (
         <>
           <View style={styles.encryptionInfo}>
             <View style={styles.encryptionInfoHeader}>
               <Lock size={16} color={colors.primary} />
-              <Text style={styles.encryptionInfoTitle}>End-to-end encrypted</Text>
+              <Text style={styles.encryptionInfoTitle}>{strings.settings.data.e2eTitle}</Text>
             </View>
             <Text style={styles.encryptionInfoText}>
-              Your task titles, descriptions, tags, and categories are encrypted on your
-              device before being stored. Only you can read them — not even we can access
-              the contents.
+              {strings.settings.data.e2eText}
             </Text>
           </View>
 
@@ -96,7 +95,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
             <View style={styles.encryptionInfo}>
               <View style={styles.encryptionInfoHeader}>
                 <Fingerprint size={16} color={colors.primary} />
-                <Text style={styles.encryptionInfoTitle}>Biometric unlock</Text>
+                <Text style={styles.encryptionInfoTitle}>{strings.settings.data.biometricTitle}</Text>
               </View>
               <View
                 style={{
@@ -106,7 +105,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
                   marginTop: 8,
                 }}>
                 <Text style={[styles.encryptionInfoText, { flex: 1, marginRight: 12 }]}>
-                  Use Face ID, fingerprint, or device PIN to unlock instead of your password.
+                  {strings.settings.data.biometricText}
                 </Text>
                 <Switch
                   value={biometricUnlockAvailable}
@@ -118,7 +117,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
             </View>
           ) : null}
 
-          <Text style={styles.description}>Bulk delete data.</Text>
+          <Text style={styles.description}>{strings.settings.data.bulkDelete}</Text>
           <Pressable
             style={({ pressed, hovered }) => [
               styles.dangerBtn,
@@ -147,12 +146,12 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
       <ConfirmModal
         visible={pendingBulk !== null}
         title={
-          pendingBulk === 'completed' ? 'Delete all completed tasks?' : 'Delete all active tasks?'
+          pendingBulk === 'completed' ? strings.settings.data.deleteCompletedTitle : strings.settings.data.deleteActiveTitle
         }
         message={
           pendingBulk === 'completed'
-            ? `This will permanently delete ${completedCount} completed ${pendingNoun}.`
-            : `This will permanently delete ${activeTasks.length} active ${pendingNoun}.`
+            ? strings.settings.data.deleteCompletedMessage(completedCount, pendingNoun)
+            : strings.settings.data.deleteActiveMessage(activeTasks.length, pendingNoun)
         }
         onClose={() => setPendingBulk(null)}
         onConfirm={async () => {
@@ -160,13 +159,13 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
           try {
             if (kind === 'active') {
               await deleteAllActive();
-              showToast('Active tasks deleted.');
+              showToast(strings.settings.data.activeDeleted);
             } else if (kind === 'completed') {
               await deleteAllCompleted();
-              showToast('Completed tasks deleted.');
+              showToast(strings.settings.data.completedDeleted);
             }
           } catch (err) {
-            showToast(toastForError(err, 'Could not delete tasks.'), 'error');
+            showToast(toastForError(err, strings.settings.data.deleteFailed), 'error');
           } finally {
             setPendingBulk(null);
           }

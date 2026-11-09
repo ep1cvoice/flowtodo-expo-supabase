@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import {
   LEGACY_KDF_ITERATIONS,
   PROFILE_FETCH_TIMEOUT_MS,
@@ -87,13 +88,13 @@ async function backfillDekMaterial(
           .select('id');
 
         if (updateError) throw updateError;
-        if (!updated || updated.length === 0) throw new Error('Profile row not ready yet');
+        if (!updated || updated.length === 0) throw new Error(strings.auth.errors.profileNotReady);
       },
       { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
   } catch (err) {
     console.warn('Failed to backfill encryption material:', err);
-    return { ok: false, error: 'Unable to configure encryption. Try again.' };
+    return { ok: false, error: strings.auth.errors.configureEncryption };
   }
 
   return {
@@ -130,7 +131,7 @@ export async function resolveDekFromPassword(options: {
   );
 
   if (profileError || !profileData) {
-    return { ok: false, error: 'Unable to fetch encryption profile data' };
+    return { ok: false, error: strings.auth.errors.fetchEncryptionProfile };
   }
 
   let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
@@ -142,7 +143,7 @@ export async function resolveDekFromPassword(options: {
         password: options.password,
       });
       if (reauthError && isRejectedPassword(reauthError)) {
-        return { ok: false, error: 'Invalid password' };
+        return { ok: false, error: strings.auth.errors.invalidPassword };
       }
     }
 

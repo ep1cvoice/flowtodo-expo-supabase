@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
@@ -25,7 +26,7 @@ export default function CreateTaskButton({ onPress }: CreateTaskButtonProps) {
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Create new task">
+      accessibilityLabel={strings.nav.createTask}>
       <Plus size={28} color="#fff" strokeWidth={2} />
     </Pressable>
   );

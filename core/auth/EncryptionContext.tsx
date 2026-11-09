@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import {
   createContext,
   useCallback,
@@ -92,7 +93,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
 
       unlock: async (password, user) => {
         if (!user?.id || !user?.email) {
-          return { error: 'Brak aktywnej sesji.' };
+          return { error: strings.auth.errors.noActiveSession };
         }
         try {
           const resolved = await resolveDekFromPassword({
@@ -100,8 +101,8 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
             password,
             verifyEmail: user.email,
             profileTimeoutLabel: 'unlockProfile',
-            decryptFailLog: 'Failed to unlock DEK:',
-            decryptFailError: 'Invalid password',
+            decryptFailLog: strings.auth.errors.unlockDekLog,
+            decryptFailError: strings.auth.errors.invalidPassword,
           });
           if (!resolved.ok) return { error: resolved.error };
 
@@ -109,7 +110,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           return { error: null };
         } catch (err) {
           console.warn('unlock failed:', (err as Error)?.message ?? err);
-          return { error: toastForError(err, 'Nie udało się odblokować') };
+          return { error: toastForError(err, strings.auth.unlock.failed) };
         }
       },
 
@@ -118,7 +119,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           const storedDek = await loadDekFromSecureStore();
           if (!storedDek) {
             return {
-              error: 'Odblokowanie biometryczne nie jest skonfigurowane na tym urządzeniu.',
+              error: strings.auth.errors.biometricNotConfigured,
             };
           }
           applyDek(storedDek);
@@ -127,7 +128,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           // User cancelled the prompt, auth failed, or hardware unavailable —
           // caller should fall back to showing the password unlock screen.
           console.warn('unlockWithBiometrics failed:', (err as Error)?.message ?? err);
-          return { error: 'Uwierzytelnianie nie powiodło się. Użyj hasła.' };
+          return { error: strings.auth.errors.authFailedUsePassword };
         }
       },
 
@@ -135,7 +136,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
         const current = dekRef.current;
         if (!current) {
           return {
-            error: 'Brak odszyfrowanego klucza. Odblokuj aplikację hasłem, aby to włączyć.',
+            error: strings.auth.errors.noDecryptedKeyEnable,
           };
         }
         try {
@@ -144,7 +145,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           return { error: null };
         } catch (err) {
           console.warn('enableBiometricUnlock failed:', (err as Error)?.message ?? err);
-          return { error: 'Nie udało się zapisać klucza w bezpiecznym magazynie urządzenia.' };
+          return { error: strings.auth.errors.saveKeySecureStorage };
         }
       },
 
@@ -155,12 +156,12 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
 
       updatePassword: async (user, currentPassword, newPassword) => {
         if (!user?.email) {
-          return { error: 'Please sign in to update your password.' };
+          return { error: strings.auth.errors.signInToUpdatePassword };
         }
         const current = dekRef.current;
         if (!current) {
           return {
-            error: 'Brak odszyfrowanego klucza. Zaloguj się ponownie przed zmianą hasła.',
+            error: strings.auth.errors.noDecryptedKeyChangePassword,
           };
         }
         // The raw DEK bytes are unchanged by a password change (only the

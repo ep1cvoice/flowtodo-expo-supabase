@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -27,7 +28,7 @@ export default function TaskSearchBar({
   value,
   onChangeText,
   visible,
-  placeholder = 'Search tasks…',
+  placeholder = strings.tasks.searchPlaceholder,
 }: TaskSearchBarProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -98,7 +99,7 @@ export default function TaskSearchBar({
             showSoftInputOnFocus={visible}
             clearButtonMode="never"
             returnKeyType="search"
-            accessibilityLabel="Search tasks"
+            accessibilityLabel={strings.tasks.searchTasks}
           />
         ) : (
           <View style={styles.input} />
@@ -112,7 +113,7 @@ export default function TaskSearchBar({
               (hovered || pressed) && styles.clearBtnPressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Clear search">
+            accessibilityLabel={strings.tasks.clearSearch}>
             <X size={16} color={colors.textMuted} />
           </Pressable>
         ) : null}
@@ -142,7 +143,7 @@ export function TaskSearchToggle({ open, hasQuery = false, onPress }: TaskSearch
         (hovered || pressed) && styles.toggleBtnPressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={open ? 'Hide search' : 'Show search'}
+      accessibilityLabel={open ? strings.tasks.hideSearch : strings.tasks.showSearch}
       accessibilityState={{ selected: open }}>
       <Search size={16} color={active ? colors.primary : colors.textSecondary} strokeWidth={2.2} />
     </Pressable>

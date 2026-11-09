@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   View,
@@ -117,9 +118,9 @@ export default function ActiveDayCalendar({
         (hovered || pressed) && styles.stripDayPressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel="Show all days"
+      accessibilityLabel={strings.tasks.showAllDays}
       accessibilityState={{ selected: !selectedDay }}>
-      <Text style={[styles.allChipText, !selectedDay && styles.allChipTextActive]}>All</Text>
+      <Text style={[styles.allChipText, !selectedDay && styles.allChipTextActive]}>{strings.common.all}</Text>
     </Pressable>
   );
 

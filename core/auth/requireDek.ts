@@ -1,6 +1,7 @@
+import { strings } from '@/shared/lib/strings';
 export function requireDek(dek: Uint8Array | null): Uint8Array {
   if (!dek) {
-    throw new Error('Aplikacja jest zablokowana. Odblokuj ją hasłem, aby zapisać dane.');
+    throw new Error(strings.auth.errors.appLocked);
   }
   return dek;
 }

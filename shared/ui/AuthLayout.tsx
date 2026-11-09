@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import {
   View,
@@ -81,7 +82,7 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
   );
 }
 
-export function LoggingInOverlay({ message = 'Logging in...' }: { message?: string }) {
+export function LoggingInOverlay({ message = strings.auth.login.loggingIn }: { message?: string }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 

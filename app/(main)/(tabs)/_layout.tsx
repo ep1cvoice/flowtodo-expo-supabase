@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
 import { ListTodo, CheckCircle2, Settings, Calendar, type LucideIcon } from 'lucide-react-native';
@@ -126,15 +127,15 @@ export default function MainTabsLayout() {
       <Tabs.Screen
         name="active"
         options={{
-          title: 'All',
-          tabBarLabel: 'All Tasks',
+          title: strings.nav.allTab,
+          tabBarLabel: strings.nav.allTasks,
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'Calendar',
+          title: strings.nav.calendar,
           tabBarLabel: 'Calendar',
           tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} strokeWidth={2} />,
         }}
@@ -142,7 +143,7 @@ export default function MainTabsLayout() {
       <Tabs.Screen
         name="completed"
         options={{
-          title: 'Completed',
+          title: strings.nav.completed,
           tabBarLabel: 'Completed',
           tabBarIcon: ({ color, size }) => (
             <CheckCircle2 size={size} color={color} strokeWidth={2} />
@@ -152,7 +153,7 @@ export default function MainTabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: strings.nav.settings,
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => <Settings size={size} color={color} strokeWidth={2} />,
         }}

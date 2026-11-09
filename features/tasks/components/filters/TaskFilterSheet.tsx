@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import {
   View,
@@ -53,13 +54,13 @@ export default function TaskFilterSheet({
     <SheetFrame
       visible={visible}
       onClose={onClose}
-      title="Filter tasks"
+      title={strings.tasks.filterTasks}
       compactHeader
       cardStyle={styles.card}
       headerRight={
         hasFilters ? (
           <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn}>
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={styles.clearText}>{strings.common.clear}</Text>
           </Pressable>
         ) : null
       }>
@@ -69,7 +70,7 @@ export default function TaskFilterSheet({
         keyboardShouldPersistTaps="handled">
             <View style={styles.section}>
               <View style={styles.sectionLabelRow}>
-                <Text style={styles.sectionLabel}>Categories</Text>
+                <Text style={styles.sectionLabel}>{strings.common.categories}</Text>
                 <Text style={styles.limitHint}>
                   {selectedCount}/{maxFilterSelections}
                 </Text>
@@ -85,7 +86,7 @@ export default function TaskFilterSheet({
                   ]}>
                   <Text
                     style={[styles.chipText, allCategories && styles.chipTextSelectedNeutral]}>
-                    All
+                    {strings.common.all}
                   </Text>
                 </Pressable>
                 {categories.map((cat) => {
@@ -113,11 +114,11 @@ export default function TaskFilterSheet({
 
             <View style={styles.section}>
               <View style={styles.sectionLabelRow}>
-                <Text style={styles.sectionLabel}>Tags</Text>
+                <Text style={styles.sectionLabel}>{strings.common.tags}</Text>
               
               </View>
               {tags.length === 0 ? (
-                <Text style={styles.emptyHint}>No tags yet. Create some in Settings.</Text>
+                <Text style={styles.emptyHint}>{strings.tasks.noTagsSettings}</Text>
               ) : (
                 <View style={styles.chipWrap}>
                   <Pressable
@@ -129,7 +130,7 @@ export default function TaskFilterSheet({
                       pressed && styles.chipPressed,
                     ]}>
                     <Text style={[styles.chipText, allTags && styles.chipTextSelectedNeutral]}>
-                      All
+                      {strings.common.all}
                     </Text>
                   </Pressable>
                   {tags.map((tag) => {
@@ -163,7 +164,7 @@ export default function TaskFilterSheet({
                 styles.doneBtn,
                 (hovered || pressed) && styles.doneBtnPressed,
               ]}>
-              <Text style={styles.doneBtnText}>Done</Text>
+              <Text style={styles.doneBtnText}>{strings.common.done}</Text>
             </Pressable>
           </View>
     </SheetFrame>

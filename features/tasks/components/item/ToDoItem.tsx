@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import {
   Platform,
@@ -90,7 +91,7 @@ export default function ToDoItem({
   const handleStartPomodoro = () => {
     if (!canStart || task.done) return;
     startPomo(task.id).catch((err) => {
-      showToast(toastForError(err, 'Could not start pomodoro.'), 'error');
+      showToast(toastForError(err, strings.tasks.startPomodoroFailed), 'error');
     });
   };
 
@@ -99,7 +100,7 @@ export default function ToDoItem({
       try {
         await endPomo();
       } catch (err) {
-        showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
+        showToast(toastForError(err, strings.tasks.stopPomodoroFailed), 'error');
         return false;
       }
     }
@@ -115,7 +116,7 @@ export default function ToDoItem({
       try {
         await endPomo();
       } catch (err) {
-        showToast(toastForError(err, 'Could not stop pomodoro.'), 'error');
+        showToast(toastForError(err, strings.tasks.stopPomodoroFailed), 'error');
         return false;
       }
     }
@@ -139,7 +140,7 @@ export default function ToDoItem({
       await setTaskScheduled(task.id, null);
       setShowCalendarModal(false);
     } catch (err) {
-      showToast(toastForError(err, 'Could not update date.'), 'error');
+      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
     }
   };
 
@@ -148,7 +149,7 @@ export default function ToDoItem({
       await setTaskScheduled(task.id, toScheduledIso(date));
       setShowCalendarModal(false);
     } catch (err) {
-      showToast(toastForError(err, 'Could not update date.'), 'error');
+      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
     }
   };
 
@@ -160,7 +161,7 @@ export default function ToDoItem({
         delayLongPress={drag ? 450 : undefined}
         accessibilityRole="none"
         accessibilityLabel={task.title}
-        accessibilityHint={drag ? 'Opens details. Long press to reorder' : 'Show task details'}
+        accessibilityHint={drag ? strings.tasks.detailsReorderHint : strings.tasks.showDetails}
         {...(Platform.OS === 'web' ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,
@@ -280,8 +281,8 @@ export default function ToDoItem({
 
       <ConfirmModal
         visible={confirmDelete}
-        title="Delete task?"
-        message={`"${task.title}" will be permanently deleted.`}
+        title={strings.tasks.deleteConfirmTitle}
+        message={strings.tasks.deleteConfirmMessage(task.title)}
         onClose={() => setConfirmDelete(false)}
         onConfirm={async () => {
           const deleted = await handleDelete();

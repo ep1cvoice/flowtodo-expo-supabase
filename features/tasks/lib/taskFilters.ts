@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { taskMatchesScheduledDay } from '@/features/tasks/lib/calendarDate';
 import { filterTasksBySearch } from '@/features/tasks/lib/taskSearch';
 import { sortTasks, type TaskSortMode } from '@/features/tasks/lib/taskSort';
@@ -53,8 +54,8 @@ export function getActiveEmptyCopy(options: {
 
   if (hasDayFilter && !hasSearch && !hasFilters) {
     return {
-      title: 'No tasks on this day',
-      text: 'Create a task or pick another day',
+      title: strings.tasks.empty.noTasksOnDay.title,
+      text: strings.tasks.empty.noTasksOnDay.text,
     };
   }
   if (hasSearch && !hasFilters) {
@@ -71,8 +72,8 @@ export function getActiveEmptyCopy(options: {
   }
   if (!hasFilters) {
     return {
-      title: 'No active tasks',
-      text: 'Create your first task to get started',
+      title: strings.tasks.empty.noActive.title,
+      text: strings.tasks.empty.noActive.text,
     };
   }
   if (validTagIds.length > 0 && validCategoryIds.length > 0) {
@@ -83,12 +84,12 @@ export function getActiveEmptyCopy(options: {
   }
   if (validTagIds.length > 0) {
     return {
-      title: 'No tasks with these tags',
-      text: 'Try removing some tag filters or assign these tags to a task',
+      title: strings.tasks.empty.noMatchTags.title,
+      text: strings.tasks.empty.noMatchTags.text,
     };
   }
   return {
-    title: 'No tasks in these categories',
-    text: 'Add a category to an existing task or create a new one',
+    title: strings.tasks.empty.noMatchCategories.title,
+    text: strings.tasks.empty.noMatchCategories.text,
   };
 }

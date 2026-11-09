@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput, View } from 'react-native';
 import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
@@ -85,8 +86,8 @@ export default function TaskDetailModal({
       lastSavedRef.current = next;
       if (!focusedRef.current) setDraft(next);
     } catch (err) {
-      console.warn('Failed to update description:', err);
-      showToast(toastForError(err, 'Could not save description.'), 'error');
+      console.warn(strings.tasks.descriptionSaveLog, err);
+      showToast(toastForError(err, strings.tasks.saveDescriptionFailed), 'error');
       if (!focusedRef.current) setDraft(task.description ?? '');
     } finally {
       savingRef.current = false;
@@ -119,7 +120,7 @@ export default function TaskDetailModal({
       await setTaskScheduled(task.id, null);
       setShowCalendar(false);
     } catch (err) {
-      showToast(toastForError(err, 'Could not update date.'), 'error');
+      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
     }
   };
 
@@ -128,7 +129,7 @@ export default function TaskDetailModal({
       await setTaskScheduled(task.id, toScheduledIso(date));
       setShowCalendar(false);
     } catch (err) {
-      showToast(toastForError(err, 'Could not update date.'), 'error');
+      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
     }
   };
 
@@ -168,8 +169,8 @@ export default function TaskDetailModal({
           <ConfirmModal
             embedded
             visible={confirmDelete}
-            title="Delete task?"
-            message={`"${task.title}" will be permanently deleted.`}
+            title={strings.tasks.deleteConfirmTitle}
+            message={strings.tasks.deleteConfirmMessage(task.title)}
             onClose={() => {
               setConfirmDelete(false);
               void saveDescription();

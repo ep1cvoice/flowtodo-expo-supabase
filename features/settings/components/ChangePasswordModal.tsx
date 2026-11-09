@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Lock } from 'lucide-react-native';
@@ -92,11 +93,11 @@ export default function ChangePasswordModal({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Change password</Text>
-        <Text style={styles.subtitle}>Enter your current password, then choose a new one.</Text>
+        <Text style={styles.title}>{strings.settings.changePassword.title}</Text>
+        <Text style={styles.subtitle}>{strings.settings.changePassword.subtitle}</Text>
 
         <Field
-          label="Current password"
+          label={strings.settings.changePassword.current}
           type="password"
           Icon={Lock}
           innerText="Current password"
@@ -108,7 +109,7 @@ export default function ChangePasswordModal({
           error={errors.currentPassword}
         />
         <Field
-          label="New password"
+          label={strings.settings.changePassword.new}
           type="password"
           Icon={Lock}
           innerText="New password"
@@ -120,7 +121,7 @@ export default function ChangePasswordModal({
           error={errors.newPassword}
         />
         <Field
-          label="Confirm new password"
+          label={strings.settings.changePassword.confirmNew}
           type="password"
           Icon={Lock}
           innerText="Confirm new password"
@@ -143,7 +144,7 @@ export default function ChangePasswordModal({
             ]}
             onPress={onClose}
             disabled={saving}>
-            <Text style={styles.secondaryBtnText}>Close</Text>
+            <Text style={styles.secondaryBtnText}>{strings.common.close}</Text>
           </Pressable>
           <Pressable
             style={({ pressed, hovered }) => [
@@ -153,7 +154,7 @@ export default function ChangePasswordModal({
             ]}
             onPress={handleSave}
             disabled={saving}>
-            <Text style={styles.primaryBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+            <Text style={styles.primaryBtnText}>{saving ? strings.common.saving : strings.settings.changePassword.submit}</Text>
           </Pressable>
         </View>
       </ScrollView>

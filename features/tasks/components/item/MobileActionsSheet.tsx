@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2, X } from 'lucide-react-native';
@@ -53,7 +54,7 @@ export default function MobileActionsSheet({
                 onStartPomodoro();
               }}>
               <AlarmClock size={18} color={colors.textPrimary} />
-              <Text style={styles.mobileActionText}>Pomodoro</Text>
+              <Text style={styles.mobileActionText}>{strings.tasks.actionPomodoro}</Text>
             </Pressable>
           ) : null}
 
@@ -64,7 +65,7 @@ export default function MobileActionsSheet({
               onOpenCalendar();
             }}>
             <Calendar size={18} color={colors.textPrimary} />
-            <Text style={styles.mobileActionText}>Calendar</Text>
+            <Text style={styles.mobileActionText}>{strings.tasks.actionCalendar}</Text>
           </Pressable>
 
           <Pressable
@@ -74,29 +75,29 @@ export default function MobileActionsSheet({
               onEdit();
             }}>
             <Pencil size={18} color={colors.textPrimary} />
-            <Text style={styles.mobileActionText}>Edit</Text>
+            <Text style={styles.mobileActionText}>{strings.common.edit}</Text>
           </Pressable>
 
           <Pressable
             style={styles.mobileActionRow}
             onPress={() => setConfirming(true)}>
             <Trash2 size={18} color={colors.textPrimary} />
-            <Text style={styles.mobileActionText}>Delete</Text>
+            <Text style={styles.mobileActionText}>{strings.common.delete}</Text>
           </Pressable>
 
           <Pressable
             style={[styles.mobileActionRow, styles.mobileClose]}
             onPress={onClose}>
             <X size={18} color={colors.red} />
-            <Text style={[styles.mobileActionText, { color: colors.red }]}>Close</Text>
+            <Text style={[styles.mobileActionText, { color: colors.red }]}>{strings.common.close}</Text>
           </Pressable>
         </Pressable>
       </Pressable>
       <ConfirmModal
         embedded
         visible={confirming}
-        title="Delete task?"
-        message={`"${taskTitle}" will be permanently deleted.`}
+        title={strings.tasks.deleteConfirmTitle}
+        message={strings.tasks.deleteConfirmMessage(taskTitle)}
         onClose={() => setConfirming(false)}
         onConfirm={async () => {
           const deleted = await onDelete();

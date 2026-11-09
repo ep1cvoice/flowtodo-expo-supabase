@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { requireDek } from '@/core/auth/requireDek';
@@ -71,7 +72,7 @@ export function useTaskMutations({
   setTags,
 }: TaskMutationsParams) {
   const requireUserId = () => {
-    if (!user) throw new Error('Not signed in');
+    if (!user) throw new Error(strings.common.notSignedIn);
     return user.id;
   };
 

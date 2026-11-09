@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
@@ -116,7 +117,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
             styles.btn,
             (hovered || pressed) && styles.btnPressed,
           ]}
-          accessibilityLabel={isPaused ? 'Resume pomodoro' : 'Pause pomodoro'}>
+          accessibilityLabel={isPaused ? strings.pomodoro.resume : strings.pomodoro.pause}>
           {isPaused && !showAlarm ? (
             <Play size={16} color={POMO_RED} />
           ) : (
@@ -134,7 +135,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
             styles.btn,
             (hovered || pressed) && styles.btnPressed,
           ]}
-          accessibilityLabel="End pomodoro">
+          accessibilityLabel={strings.pomodoro.endPomodoro}>
           <X size={16} color={POMO_RED} />
         </Pressable>
       </Pressable>
@@ -143,17 +144,17 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
         <Pressable style={styles.alarmOverlay} onPress={handleDismissAlarm}>
           <Pressable style={styles.alarmModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.alarmHeader}>
-              <Text style={styles.alarmTitle}>Take a break</Text>
+              <Text style={styles.alarmTitle}>{strings.pomodoro.takeBreak}</Text>
               <AlarmClock size={22} color={colors.primary} />
             </View>
-            <Text style={styles.alarmText}>Pomodoro finished. Time for a short rest.</Text>
+            <Text style={styles.alarmText}>{strings.pomodoro.finished}</Text>
             <Pressable
               onPress={handleDismissAlarm}
               style={({ pressed, hovered }) => [
                 styles.okBtn,
                 (hovered || pressed) && styles.okBtnPressed,
               ]}>
-              <Text style={styles.okBtnText}>OK</Text>
+              <Text style={styles.okBtnText}>{strings.common.ok}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

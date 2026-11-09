@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import type { Task } from '@/types';
 
 export type TaskSortMode = 'manual' | 'due' | 'created' | 'title';
@@ -10,17 +11,17 @@ export const TASK_SORT_MODES: readonly TaskSortMode[] = [
 ] as const;
 
 export const TASK_SORT_LABELS: Record<TaskSortMode, string> = {
-  manual: 'Manual',
-  due: 'Due date',
-  created: 'Created',
-  title: 'Title',
+  manual: strings.tasks.sortLabels.manual,
+  due: strings.tasks.sortLabels.due,
+  created: strings.tasks.sortLabels.created,
+  title: strings.tasks.sortLabels.title,
 };
 
 export const TASK_SORT_HINTS: Record<TaskSortMode, string> = {
-  manual: 'Drag to reorder',
-  due: 'Soonest first · no date last',
-  created: 'Newest first',
-  title: 'A–Z',
+  manual: strings.tasks.sortHints.manual,
+  due: strings.tasks.sortHints.due,
+  created: strings.tasks.sortHints.created,
+  title: strings.tasks.sortHints.title,
 };
 
 export function isTaskSortMode(value: unknown): value is TaskSortMode {

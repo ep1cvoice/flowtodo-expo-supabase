@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -78,7 +79,7 @@ export default function ActiveTasks() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: isMobile && hasFilters ? '' : 'All Tasks',
+      title: isMobile && hasFilters ? '' : strings.nav.allTasks,
       headerRight: () => (
         <TaskFilterBar
           variant="header"
@@ -192,7 +193,7 @@ export default function ActiveTasks() {
             />
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading tasks</Text>
+              <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
           </>
         ) : (

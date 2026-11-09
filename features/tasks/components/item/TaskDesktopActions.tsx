@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, View } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2 } from 'lucide-react-native';
 import type { TodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
@@ -42,7 +43,7 @@ export default function TaskDesktopActions({
                 onStartPomodoro();
               }}
               hitSlop={6}
-              accessibilityLabel="Start pomodoro">
+              accessibilityLabel={strings.tasks.startPomodoro}>
               <AlarmClock size={18} color={colors.textSecondary} />
             </Pressable>
           ) : null}

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
@@ -37,7 +38,7 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
       }
       router.replace('/(auth)/login' as Href);
     } catch (err) {
-      setAccountErr(err instanceof Error ? err.message : 'Could not delete account.');
+      setAccountErr(err instanceof Error ? err.message : strings.settings.profile.deleteFailed);
     } finally {
       setDeletingAccount(false);
       setShowDeleteConfirm(false);
@@ -46,12 +47,12 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
 
   return (
     <>
-      <SettingsSection title="Profile" Icon={User} open={open} onToggle={onToggle}>
+      <SettingsSection title={strings.settings.profile.title} Icon={User} open={open} onToggle={onToggle}>
         {open ? (
           <>
-            <Text style={styles.label}>Username</Text>
+            <Text style={styles.label}>{strings.settings.profile.username}</Text>
             <Text style={styles.description}>{user?.username ?? '—'}</Text>
-            <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>{strings.settings.profile.email}</Text>
             <Text style={styles.description}>{user?.email ?? '—'}</Text>
 
             <Pressable
@@ -64,7 +65,7 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
                 setAccountErr('');
                 setShowPasswordModal(true);
               }}>
-              <Text style={styles.secondaryBtnText}>Change password</Text>
+              <Text style={styles.secondaryBtnText}>{strings.settings.profile.changePassword}</Text>
             </Pressable>
             {!!accountMsg && <Text style={styles.successInfo}>{accountMsg}</Text>}
             {!!accountErr && <Text style={styles.errorInfo}>{accountErr}</Text>}
@@ -72,10 +73,10 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
             <View style={styles.dangerZone}>
               <View style={styles.dangerHeader}>
                 <AlertTriangle size={18} color={colors.red} />
-                <Text style={styles.dangerTitle}>Danger zone</Text>
+                <Text style={styles.dangerTitle}>{strings.settings.profile.dangerZone}</Text>
               </View>
               <Text style={styles.description}>
-                Permanently delete your account and all associated data.
+                {strings.settings.profile.dangerDescription}
               </Text>
               <Pressable
                 style={({ pressed, hovered }) => [
@@ -86,7 +87,7 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
                 disabled={deletingAccount}
                 onPress={() => setShowDeleteConfirm(true)}>
                 <Text style={styles.dangerBtnText}>
-                  {deletingAccount ? 'Deleting…' : 'Delete account'}
+                  {deletingAccount ? strings.settings.profile.deleting : strings.settings.profile.deleteAccount}
                 </Text>
               </Pressable>
             </View>
@@ -95,8 +96,8 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
       </SettingsSection>
       <ConfirmModal
         visible={showDeleteConfirm}
-        title="Delete account?"
-        message="This permanently deletes your account, tasks, categories, and tags. This cannot be undone."
+        title={strings.settings.profile.deleteConfirmTitle}
+        message={strings.settings.profile.deleteConfirmMessage}
         busy={deletingAccount}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDeleteAccount}

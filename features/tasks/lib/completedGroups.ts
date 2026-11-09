@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import type { Task } from '@/types';
 
 export type CompletedTaskSection = {
@@ -42,11 +43,11 @@ export function getCompletedSectionMeta(
   now: Date = new Date()
 ): CompletedSectionMeta {
   if (!completedAt) {
-    return { key: 'unknown', title: 'Unknown', sortKey: Number.NEGATIVE_INFINITY };
+    return { key: 'unknown', title: strings.common.unknown, sortKey: Number.NEGATIVE_INFINITY };
   }
   const completed = new Date(completedAt);
   if (Number.isNaN(completed.getTime())) {
-    return { key: 'unknown', title: 'Unknown', sortKey: Number.NEGATIVE_INFINITY };
+    return { key: 'unknown', title: strings.common.unknown, sortKey: Number.NEGATIVE_INFINITY };
   }
 
   const dayStart = startOfLocalDay(completed);
@@ -56,10 +57,10 @@ export function getCompletedSectionMeta(
   const yesterday = today - dayMs;
 
   if (day === today) {
-    return { key: 'today', title: 'Today', sortKey: day };
+    return { key: 'today', title: strings.common.today, sortKey: day };
   }
   if (day === yesterday) {
-    return { key: 'yesterday', title: 'Yesterday', sortKey: day };
+    return { key: 'yesterday', title: strings.common.yesterday, sortKey: day };
   }
   return {
     key: toDayKey(dayStart),

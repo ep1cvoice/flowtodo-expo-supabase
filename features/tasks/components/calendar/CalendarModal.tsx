@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -65,7 +66,7 @@ export default function CalendarModal({
       visible={visible}
       embedded={embedded}
       onClose={onClose}
-      title="Set due date"
+      title={strings.tasks.setDueDateTitle}
       header="plain"
       maxWidth={360}
       cardStyle={styles.card}
@@ -109,7 +110,7 @@ export default function CalendarModal({
                 styles.clearBtn,
                 (hovered || pressed) && styles.clearPressed,
               ]}>
-              <Text style={styles.clearText}>Clear date</Text>
+              <Text style={styles.clearText}>{strings.tasks.clearDate}</Text>
             </Pressable>
             <Pressable
               disabled={!canConfirm}
@@ -120,7 +121,7 @@ export default function CalendarModal({
                 !canConfirm && styles.setDisabled,
                 canConfirm && (hovered || pressed) && styles.setPressed,
               ]}>
-              <Text style={styles.setText}>Set Date</Text>
+              <Text style={styles.setText}>{strings.tasks.setDate}</Text>
             </Pressable>
           </View>
     </SheetFrame>

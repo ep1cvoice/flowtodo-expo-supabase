@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable } from 'react-native';
 import { CirclePlus, Trash2 } from 'lucide-react-native';
 import type { TodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
@@ -28,7 +29,7 @@ export default function TaskMobileTrailing({
         }}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel="Delete task">
+        accessibilityLabel={strings.tasks.deleteTask}>
         <Trash2 size={18} strokeWidth={2.2} color={colors.textPrimary} />
       </Pressable>
     );
@@ -43,7 +44,7 @@ export default function TaskMobileTrailing({
       }}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel="Task actions">
+      accessibilityLabel={strings.tasks.taskActions}>
       <CirclePlus size={18} strokeWidth={2.2} color={colors.primary} />
     </Pressable>
   );

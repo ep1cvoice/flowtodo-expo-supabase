@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { CheckCircle, XCircle, Trash2 } from 'lucide-react-native';
@@ -25,8 +26,8 @@ function formatDate(dateStr: string | null): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  if (d.toDateString() === today.toDateString()) return strings.common.today;
+  if (d.toDateString() === yesterday.toDateString()) return strings.common.yesterday;
   return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
@@ -41,7 +42,7 @@ export default function PomodoroHistory() {
   const { history, deleteHistoryRecord } = usePomodoro();
 
   if (history.length === 0) {
-    return <Text style={styles.empty}>No sessions yet. Finish a Pomodoro to see it here.</Text>;
+    return <Text style={styles.empty}>{strings.pomodoro.noSessions}</Text>;
   }
 
   return (
@@ -74,7 +75,7 @@ export default function PomodoroHistory() {
                 styles.deleteBtn,
                 (hovered || pressed) && styles.deleteBtnPressed,
               ]}
-              accessibilityLabel="Delete session">
+              accessibilityLabel={strings.pomodoro.deleteSession}>
               <Trash2 size={14} color={colors.red} />
             </Pressable>
           </View>

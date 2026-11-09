@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { Tag } from '@/types';
@@ -35,18 +36,18 @@ export default function TagChipPicker({
   return (
     <View style={styles.wrapper}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>Tags (optional)</Text>
+        <Text style={styles.label}>{strings.form.tagsOptional}</Text>
         <View style={styles.labelActions}>
           {atLimit && <Text style={styles.limitNote}>Max {MAX_TAGS_PER_TASK}</Text>}
           {onAddPress ? (
             <Pressable onPress={onAddPress} hitSlop={8} style={styles.addBtn}>
-              <Text style={[styles.addBtnText, { color: colors.primary }]}>+ New</Text>
+              <Text style={[styles.addBtnText, { color: colors.primary }]}>{strings.form.newLink}</Text>
             </Pressable>
           ) : null}
         </View>
       </View>
       {tags.length === 0 ? (
-        <Text style={styles.emptyHint}>No tags yet — create one</Text>
+        <Text style={styles.emptyHint}>{strings.form.noTagsCreate}</Text>
       ) : (
         <View style={styles.chipList}>
           {tags.map((tag) => {

@@ -1,10 +1,11 @@
+import { strings } from '@/shared/lib/strings';
 import { decryptColumn } from '@/core/crypto/decryptColumn';
 import type { PomoData, PomoRecord } from '@/types';
 import type { Database } from '@/types/database';
 
 type PomoRow = Database['public']['Tables']['pomodoros']['Row'];
 
-const DELETED_TASK_NAME = 'Deleted task';
+const DELETED_TASK_NAME = strings.pomodoro.deletedTask;
 
 /**
  * Rows with no stored name at all (ciphertext and IV both NULL) get the placeholder.

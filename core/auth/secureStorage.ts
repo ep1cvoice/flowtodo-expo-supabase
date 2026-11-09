@@ -12,6 +12,7 @@
  * Keep the password flow available as a fallback / recovery path and
  * for enabling E2E sync on a *new* device.
  */
+import { strings } from '@/shared/lib/strings';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Buffer } from 'buffer';
@@ -52,7 +53,7 @@ export async function saveDekToSecureStore(
   options: SecureDekOptions = {}
 ): Promise<void> {
   if (!(await secureStoreReady())) {
-    throw new Error('Secure storage is not available on this device.');
+    throw new Error(strings.auth.errors.secureStorageUnavailable);
   }
   const dekBase64 = Buffer.from(dek).toString('base64');
 

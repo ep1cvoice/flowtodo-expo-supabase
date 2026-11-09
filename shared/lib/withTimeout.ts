@@ -1,5 +1,6 @@
+import { strings } from '@/shared/lib/strings';
 export class TimeoutError extends Error {
-  constructor(message = 'Request timed out') {
+  constructor(message = strings.common.requestTimedOut) {
     super(message);
     this.name = 'TimeoutError';
   }
@@ -9,7 +10,7 @@ export class TimeoutError extends Error {
 export function withTimeout<T>(
   promise: PromiseLike<T>,
   ms: number,
-  label = 'Request'
+  label = strings.common.request
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const id = setTimeout(() => {

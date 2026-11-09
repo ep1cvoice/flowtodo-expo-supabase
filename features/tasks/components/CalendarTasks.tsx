@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -107,7 +108,7 @@ export default function CalendarTasks() {
                 (hovered || pressed) && styles.navBtnPressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Previous month">
+              accessibilityLabel={strings.tasks.previousMonth}>
               <ChevronLeft size={18} color={colors.textPrimary} />
             </Pressable>
             <Text style={styles.monthLabel} numberOfLines={1}>
@@ -121,7 +122,7 @@ export default function CalendarTasks() {
                 (hovered || pressed) && styles.navBtnPressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Next month">
+              accessibilityLabel={strings.tasks.nextMonth}>
               <ChevronRight size={18} color={colors.textPrimary} />
             </Pressable>
           </View>
@@ -172,7 +173,7 @@ export default function CalendarTasks() {
                 hitSlop={8}
                 style={styles.handleHit}
                 accessibilityRole="button"
-                accessibilityLabel={expanded ? 'Show current week' : 'Show full month'}>
+                accessibilityLabel={expanded ? strings.tasks.showCurrentWeek : strings.tasks.showFullMonth}>
                 <View style={styles.handlePill} />
               </Pressable>
             </View>
@@ -183,7 +184,7 @@ export default function CalendarTasks() {
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading tasks…</Text>
+            <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
           </View>
         ) : (
           <FlatList
@@ -203,8 +204,8 @@ export default function CalendarTasks() {
                     <CalendarPlus size={46} color={colors.primary} strokeWidth={2.2} />
                   </View>
                 </View>
-                <Text style={styles.emptyTitle}>There are no tasks on this day</Text>
-                <Text style={styles.emptyText}>Create a new one or pick another day</Text>
+                <Text style={styles.emptyTitle}>{strings.tasks.noTasksOnDay}</Text>
+                <Text style={styles.emptyText}>{strings.tasks.noTasksOnDayHint}</Text>
               </View>
             }
           />

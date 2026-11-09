@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 export type LoginValues = {
   email: string;
   password: string;
@@ -13,11 +14,11 @@ export type RegisterValues = {
 const SPECIAL_CHAR = /[!@#$%^&*()_\-+=[\]{};:'",.<>/?`~|]/;
 
 export function passwordRuleError(password: string): string {
-  if (password.length < 8) return 'Password must be at least 8 characters long';
-  if (!/[a-z]/.test(password)) return 'Must contain lowercase letter';
-  if (!/[A-Z]/.test(password)) return 'Must contain uppercase letter';
-  if (!/[0-9]/.test(password)) return 'Must contain a digit';
-  if (!SPECIAL_CHAR.test(password)) return 'Must contain a special character';
+  if (password.length < 8) return strings.auth.validation.passwordMinLength;
+  if (!/[a-z]/.test(password)) return strings.auth.validation.lowercase;
+  if (!/[A-Z]/.test(password)) return strings.auth.validation.uppercase;
+  if (!/[0-9]/.test(password)) return strings.auth.validation.digit;
+  if (!SPECIAL_CHAR.test(password)) return strings.auth.validation.special;
   return '';
 }
 
@@ -27,32 +28,32 @@ export function validatePassword(password: string, emptyMessage: string): string
 }
 
 export function confirmPasswordError(password: string, confirmPassword: string): string {
-  if (!confirmPassword) return 'Confirm your password';
-  if (password !== confirmPassword) return 'Passwords do not match';
+  if (!confirmPassword) return strings.auth.validation.confirmRequired;
+  if (password !== confirmPassword) return strings.auth.validation.passwordsMismatch;
   return '';
 }
 
 export function validateLogin(values: LoginValues): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (!values.email) errors.email = 'Email is required';
-  if (!values.password) errors.password = 'Password is required';
+  if (!values.email) errors.email = strings.auth.validation.emailRequired;
+  if (!values.password) errors.password = strings.auth.validation.passwordRequired;
   return errors;
 }
 
 export function validateRegister(values: RegisterValues): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  if (!values.email) errors.email = 'Email is required';
+  if (!values.email) errors.email = strings.auth.validation.emailRequired;
   else if (!/\S+@\S+\.\S+/.test(values.email)) {
-    errors.email = 'Enter a correct email address';
+    errors.email = strings.auth.validation.emailInvalid;
   }
 
-  if (!values.username) errors.username = 'Username is required';
+  if (!values.username) errors.username = strings.auth.validation.usernameRequired;
   else if (values.username.length < 3) {
-    errors.username = 'Username must be at least 3 characters';
+    errors.username = strings.auth.validation.usernameMinLength;
   }
 
-  const passwordErr = validatePassword(values.password, 'Password is required');
+  const passwordErr = validatePassword(values.password, strings.auth.validation.passwordRequired);
   if (passwordErr) errors.password = passwordErr;
 
   const confirmErr = confirmPasswordError(values.password, values.confirmPassword);

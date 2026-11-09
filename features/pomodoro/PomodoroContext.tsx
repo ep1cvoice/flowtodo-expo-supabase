@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import {
   createContext,
   useCallback,
@@ -146,7 +147,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const requireUserId = () => {
-    if (!user) throw new Error('Not signed in');
+    if (!user) throw new Error(strings.common.notSignedIn);
     return user.id;
   };
 
@@ -158,7 +159,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
       const minutes = Number(user?.settings?.pomodoroTime);
       const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
-      const taskName = tasks.find((t) => t.id === taskId)?.title ?? 'Task';
+      const taskName = tasks.find((t) => t.id === taskId)?.title ?? strings.tasks.fallbackName;
       const now = new Date().toISOString();
 
       const pomo = await insertPomodoro({
@@ -215,7 +216,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     const endedAt = new Date().toISOString();
     const taskName =
       tasks.find((t) => t.id === activePomo.taskId)?.title ??
-      'Deleted task';
+      strings.pomodoro.deletedTask;
 
     await endPomodoroRow({
       userId,

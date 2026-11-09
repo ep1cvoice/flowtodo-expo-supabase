@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { ListFilter, X } from 'lucide-react-native';
@@ -66,9 +67,9 @@ export default function TaskFilterBar({
             (hovered || pressed) && styles.filterBtnPressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Filter tasks">
+          accessibilityLabel={strings.tasks.filterTasks}>
           <ListFilter size={16} color={colors.textSecondary} />
-          <Text style={styles.filterBtnText}>Filter</Text>
+          <Text style={styles.filterBtnText}>{strings.tasks.filter}</Text>
         </Pressable>
       ) : (
         <>
@@ -84,7 +85,7 @@ export default function TaskFilterBar({
                 (hovered || pressed) && styles.summaryOpenPressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Edit filters">
+              accessibilityLabel={strings.tasks.editFilters}>
               <ListFilter size={16} color={colors.primary} />
               {activeCategories.map((cat) => (
                 <View
@@ -125,7 +126,7 @@ export default function TaskFilterBar({
               (hovered || pressed) && styles.clearIconBtnPressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Clear filters">
+            accessibilityLabel={strings.tasks.clearFilters}>
             <X size={16} color={colors.textMuted} />
           </Pressable>
         </>

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, Text, View } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
 import SettingsSection from '@/features/settings/components/SettingsSection';
@@ -8,9 +9,9 @@ import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+  { value: 'auto', label: strings.settings.preferences.themeAuto },
+  { value: 'light', label: strings.settings.preferences.themeLight },
+  { value: 'dark', label: strings.settings.preferences.themeDark },
 ];
 
 interface PreferencesSectionProps {
@@ -30,15 +31,15 @@ export default function PreferencesSection({ open, onToggle }: PreferencesSectio
       showToast(toastForError(error, error), 'error');
       return;
     }
-    showToast('Theme saved.');
+    showToast(strings.settings.preferences.themeSaved);
   };
 
   return (
-    <SettingsSection title="Preferences" Icon={SlidersHorizontal} open={open} onToggle={onToggle}>
+    <SettingsSection title={strings.settings.preferences.title} Icon={SlidersHorizontal} open={open} onToggle={onToggle}>
       {open ? (
         <>
-          <Text style={styles.label}>Theme</Text>
-          <Text style={styles.description}>Auto / Light / Dark</Text>
+          <Text style={styles.label}>{strings.settings.preferences.theme}</Text>
+          <Text style={styles.description}>{strings.settings.preferences.themeHint}</Text>
           <View style={styles.segment}>
             {THEME_OPTIONS.map((opt) => {
               const active = theme === opt.value;

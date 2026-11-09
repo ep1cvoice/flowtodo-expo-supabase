@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback } from 'react';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
@@ -27,7 +28,7 @@ export function useTaskReorder({
         orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
       ).catch((err) => {
         console.warn('Failed to reorder tasks:', err?.message ?? err);
-        showToast(toastForError(err, 'Could not save order.'), 'error');
+        showToast(toastForError(err, strings.tasks.saveOrderFailed), 'error');
       });
     },
     [reorderTasks, showToast]

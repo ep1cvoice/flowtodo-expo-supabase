@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AUTH_BOOTSTRAP_TIMEOUT_MS } from '@/core/auth/constants';
 import { resolveDekFromPassword } from '@/core/auth/dek';
@@ -104,15 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
 
         if (error || !data.user) {
-          return { error: error?.message ?? 'Sign in failed' };
+          return { error: error?.message ?? strings.auth.login.signInFailed };
         }
 
         const resolved = await resolveDekFromPassword({
           userId: data.user.id,
           password,
           profileTimeoutLabel: 'signInProfile',
-          decryptFailLog: 'Failed to decrypt DEK:',
-          decryptFailError: 'Invalid password or corrupted encryption data',
+          decryptFailLog: strings.auth.errors.decryptDekLog,
+          decryptFailError: strings.auth.errors.invalidPasswordOrCorrupted,
         });
         if (!resolved.ok) {
           await supabase.auth.signOut();
@@ -127,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
       } catch (err) {
         console.warn('signIn failed:', (err as Error)?.message ?? err);
-        return { error: toastForError(err, 'Sign in failed') };
+        return { error: toastForError(err, strings.auth.login.signInFailed) };
       } finally {
         setIsAuthenticating(false);
       }
@@ -150,8 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null };
     } catch (unexpectedError) {
-      console.error('Nieoczekiwany błąd signUp:', unexpectedError);
-      return { error: 'Nieoczekiwany błąd podczas rejestracji.' };
+      console.error(strings.auth.register.unexpectedErrorLog, unexpectedError);
+      return { error: strings.auth.register.unexpectedError };
     } finally {
       setIsAuthenticating(false);
     }
@@ -168,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = useCallback(
     async (updates: ProfileUpdates) => {
       if (!userId) {
-        return { error: 'Not signed in' };
+        return { error: strings.common.notSignedIn };
       }
 
       const { error, applied } = await updateProfileSettings(userId, updates);
@@ -189,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     if (!userId) {
-      return { error: 'Not signed in' };
+      return { error: strings.common.notSignedIn };
     }
 
     const { error } = await supabase.rpc('delete_own_account');

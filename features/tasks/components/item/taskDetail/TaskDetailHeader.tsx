@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { Pressable, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { getCategoryIcon } from '@/shared/constants/categoryIcons';
@@ -29,7 +30,7 @@ export default function TaskDetailHeader({ task, styles, onClose, onPressOutside
       <View style={styles.titleWrap}>
         <Text style={[styles.title, task.done && styles.done]}>{task.title}</Text>
       </View>
-      <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8} accessibilityLabel="Close">
+      <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={8} accessibilityLabel={strings.common.close}>
         <X size={20} color={colors.textMuted} />
       </Pressable>
     </Pressable>
