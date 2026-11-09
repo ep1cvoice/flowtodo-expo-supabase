@@ -1,16 +1,17 @@
+import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
-import DataSection from '@/components/settings/DataSection';
-import LabelsSection from '@/components/settings/LabelsSection';
-import PreferencesSection from '@/components/settings/PreferencesSection';
-import ProductivitySection from '@/components/settings/ProductivitySection';
-import ProfileSection from '@/components/settings/ProfileSection';
-import { useSettingsStyles } from '@/components/settings/settingsStyles';
-import ScreenBackground from '@/components/ui/ScreenBackground';
-import { useAuth } from '@/context/AuthContext';
-import { useKeyboardBottomInset } from '@/lib/useKeyboardBottomInset';
+import DataSection from '@/features/settings/components/DataSection';
+import LabelsSection from '@/features/settings/components/LabelsSection';
+import PreferencesSection from '@/features/settings/components/PreferencesSection';
+import ProductivitySection from '@/features/settings/components/ProductivitySection';
+import ProfileSection from '@/features/settings/components/ProfileSection';
+import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
+import ScreenBackground from '@/shared/ui/ScreenBackground';
+import { useAuth } from '@/core/auth/AuthContext';
+import { useKeyboardBottomInset } from '@/shared/lib/useKeyboardBottomInset';
 
 type SectionKey = 'profile' | 'preferences' | 'labels' | 'data' | 'productivity';
 
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
             onPress={handleLogout}>
             <View style={styles.logoutStart}>
               <LogOut size={20} color={colors.sidebarLogoutText} strokeWidth={2} />
-              <Text style={styles.logoutText}>Log Out</Text>
+              <Text style={styles.logoutText}>{strings.auth.logOut}</Text>
             </View>
           </Pressable>
         </View>

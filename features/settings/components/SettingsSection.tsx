@@ -1,0 +1,59 @@
+import type { ReactNode } from 'react';
+import { LayoutAnimation, Pressable, Text, UIManager, View } from 'react-native';
+import { Plus, type LucideIcon } from 'lucide-react-native';
+import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
+import { isAndroid } from '@/shared/lib/platform';
+
+if (isAndroid && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+interface SettingsSectionProps {
+  title: string;
+  Icon: LucideIcon;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
+
+export default function SettingsSection({
+  title,
+  Icon,
+  open,
+  onToggle,
+  children,
+}: SettingsSectionProps) {
+  const { colors, styles, isDark } = useSettingsStyles();
+  const iconColor = open
+    ? isDark
+      ? colors.sidebarItemActiveText
+      : '#ffffff'
+    : colors.textSecondary;
+
+  const handleToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    onToggle();
+  };
+
+  return (
+    <View style={styles.section}>
+      <Pressable
+        style={({ hovered, pressed }) => [
+          styles.sectionHeader,
+          open && styles.sectionHeaderActive,
+          !open && hovered && styles.sectionHeaderHovered,
+          pressed && styles.controlPressed,
+        ]}
+        onPress={handleToggle}>
+        <View style={styles.sectionHeaderStart}>
+          <Icon size={22} color={iconColor} />
+          <Text style={[styles.sectionTitle, open && styles.sectionTitleActive]}>{title}</Text>
+        </View>
+        <View style={open ? styles.iconRotated : styles.iconRest} collapsable={false}>
+          <Plus size={22} color={iconColor} />
+        </View>
+      </Pressable>
+      {open ? <View style={styles.sectionBody}>{children}</View> : null}
+    </View>
+  );
+}

@@ -5,17 +5,18 @@ if (typeof root.Buffer === 'undefined') {
 	root.Buffer = Buffer;
 }
 
-import ReconnectRefresh from '@/components/network/ReconnectRefresh';
-import { Pbkdf2WebView } from '@/components/Pbkdf2WebView';
-import AppSplash from '@/components/ui/AppSplash';
-import ToastHost from '@/components/ui/ToastHost';
-import { UnlockGate } from '@/components/ui/UnlockGate';
-import { AuthProvider } from '@/context/AuthContext';
-import { NetworkProvider } from '@/context/NetworkContext';
-import { PomodoroProvider } from '@/context/PomodoroContext';
-import { TasksProvider } from '@/context/TasksContext';
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
-import { ToastProvider } from '@/context/ToastContext';
+import ReconnectRefresh from '@/features/sync/ReconnectRefresh';
+import { Pbkdf2WebView } from '@/core/auth/Pbkdf2WebView';
+import AppSplash from '@/shared/ui/AppSplash';
+import ToastHost from '@/shared/ui/ToastHost';
+import { UnlockGate } from '@/core/auth/UnlockGate';
+import { AuthProvider } from '@/core/auth/AuthContext';
+import { EncryptionProvider } from '@/core/auth/EncryptionContext';
+import { NetworkProvider } from '@/shared/providers/NetworkContext';
+import { PomodoroProvider } from '@/features/pomodoro/PomodoroContext';
+import { TasksProvider } from '@/features/tasks/TasksContext';
+import { ThemeProvider, useTheme } from '@/shared/providers/ThemeContext';
+import { ToastProvider } from '@/shared/providers/ToastContext';
 import {
 	Inter_400Regular,
 	Inter_500Medium,
@@ -58,6 +59,7 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={styles.root}>
 			<SafeAreaProvider>
 				<NetworkProvider>
+					<EncryptionProvider>
 					<AuthProvider>
 						<ThemeProvider>
 							<Pbkdf2WebView />
@@ -73,6 +75,7 @@ export default function RootLayout() {
 							</UnlockGate>
 						</ThemeProvider>
 					</AuthProvider>
+					</EncryptionProvider>
 				</NetworkProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>

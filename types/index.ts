@@ -7,7 +7,7 @@ export interface UserSettings {
   maxFilterSelections?: number;
 }
 
-export type { CategoryIcon } from '@/constants/categoryIcons';
+export type { CategoryIcon } from '@/shared/constants/categoryIcons';
 
 export type ProfileUpdates = Partial<UserSettings>;
 

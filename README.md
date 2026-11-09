@@ -52,13 +52,13 @@ A port of [NextTodo](https://github.com/matt400/NextTodo) to **Expo (React Nativ
 
 Order in `supabase/migrations/`:
 
-1. `001_profiles.sql`: profile + settings
-2. `002_tasks_domain.sql`: tasks / categories / tags + RLS
-3. `003_grants.sql`: grants for `authenticated`
-4. `004_delete_own_account.sql`: account deletion RPC
-5. `005_pomodoros.sql`: Pomodoro sessions and history
-6. `006_tasks_completed_at.sql`: `completed_at` on tasks
-7. `007_filter_limits.sql`: shared filter limit (`max_filter_selections`, 5–30)
+1. `20260802120000_profiles.sql`: profile + settings
+2. `20260807120000_tasks_domain.sql`: tasks / categories / tags + RLS
+3. `20260807120100_grants.sql`: grants for `authenticated`
+4. `20260808120000_delete_own_account.sql`: account deletion RPC
+5. `20260810120000_pomodoros.sql`: Pomodoro sessions and history
+6. `20260812120000_tasks_completed_at.sql`: `completed_at` on tasks
+7. `20260812120100_filter_limits.sql`: shared filter limit (`max_filter_selections`, 5–30)
 
 On a fresh database, run the migrations in this order (SQL Editor or CLI).
 

@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useLayoutEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -8,23 +9,24 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { useTasks } from '@/context/TasksContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useToast } from '@/context/ToastContext';
-import ToDoItem from '@/components/tasks/item/ToDoItem';
+import { useTasks } from '@/features/tasks/TasksContext';
+import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
+import { useTheme } from '@/shared/providers/ThemeContext';
+import { useToast } from '@/shared/providers/ToastContext';
+import ToDoItem from '@/features/tasks/components/item/ToDoItem';
 import TaskSearchBar, {
   TASK_LIST_INSET,
   TaskSearchToggle,
-} from '@/components/tasks/filters/TaskSearchBar';
-import EmptyState from '@/components/ui/EmptyState';
-import ScreenBackground from '@/components/ui/ScreenBackground';
-import type { AppColors } from '@/constants/theme';
-import { tokens } from '@/constants/theme';
-import { groupCompletedTasks } from '@/lib/tasks/completedGroups';
-import { toastForError } from '@/lib/networkError';
-import { filterTasksBySearch } from '@/lib/tasks/taskSearch';
-import { useTaskSearch } from '@/lib/tasks/useTaskSearch';
-import { webInteractive } from '@/utils/pressableWeb';
+} from '@/features/tasks/components/filters/TaskSearchBar';
+import EmptyState from '@/shared/ui/EmptyState';
+import ScreenBackground from '@/shared/ui/ScreenBackground';
+import type { AppColors } from '@/shared/constants/theme';
+import { tokens } from '@/shared/constants/theme';
+import { groupCompletedTasks } from '@/features/tasks/lib/completedGroups';
+import { toastForError } from '@/shared/lib/networkError';
+import { filterTasksBySearch } from '@/features/tasks/lib/taskSearch';
+import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
+import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export default function CompletedTasksScreen() {
   const navigation = useNavigation();
@@ -34,8 +36,6 @@ export default function CompletedTasksScreen() {
     hasMoreCompleted,
     loadingMoreCompleted,
     loadMoreCompleted,
-    toggleTask,
-    deleteTask,
   } = useTasks();
   const { colors } = useTheme();
   const { showToast } = useToast();
@@ -64,34 +64,13 @@ export default function CompletedTasksScreen() {
     });
   }, [navigation, searchOpen, hasSearch, toggleSearch]);
 
-  const handleToggle = useCallback(
-    async (id: number) => {
-      try {
-        await toggleTask(id);
-      } catch (err) {
-        showToast(toastForError(err, 'Could not update task.'), 'error');
-      }
-    },
-    [toggleTask, showToast]
-  );
-
-  const handleDelete = useCallback(
-    async (id: number) => {
-      try {
-        await deleteTask(id);
-        showToast('Task deleted.');
-      } catch (err) {
-        showToast(toastForError(err, 'Could not delete task.'), 'error');
-      }
-    },
-    [deleteTask, showToast]
-  );
+  const { handleToggle, handleDelete } = useTaskActions();
 
   const handleLoadMore = useCallback(async () => {
     try {
       await loadMoreCompleted();
     } catch (err) {
-      showToast(toastForError(err, 'Could not load more tasks.'), 'error');
+      showToast(toastForError(err, strings.tasks.loadMoreFailed), 'error');
     }
   }, [loadMoreCompleted, showToast]);
 
@@ -107,7 +86,7 @@ export default function CompletedTasksScreen() {
           {loading ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading tasks…</Text>
+              <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
           ) : (
             <SectionList
@@ -120,11 +99,11 @@ export default function CompletedTasksScreen() {
               ListEmptyComponent={
                 <EmptyState
                   variant="plain"
-                  title={hasSearch ? 'No matching tasks' : 'No completed tasks'}
+                  title={hasSearch ? strings.tasks.empty.noMatchSearch.title : strings.tasks.noCompleted}
                   text={
                     hasSearch
-                      ? 'Try a different search term'
-                      : 'Mark a task as done to see it here'
+                      ? strings.tasks.empty.noMatchSearch.text
+                      : strings.tasks.noCompletedHint
                   }
                 />
               }
@@ -140,17 +119,17 @@ export default function CompletedTasksScreen() {
                         loadingMoreCompleted && styles.loadMoreBtnDisabled,
                       ]}
                       accessibilityRole="button"
-                      accessibilityLabel="Load more completed tasks">
+                      accessibilityLabel={strings.tasks.loadMoreCompleted}>
                       {loadingMoreCompleted ? (
                         <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
-                        <Text style={styles.loadMoreText}>Load more</Text>
+                        <Text style={styles.loadMoreText}>{strings.tasks.loadMore}</Text>
                       )}
                     </Pressable>
                   </View>
                 ) : hasSearch && hasMoreCompleted ? (
                   <Text style={styles.searchHint}>
-                    Search covers loaded tasks only. Clear search to load more.
+                    {strings.tasks.searchLoadedOnly}
                   </Text>
                 ) : null
               }

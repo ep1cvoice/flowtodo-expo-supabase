@@ -1,15 +1,16 @@
+import { strings } from '@/shared/lib/strings';
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
-import { validateLogin } from '@/lib/auth/authValidation';
-import { toastForError } from '@/lib/networkError';
-import Heading from '@/components/ui/Heading';
-import Field from '@/components/ui/Field';
-import Button from '@/components/ui/Button';
-import Linking from '@/components/ui/Linking';
-import AuthLayout, { LoggingInOverlay } from '@/components/ui/AuthLayout';
+import { useAuth } from '@/core/auth/AuthContext';
+import { useToast } from '@/shared/providers/ToastContext';
+import { validateLogin } from '@/core/auth/authValidation';
+import { toastForError } from '@/shared/lib/networkError';
+import Heading from '@/shared/ui/Heading';
+import Field from '@/shared/ui/Field';
+import Button from '@/shared/ui/Button';
+import Linking from '@/shared/ui/Linking';
+import AuthLayout, { LoggingInOverlay } from '@/shared/ui/AuthLayout';
 
 export default function LoginScreen() {
   const [values, setValues] = useState({ email: '', password: '' });
@@ -23,7 +24,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (params.registered === '1') {
-      showToast('Account created. You can now log in.');
+      showToast(strings.auth.login.accountCreated);
     }
   }, [params.registered, showToast]);
 
@@ -49,13 +50,13 @@ export default function LoginScreen() {
 
   return (
     <AuthLayout gap={48} overlay={loggingIn ? <LoggingInOverlay /> : null}>
-      <Heading title="Welcome Back" text="Sign in to manage your tasks" />
+      <Heading title={strings.auth.login.title} text={strings.auth.login.subtitle} />
       <Field
         innerText="Enter your email"
         Icon={Mail}
         id="email"
         type="email"
-        label="Email"
+        label={strings.common.email}
         value={values.email}
         onChangeText={(text) => {
           setValues((prev) => ({ ...prev, email: text }));
@@ -68,7 +69,7 @@ export default function LoginScreen() {
         Icon={Lock}
         id="password"
         type="password"
-        label="Password"
+        label={strings.common.password}
         value={values.password}
         onChangeText={(text) => {
           setValues((prev) => ({ ...prev, password: text }));

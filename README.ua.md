@@ -52,13 +52,13 @@
 
 Порядок у `supabase/migrations/`:
 
-1. `001_profiles.sql`: профіль + налаштування
-2. `002_tasks_domain.sql`: завдання / категорії / теги + RLS
-3. `003_grants.sql`: права (GRANT) для `authenticated`
-4. `004_delete_own_account.sql`: RPC видалення акаунта
-5. `005_pomodoros.sql`: сесії та історія Pomodoro
-6. `006_tasks_completed_at.sql`: `completed_at` у завданнях
-7. `007_filter_limits.sql`: спільний ліміт фільтрів (`max_filter_selections`, 5–30)
+1. `20260802120000_profiles.sql`: профіль + налаштування
+2. `20260807120000_tasks_domain.sql`: завдання / категорії / теги + RLS
+3. `20260807120100_grants.sql`: права (GRANT) для `authenticated`
+4. `20260808120000_delete_own_account.sql`: RPC видалення акаунта
+5. `20260810120000_pomodoros.sql`: сесії та історія Pomodoro
+6. `20260812120000_tasks_completed_at.sql`: `completed_at` у завданнях
+7. `20260812120100_filter_limits.sql`: спільний ліміт фільтрів (`max_filter_selections`, 5–30)
 
 На новій базі запускайте міграції в цьому порядку (SQL Editor або CLI).
 
