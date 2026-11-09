@@ -10,14 +10,19 @@ import {
 import type { PomoData, PomoRecord } from '@/types';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useTasks } from '@/features/tasks/TasksContext';
-import { mapActivePomo, mapPomoRecord } from '@/features/pomodoro/lib/pomoMappers';
+import { fetchPomodoros, MAX_HISTORY } from '@/features/pomodoro/lib/queries';
+import {
+  deletePomodoroRecord,
+  endPomodoroRow,
+  insertPomodoro,
+  pausePomodoroRow,
+  resumePomodoroAndFetch,
+  resumePomodoroRow,
+} from '@/features/pomodoro/lib/mutations';
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
-import { encryptedColumns } from '@/core/crypto/encryptedColumns';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
-import { supabase } from '@/core/supabase/client';
 
-const MAX_HISTORY = 5;
 const POMO_REFRESH_TIMEOUT_MS = 12_000;
 
 interface PomodoroContextValue {
@@ -71,51 +76,30 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const refresh = useCallback(async (userId: string, { resumeIfPaused = false } = {}) => {
-    const [activeRes, historyRes] = await Promise.all([
-      supabase
-        .from('pomodoros')
-        .select('*')
-        .eq('user_id', userId)
-        .is('ended_at', null)
-        .maybeSingle(),
-      supabase
-        .from('pomodoros')
-        .select('*')
-        .eq('user_id', userId)
-        .not('ended_at', 'is', null)
-        .order('ended_at', { ascending: false })
-        .limit(MAX_HISTORY),
-    ]);
+    const { active: fetched, history: fetchedHistory } = await fetchPomodoros(userId, dek);
 
-    if (activeRes.error) throw activeRes.error;
-    if (historyRes.error) throw historyRes.error;
+    setHistory(fetchedHistory);
 
-    setHistory((historyRes.data ?? []).map((row) => mapPomoRecord(row, dek)));
-
-    if (!activeRes.data) {
+    if (!fetched) {
       setActivePomo(null);
       return;
     }
 
-    let active = mapActivePomo(activeRes.data);
+    let active = fetched;
 
     // After login: continue the session that was frozen on logout.
     if (resumeIfPaused && active.pausedAt && !active.endedAt) {
-      const startedAt = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('pomodoros')
-        .update({ paused_at: null, started_at: startedAt })
-        .eq('id', active.id)
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-
-      if (error) {
-        console.warn('Failed to resume pomodoro after login:', error.message);
+      try {
+        active = await resumePomodoroAndFetch({
+          userId,
+          id: active.id,
+          startedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Failed to resume pomodoro after login:', (err as Error)?.message ?? err);
         setActivePomo(active);
         return;
       }
-      active = mapActivePomo(data);
     }
 
     setActivePomo(active);
@@ -175,23 +159,15 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       const taskName = tasks.find((t) => t.id === taskId)?.title ?? 'Task';
       const now = new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from('pomodoros')
-        .insert({
-          user_id: userId,
-          task_id: taskId,
-          ...(await encryptedColumns(activeDek, 'task_name', taskName)),
-          duration: durationSec,
-          elapsed: 0,
-          started_at: now,
-          paused_at: null,
-          ended_at: null,
-        })
-        .select('*')
-        .single();
-
-      if (error) throw error;
-      setActivePomo(mapActivePomo(data));
+      const pomo = await insertPomodoro({
+        userId,
+        dek: activeDek,
+        taskId,
+        taskName,
+        durationSec,
+        startedAt: now,
+      });
+      setActivePomo(pomo);
     },
     [activePomo, tasks, user, dek]
   );
@@ -204,15 +180,11 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
     setActivePomo({ ...activePomo, elapsed, pausedAt });
 
-    const { error } = await supabase
-      .from('pomodoros')
-      .update({ elapsed, paused_at: pausedAt })
-      .eq('id', activePomo.id)
-      .eq('user_id', userId);
-
-    if (error) {
+    try {
+      await pausePomodoroRow({ userId, id: activePomo.id, elapsed, pausedAt });
+    } catch (err) {
       setActivePomo(activePomo);
-      throw error;
+      throw err;
     }
   }, [activePomo, user]);
 
@@ -224,15 +196,11 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
     setActivePomo(next);
 
-    const { error } = await supabase
-      .from('pomodoros')
-      .update({ paused_at: null, started_at: startedAt })
-      .eq('id', activePomo.id)
-      .eq('user_id', userId);
-
-    if (error) {
+    try {
+      await resumePomodoroRow({ userId, id: activePomo.id, startedAt });
+    } catch (err) {
       setActivePomo(activePomo);
-      throw error;
+      throw err;
     }
   }, [activePomo, user]);
 
@@ -247,18 +215,14 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       tasks.find((t) => t.id === activePomo.taskId)?.title ??
       'Deleted task';
 
-    const { error } = await supabase
-      .from('pomodoros')
-      .update({
-        elapsed,
-        ended_at: endedAt,
-        paused_at: null,
-        ...(await encryptedColumns(activeDek, 'task_name', taskName)),
-      })
-      .eq('id', activePomo.id)
-      .eq('user_id', userId);
-
-    if (error) throw error;
+    await endPomodoroRow({
+      userId,
+      dek: activeDek,
+      id: activePomo.id,
+      elapsed,
+      endedAt,
+      taskName,
+    });
 
     const record: PomoRecord = {
       id: activePomo.id,
@@ -277,14 +241,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const deleteHistoryRecord = useCallback(
     async (id: number) => {
       const userId = requireUserId();
-      const { error } = await supabase
-        .from('pomodoros')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', userId)
-        .not('ended_at', 'is', null);
-
-      if (error) throw error;
+      await deletePomodoroRecord(userId, id);
       setHistory((prev) => prev.filter((p) => p.id !== id));
     },
     [user]

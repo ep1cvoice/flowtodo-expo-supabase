@@ -1,5 +1,5 @@
 import type { PomoData } from '@/types';
-import { supabase } from '@/core/supabase/client';
+import { pausePomodoroRow } from '@/features/pomodoro/lib/mutations';
 
 type Snapshot = { userId: string; pomo: PomoData };
 
@@ -30,14 +30,9 @@ export async function pausePomodoroBeforeLogout() {
   const elapsed = computeElapsedMs(pomo);
   const pausedAt = new Date().toISOString();
 
-  const { error } = await supabase
-    .from('pomodoros')
-    .update({ elapsed, paused_at: pausedAt })
-    .eq('id', pomo.id)
-    .eq('user_id', userId)
-    .is('ended_at', null);
-
-  if (error) {
-    console.warn('Failed to pause pomodoro on logout:', error.message);
+  try {
+    await pausePomodoroRow({ userId, id: pomo.id, elapsed, pausedAt, onlyActive: true });
+  } catch (err) {
+    console.warn('Failed to pause pomodoro on logout:', (err as Error)?.message ?? err);
   }
 }
