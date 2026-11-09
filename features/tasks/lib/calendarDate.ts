@@ -2,6 +2,11 @@ import type { Task } from '@/types';
 
 export const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
 
+/** Month + year label (e.g. "November 2026") in the device locale. */
+export function formatMonthLabel(d: Date): string {
+  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 export function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);

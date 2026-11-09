@@ -11,6 +11,7 @@ import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import {
   buildMonthWeeks,
+  formatMonthLabel,
   sameDay,
   startOfDay,
 } from '@/features/tasks/lib/calendarDate';
@@ -54,10 +55,7 @@ export default function CalendarModal({
 
   const weeks = useMemo(() => buildMonthWeeks(monthCursor), [monthCursor]);
 
-  const monthLabel = monthCursor.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthLabel = formatMonthLabel(monthCursor);
 
   const canConfirm = !!draft && startOfDay(draft) >= today;
 

@@ -23,6 +23,7 @@ import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import {
   buildMonthWeeks,
+  formatMonthLabel,
   collectDayTaskCounts,
   startOfDay,
   taskMatchesScheduledDay,
@@ -50,10 +51,7 @@ export default function CalendarTasks() {
     [monthCursor]
   );
   const currentWeekCount = useMemo(() => buildMonthWeeks(monthCursor).length, [monthCursor]);
-  const monthLabel = monthCursor.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthLabel = formatMonthLabel(monthCursor);
   const monthScrollRef = useRef<ScrollView>(null);
   const paging = useRef(false);
   const [pageWidth, setPageWidth] = useState(0);
