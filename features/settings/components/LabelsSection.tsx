@@ -4,8 +4,7 @@ import { Plus, Tags, Trash2 } from 'lucide-react-native';
 import SettingsSection from '@/features/settings/components/SettingsSection';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
-import CategoryModal from '@/features/tasks/components/form/CategoryModal';
-import TagModal from '@/features/tasks/components/form/TagModal';
+import LabelModal from '@/features/tasks/components/form/LabelModal';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
@@ -222,7 +221,8 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
         onClose={() => setPendingRemove(null)}
         onConfirm={confirmRemove}
       />
-      <CategoryModal
+      <LabelModal
+        kind="category"
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
         onSave={async (name, color, icon) => {
@@ -235,7 +235,8 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
           }
         }}
       />
-      <TagModal
+      <LabelModal
+        kind="tag"
         visible={showTagModal}
         onClose={() => setShowTagModal(false)}
         onSave={async (name, color) => {

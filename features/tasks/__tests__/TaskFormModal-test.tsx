@@ -33,8 +33,7 @@ jest.mock('@/features/tasks/lib/calendarDate', () => ({
 }));
 
 // Child modals / pickers are not under test here.
-jest.mock('@/features/tasks/components/form/CategoryModal', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/features/tasks/components/form/TagModal', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/features/tasks/components/form/LabelModal', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/features/tasks/components/form/TagChipPicker', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('react-native-safe-area-context', () => {

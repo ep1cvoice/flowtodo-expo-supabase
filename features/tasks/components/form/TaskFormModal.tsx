@@ -8,10 +8,9 @@ import {
 } from 'react-native';
 import { type LucideIcon } from 'lucide-react-native';
 import type { Category, CategoryIcon, Tag } from '@/types';
-import CategoryModal from '@/features/tasks/components/form/CategoryModal';
+import LabelModal from '@/features/tasks/components/form/LabelModal';
 import { useTaskFormStyles } from '@/features/tasks/components/form/taskFormStyles';
 import TagChipPicker from '@/features/tasks/components/form/TagChipPicker';
-import TagModal from '@/features/tasks/components/form/TagModal';
 import SheetFrame from '@/shared/ui/SheetFrame';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
@@ -149,7 +148,8 @@ export default function TaskFormModal({
       headerStyle={headerStyle}
       accessory={
         <>
-          <CategoryModal
+          <LabelModal
+          kind="category"
             visible={showCategoryModal}
             onClose={() => setShowCategoryModal(false)}
             onSave={async (name, color, icon) => {
@@ -164,7 +164,8 @@ export default function TaskFormModal({
               }
             }}
           />
-          <TagModal
+          <LabelModal
+          kind="tag"
             visible={showTagModal}
             onClose={() => setShowTagModal(false)}
             onSave={async (name, color) => {
