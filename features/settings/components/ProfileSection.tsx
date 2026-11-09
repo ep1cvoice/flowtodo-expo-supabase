@@ -7,6 +7,7 @@ import SettingsSection from '@/features/settings/components/SettingsSection';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
 import { useAuth } from '@/core/auth/AuthContext';
+import { useEncryption } from '@/core/auth/EncryptionContext';
 
 interface ProfileSectionProps {
   open: boolean;
@@ -14,7 +15,8 @@ interface ProfileSectionProps {
 }
 
 export default function ProfileSection({ open, onToggle }: ProfileSectionProps) {
-  const { user, updatePassword, deleteAccount } = useAuth();
+  const { user, deleteAccount } = useAuth();
+  const { updatePassword } = useEncryption();
   const { colors, styles } = useSettingsStyles();
   const router = useRouter();
   const [accountMsg, setAccountMsg] = useState('');
@@ -103,7 +105,7 @@ export default function ProfileSection({ open, onToggle }: ProfileSectionProps) 
         visible={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSubmit={async (currentPassword, newPassword) => {
-          const result = await updatePassword(currentPassword, newPassword);
+          const result = await updatePassword(user, currentPassword, newPassword);
           if (!result.error) {
             setAccountMsg('Password updated.');
             setAccountErr('');

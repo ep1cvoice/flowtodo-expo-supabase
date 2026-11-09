@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Lock, Unlock, Fingerprint } from 'lucide-react-native';
 import { useAuth } from '@/core/auth/AuthContext';
+import { useEncryption } from '@/core/auth/EncryptionContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import type { AppColors } from '@/shared/constants/theme';
 import { lightSplashGlow, lightSplashGradient } from '@/shared/constants/theme';
@@ -20,16 +21,8 @@ import AuthLayout, { LoggingInOverlay } from '@/shared/ui/AuthLayout';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export function UnlockGate({ children }: { children: React.ReactNode }) {
-  const {
-    isAuthenticated,
-    dek,
-    loading,
-    unlock,
-    unlockWithBiometrics,
-    biometricUnlockAvailable,
-    logout,
-    isAuthenticating,
-  } = useAuth();
+  const { user, isAuthenticated, loading, logout, isAuthenticating } = useAuth();
+  const { dek, unlock, unlockWithBiometrics, biometricUnlockAvailable } = useEncryption();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [password, setPassword] = useState('');
@@ -82,7 +75,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
       if (!password || submitting) return false;
       setSubmitting(true);
       setError(null);
-      const { error: unlockError } = await unlock(password);
+      const { error: unlockError } = await unlock(password, user);
       if (unlockError) {
         setError(unlockError);
       } else {

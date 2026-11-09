@@ -4,7 +4,7 @@ import { Fingerprint, Lock, Trash2 } from 'lucide-react-native';
 import SettingsSection from '@/features/settings/components/SettingsSection';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
-import { useAuth } from '@/core/auth/AuthContext';
+import { useEncryption } from '@/core/auth/EncryptionContext';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
@@ -19,7 +19,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
   const { activeTasks, completedCount, deleteAllActive, deleteAllCompleted } = useTasks();
-  const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useAuth();
+  const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useEncryption();
   const [deviceSupportsUnlock, setDeviceSupportsUnlock] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [pendingBulk, setPendingBulk] = useState<'active' | 'completed' | null>(null);

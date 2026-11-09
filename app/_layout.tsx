@@ -11,6 +11,7 @@ import AppSplash from '@/shared/ui/AppSplash';
 import ToastHost from '@/shared/ui/ToastHost';
 import { UnlockGate } from '@/core/auth/UnlockGate';
 import { AuthProvider } from '@/core/auth/AuthContext';
+import { EncryptionProvider } from '@/core/auth/EncryptionContext';
 import { NetworkProvider } from '@/shared/providers/NetworkContext';
 import { PomodoroProvider } from '@/features/pomodoro/PomodoroContext';
 import { TasksProvider } from '@/features/tasks/TasksContext';
@@ -58,6 +59,7 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={styles.root}>
 			<SafeAreaProvider>
 				<NetworkProvider>
+					<EncryptionProvider>
 					<AuthProvider>
 						<ThemeProvider>
 							<Pbkdf2WebView />
@@ -73,6 +75,7 @@ export default function RootLayout() {
 							</UnlockGate>
 						</ThemeProvider>
 					</AuthProvider>
+					</EncryptionProvider>
 				</NetworkProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>

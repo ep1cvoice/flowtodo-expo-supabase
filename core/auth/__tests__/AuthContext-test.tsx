@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '@/core/auth/AuthContext';
+import { EncryptionProvider, useEncryption } from '@/core/auth/EncryptionContext';
 
 let mockAuthCallback: ((event: string, session: unknown) => Promise<void>) | null = null;
 
@@ -23,7 +24,7 @@ jest.mock('@/core/auth/dek', () => ({ resolveDekFromPassword: jest.fn() }));
 jest.mock('@/core/auth/profile', () => ({
   fetchProfile: jest.fn(),
   minimalUserFromSession: jest.fn(),
-  toProfileRow: jest.fn(),
+  updateProfileSettings: jest.fn(),
 }));
 jest.mock('@/core/auth/updatePassword', () => ({ rewrapDekAndUpdatePassword: jest.fn() }));
 jest.mock('@/core/auth/secureStorage', () => ({
@@ -57,16 +58,26 @@ const dek = new Uint8Array(32).fill(1);
 const profile = { id: 'u1', email: 'a@b.com' };
 const session = { user: { id: 'u1', email: 'a@b.com' } };
 
-const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <EncryptionProvider>
+    <AuthProvider>{children}</AuthProvider>
+  </EncryptionProvider>
+);
+
+function useAuthAndEncryption() {
+  const auth = useAuth();
+  const enc = useEncryption();
+  return { ...auth, ...enc, unlock: (password: string) => enc.unlock(password, auth.user) };
+}
 
 async function renderAuth(currentSession: unknown = null) {
   auth.getSession.mockResolvedValue({ data: { session: currentSession } });
-  const hook = await renderHook(() => useAuth(), { wrapper });
+  const hook = await renderHook(() => useAuthAndEncryption(), { wrapper });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
 }
 
-async function signInAs(result: { current: ReturnType<typeof useAuth> }) {
+async function signInAs(result: { current: ReturnType<typeof useAuthAndEncryption> }) {
   auth.signInWithPassword.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   resolveDek.mockResolvedValue({ ok: true, dek });
   await act(async () => {

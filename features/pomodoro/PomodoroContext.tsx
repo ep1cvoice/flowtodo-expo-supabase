@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { PomoData, PomoRecord } from '@/types';
 import { useAuth } from '@/core/auth/AuthContext';
+import { useEncryption } from '@/core/auth/EncryptionContext';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { fetchPomodoros, MAX_HISTORY } from '@/features/pomodoro/lib/queries';
 import {
@@ -51,7 +52,8 @@ function computeElapsedMs(pomo: PomoData, now = Date.now()): number {
 }
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
-  const { user, dek } = useAuth();
+  const { user } = useAuth();
+  const { dek } = useEncryption();
   const { tasks } = useTasks();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);

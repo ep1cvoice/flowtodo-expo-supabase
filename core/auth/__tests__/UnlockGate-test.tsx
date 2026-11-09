@@ -17,6 +17,9 @@ const authState = {
 jest.mock('@/core/auth/AuthContext', () => ({
   useAuth: () => authState,
 }));
+jest.mock('@/core/auth/EncryptionContext', () => ({
+  useEncryption: () => authState,
+}));
 
 jest.mock('@/shared/providers/ThemeContext', () => {
   const { lightColors } = require('@/shared/constants/theme');

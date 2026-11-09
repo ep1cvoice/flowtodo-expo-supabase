@@ -97,3 +97,28 @@ export function toProfileRow(updates: ProfileUpdates) {
 
   return row;
 }
+
+/**
+ * Persists profile settings and returns the (clamped) settings that were
+ * actually applied so callers can mirror them in local state.
+ */
+export async function updateProfileSettings(
+  userId: string,
+  updates: ProfileUpdates
+): Promise<{ error: string | null; applied: ProfileUpdates }> {
+  const row = toProfileRow(updates);
+  if (Object.keys(row).length === 0) {
+    return { error: null, applied: {} };
+  }
+
+  const { error } = await supabase.from('profiles').update(row).eq('id', userId);
+  if (error) {
+    return { error: error.message, applied: {} };
+  }
+
+  const applied: ProfileUpdates = { ...updates };
+  if (updates.maxFilterSelections !== undefined) {
+    applied.maxFilterSelections = clampFilterLimit(updates.maxFilterSelections);
+  }
+  return { error: null, applied };
+}

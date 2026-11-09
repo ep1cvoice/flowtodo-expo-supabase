@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '@/core/auth/AuthContext';
+import { useEncryption } from '@/core/auth/EncryptionContext';
 import {
   mergeCompletedTasks,
   type CompletedCursor,
@@ -70,7 +71,8 @@ interface TasksContextValue {
 const TasksContext = createContext<TasksContextValue | null>(null);
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading, dek } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { dek } = useEncryption();
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
