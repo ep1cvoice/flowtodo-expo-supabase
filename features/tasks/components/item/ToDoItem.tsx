@@ -1,7 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import {
-  Platform,
   Pressable,
   Text,
   useWindowDimensions,
@@ -31,6 +30,7 @@ import { toScheduledIso } from '@/features/tasks/lib/calendarDate';
 import { categoryCardWash } from '@/shared/lib/color';
 import { toastForError } from '@/shared/lib/networkError';
 import type { Task } from '@/types';
+import { isWeb } from '@/shared/lib/platform';
 
 interface ToDoItemProps {
   task: Task;
@@ -104,7 +104,7 @@ export default function ToDoItem({
         return false;
       }
     }
-    if (Platform.OS !== 'web') {
+    if (!isWeb) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     onToggle(task.id);
@@ -120,7 +120,7 @@ export default function ToDoItem({
         return false;
       }
     }
-    if (Platform.OS !== 'web') {
+    if (!isWeb) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
     await onDelete(task.id);
@@ -162,7 +162,7 @@ export default function ToDoItem({
         accessibilityRole="none"
         accessibilityLabel={task.title}
         accessibilityHint={drag ? strings.tasks.detailsReorderHint : strings.tasks.showDetails}
-        {...(Platform.OS === 'web' ? { tabIndex: -1 } : null)}
+        {...(isWeb ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,
           cardWash ? { backgroundColor: cardWash, borderColor: categoryWash ?? colors.borderColor } : null,

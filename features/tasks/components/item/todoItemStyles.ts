@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import { platformSelect } from '@/shared/lib/platform';
 
 export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
@@ -17,7 +18,7 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
       paddingVertical: 12,
       marginBottom: 10,
       ...webInteractive,
-      ...Platform.select({
+      ...platformSelect({
         web: { boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' } as object,
         default: {
           shadowColor: '#0f172a',

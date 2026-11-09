@@ -1,7 +1,8 @@
-import { Platform, type ViewStyle } from 'react-native';
+import { type ViewStyle } from 'react-native';
+import { platformSelect } from '@/shared/lib/platform';
 
 /** Cursor + short transition for desktop web interactive controls. */
-export const webInteractive: ViewStyle = Platform.select({
+export const webInteractive: ViewStyle = platformSelect({
   web: {
     cursor: 'pointer',
     // RN-web CSS props

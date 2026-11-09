@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef } from 'react';
-import { Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useKeyboardHeight } from '@/shared/lib/useKeyboardBottomInset';
+import { isWeb, isAndroid } from '@/shared/lib/platform';
 
 interface AppModalProps {
   visible: boolean;
@@ -18,7 +19,7 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
   const rootRef = useRef<View>(null);
 
   useEffect(() => {
-    if (!visible || Platform.OS !== 'web') return;
+    if (!visible || !isWeb) return;
     let frame = 0;
     let tries = 0;
 
@@ -62,7 +63,7 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
       animationType="fade"
       presentationStyle="overFullScreen"
       statusBarTranslucent
-      navigationBarTranslucent={Platform.OS === 'android'}
+      navigationBarTranslucent={isAndroid}
       onRequestClose={onClose}>
       <View
         ref={rootRef}

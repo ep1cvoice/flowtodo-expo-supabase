@@ -3,7 +3,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   Text,
   View,
@@ -29,6 +28,7 @@ import {
   taskMatchesScheduledDay,
 } from '@/features/tasks/lib/calendarDate';
 import type { Task } from '@/types';
+import { isWeb } from '@/shared/lib/platform';
 
 export default function CalendarTasks() {
   const { colors } = useTheme();
@@ -146,7 +146,7 @@ export default function CalendarTasks() {
                     style={{ width: pageWidth, flex: 1 }}
                     contentOffset={{ x: pageWidth, y: 0 }}
                     onMomentumScrollEnd={onMonthScrollEnd}
-                    onScrollEndDrag={Platform.OS === 'web' ? onMonthScrollEnd : undefined}>
+                    onScrollEndDrag={isWeb ? onMonthScrollEnd : undefined}>
                     {monthPages.map((month) => (
                       <MonthPage
                         key={monthKey(month)}

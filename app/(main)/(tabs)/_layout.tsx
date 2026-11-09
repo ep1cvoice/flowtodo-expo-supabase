@@ -2,13 +2,14 @@ import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
 import { ListTodo, CheckCircle2, Settings, Calendar, type LucideIcon } from 'lucide-react-native';
-import { Platform, Text, useWindowDimensions, View, StyleSheet } from 'react-native';
+import { Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MainTabBar from '@/shared/ui/navigation/MainTabBar';
 import BrandLogo from '@/shared/ui/BrandLogo';
 import { tokens } from '@/shared/constants/theme';
 import { CreateTaskProvider } from '@/features/tasks/CreateTaskContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
+import { platformSelect } from '@/shared/lib/platform';
 
 const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderBottomWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    ...Platform.select({
+    ...platformSelect({
       web: {
         zIndex: 10,
       },

@@ -1,7 +1,6 @@
 import { type ReactNode, useMemo } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import type { AppColors } from '@/shared/constants/theme';
 import { tokens } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import { isIOS } from '@/shared/lib/platform';
 
 export const SHEET_MOBILE_BREAKPOINT = 480;
 
@@ -122,7 +122,7 @@ export default function SheetFrame({
   const body = keyboardAvoiding ? (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={isIOS ? 'padding' : undefined}>
       {overlay}
     </KeyboardAvoidingView>
   ) : (

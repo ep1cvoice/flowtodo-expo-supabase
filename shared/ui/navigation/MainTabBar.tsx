@@ -2,11 +2,12 @@ import { strings } from '@/shared/lib/strings';
 import { createElement } from 'react';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Plus } from 'lucide-react-native';
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { tokens } from '@/shared/constants/theme';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import { isWeb } from '@/shared/lib/platform';
 
 const PLUS_SIZE = 66;
 const PLUS_SLOT_WIDTH = 76;
@@ -102,7 +103,7 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
           );
         })}
       </View>
-      {Platform.OS === 'web'
+      {isWeb
         ? createElement('style', {
             dangerouslySetInnerHTML: {
               __html: `

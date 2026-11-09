@@ -1,6 +1,7 @@
-import { Platform, type TextStyle } from 'react-native';
+import { type TextStyle } from 'react-native';
 import { hexToRgb } from '@/shared/lib/color';
 import { DESC_LINE_HEIGHT } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
+import { isWeb } from '@/shared/lib/platform';
 
 export const DESCRIPTION_PLACEHOLDER = 'Click here to write a description';
 export const DESC_MAX_HEIGHT = 176;
@@ -32,7 +33,7 @@ export function pointerMarker(target: unknown): 'field' | 'calendar' | 'skip' | 
 }
 
 export const webTextCursor: TextStyle =
-  Platform.OS === 'web'
+  isWeb
     ? ({ cursor: 'text', outlineStyle: 'none' } as unknown as TextStyle)
     : {};
 

@@ -7,7 +7,6 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +15,7 @@ import type { AppColors } from '@/shared/constants/theme';
 import { lightSplashGlow, lightSplashGradient, tokens } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useKeyboardHeight } from '@/shared/lib/useKeyboardBottomInset';
+import { isIOS } from '@/shared/lib/platform';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -54,8 +54,8 @@ export default function AuthLayout({ children, gap = 48, overlay }: AuthLayoutPr
       <SafeAreaView style={styles.authLayout}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+          behavior={isIOS ? 'padding' : undefined}
+          keyboardVerticalOffset={isIOS ? 8 : 0}>
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[

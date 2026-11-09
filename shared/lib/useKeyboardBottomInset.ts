@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Platform, useWindowDimensions } from 'react-native';
+import { Keyboard, useWindowDimensions } from 'react-native';
+import { isAndroid } from '@/shared/lib/platform';
 
 function useAndroidKeyboardHeight() {
   const [height, setHeight] = useState(0);
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (!isAndroid) return;
 
     const show = Keyboard.addListener('keyboardDidShow', (event) => {
       setHeight(event.endCoordinates.height);
@@ -20,7 +21,7 @@ function useAndroidKeyboardHeight() {
     };
   }, []);
 
-  return Platform.OS === 'android' ? height : 0;
+  return isAndroid ? height : 0;
 }
 
 /** Full keyboard height on Android. Use on screens that do not already resize. */

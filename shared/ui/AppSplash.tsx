@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Platform,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -13,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Waves } from 'lucide-react-native';
 import { brand, lightSplashGlow, lightSplashGradient } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
+import { isWeb, isIOS } from '@/shared/lib/platform';
 
 /** Once per session. */
 let splashShownThisSession = false;
@@ -47,40 +47,40 @@ export default function AppSplash() {
       Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
         easing: Easing.out(Easing.cubic),
       }),
       Animated.spring(logoScale, {
         toValue: 1,
         friction: 5,
         tension: 80,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
       }),
       Animated.timing(titleOpacity, {
         toValue: 1,
         duration: 600,
         delay: 200,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
         easing: Easing.out(Easing.ease),
       }),
       Animated.timing(titleTranslateY, {
         toValue: 0,
         duration: 600,
         delay: 200,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
         easing: Easing.out(Easing.ease),
       }),
       Animated.timing(glowOpacity, {
         toValue: isDark ? 0.35 : 0.55,
         duration: 700,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
         easing: Easing.out(Easing.ease),
       }),
       Animated.spring(glowScale, {
         toValue: 1,
         friction: 6,
         tension: 60,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
       }),
     ]).start();
 
@@ -88,7 +88,7 @@ export default function AppSplash() {
       Animated.timing(overlayOpacity, {
         toValue: 0,
         duration: FADE_MS,
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: !isWeb,
         easing: Easing.out(Easing.ease),
       }).start();
     }, HOLD_MS);
@@ -177,7 +177,7 @@ export default function AppSplash() {
     </Animated.View>
   );
 
-  if (Platform.OS === 'ios') {
+  if (isIOS) {
     return <FullWindowOverlay>{overlay}</FullWindowOverlay>;
   }
 

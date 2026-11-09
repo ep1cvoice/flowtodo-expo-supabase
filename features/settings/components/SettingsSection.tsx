@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from 'react-native';
+import { LayoutAnimation, Pressable, Text, UIManager, View } from 'react-native';
 import { Plus, type LucideIcon } from 'lucide-react-native';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
+import { isAndroid } from '@/shared/lib/platform';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (isAndroid && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

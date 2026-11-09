@@ -1,7 +1,8 @@
 import { type RefObject, useEffect } from 'react';
-import { Platform, type TextInput } from 'react-native';
+import { type TextInput } from 'react-native';
+import { isAndroid } from '@/shared/lib/platform';
 
-const DEFAULT_DELAY = Platform.OS === 'android' ? 350 : 50;
+const DEFAULT_DELAY = isAndroid ? 350 : 50;
 
 export function useAutoFocus(
   ref: RefObject<TextInput | null>,

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   View,
   Text,
   useWindowDimensions,
@@ -27,8 +26,8 @@ import { tokens } from '@/shared/constants/theme';
 import { useTaskReorder } from '@/features/tasks/lib/useTaskReorder';
 import { useActiveTaskFilters } from '@/features/tasks/lib/useActiveTaskFilters';
 import type { Task } from '@/types';
+import { isWeb } from '@/shared/lib/platform';
 
-const isWeb = Platform.OS === 'web';
 
 export default function ActiveTasks() {
   const navigation = useNavigation();
