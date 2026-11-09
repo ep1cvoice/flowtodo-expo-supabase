@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { useTasks } from '@/features/tasks/TasksContext';
+import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
@@ -34,8 +35,6 @@ export default function CompletedTasksScreen() {
     hasMoreCompleted,
     loadingMoreCompleted,
     loadMoreCompleted,
-    toggleTask,
-    deleteTask,
   } = useTasks();
   const { colors } = useTheme();
   const { showToast } = useToast();
@@ -64,28 +63,7 @@ export default function CompletedTasksScreen() {
     });
   }, [navigation, searchOpen, hasSearch, toggleSearch]);
 
-  const handleToggle = useCallback(
-    async (id: number) => {
-      try {
-        await toggleTask(id);
-      } catch (err) {
-        showToast(toastForError(err, 'Could not update task.'), 'error');
-      }
-    },
-    [toggleTask, showToast]
-  );
-
-  const handleDelete = useCallback(
-    async (id: number) => {
-      try {
-        await deleteTask(id);
-        showToast('Task deleted.');
-      } catch (err) {
-        showToast(toastForError(err, 'Could not delete task.'), 'error');
-      }
-    },
-    [deleteTask, showToast]
-  );
+  const { handleToggle, handleDelete } = useTaskActions();
 
   const handleLoadMore = useCallback(async () => {
     try {

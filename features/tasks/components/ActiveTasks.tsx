@@ -13,6 +13,7 @@ import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable, { type SortableGridRenderItem } from 'react-native-sortables';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTasks } from '@/features/tasks/TasksContext';
+import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
@@ -39,7 +40,7 @@ export default function ActiveTasks() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { categories, tags, loading, toggleTask, deleteTask, reorderTasks } = useTasks();
+  const { categories, tags, loading, reorderTasks } = useTasks();
   const { setScheduledDay } = useCreateTask();
   const {
     activeTasks,
@@ -75,28 +76,7 @@ export default function ActiveTasks() {
     setScheduledDay('active', selectedDay);
   }, [selectedDay, setScheduledDay]);
 
-  const handleToggle = useCallback(
-    async (id: number) => {
-      try {
-        await toggleTask(id);
-      } catch (err) {
-        showToast(toastForError(err, 'Could not update task.'), 'error');
-      }
-    },
-    [toggleTask, showToast]
-  );
-
-  const handleDelete = useCallback(
-    async (id: number) => {
-      try {
-        await deleteTask(id);
-        showToast('Task deleted.');
-      } catch (err) {
-        showToast(toastForError(err, 'Could not delete task.'), 'error');
-      }
-    },
-    [deleteTask, showToast]
-  );
+  const { handleToggle, handleDelete } = useTaskActions();
 
   const openFilterSheet = useCallback(() => setShowFilterSheet(true), []);
   const openSortSheet = useCallback(() => setShowSortSheet(true), []);

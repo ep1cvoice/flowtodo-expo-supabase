@@ -35,8 +35,8 @@ import { CREATE_TASK_FAB_CLEARANCE } from '@/features/tasks/components/form/Crea
 import type { AppColors } from '@/shared/constants/theme';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTasks } from '@/features/tasks/TasksContext';
+import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { useToast } from '@/shared/providers/ToastContext';
 import {
   buildMonthWeeks,
   collectDayTaskCounts,
@@ -46,7 +46,6 @@ import {
   taskMatchesScheduledDay,
   toDayKey,
 } from '@/features/tasks/lib/calendarDate';
-import { toastForError } from '@/shared/lib/networkError';
 import { TASK_LIST_INSET } from '@/features/tasks/components/filters/TaskSearchBar';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 import type { Task } from '@/types';
@@ -54,8 +53,7 @@ import type { Task } from '@/types';
 export default function CalendarTasks() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { showToast } = useToast();
-  const { activeTasks, loading, toggleTask, deleteTask } = useTasks();
+  const { activeTasks, loading } = useTasks();
   const { setScheduledDay } = useCreateTask();
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDay, setSelectedDay] = useState<Date>(() => today);
@@ -167,28 +165,7 @@ export default function CalendarTasks() {
     setMonthCursor(new Date(next.getFullYear(), next.getMonth(), 1));
   };
 
-  const handleToggle = useCallback(
-    async (id: number) => {
-      try {
-        await toggleTask(id);
-      } catch (err) {
-        showToast(toastForError(err, 'Could not update task.'), 'error');
-      }
-    },
-    [toggleTask, showToast]
-  );
-
-  const handleDelete = useCallback(
-    async (id: number) => {
-      try {
-        await deleteTask(id);
-        showToast('Task deleted.');
-      } catch (err) {
-        showToast(toastForError(err, 'Could not delete task.'), 'error');
-      }
-    },
-    [deleteTask, showToast]
-  );
+  const { handleToggle, handleDelete } = useTaskActions();
 
   const renderTask = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
