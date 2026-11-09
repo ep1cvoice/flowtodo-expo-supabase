@@ -4,37 +4,28 @@ import {
   FlatList,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ViewStyle,
 } from 'react-native';
-import {
-  Gesture,
-  GestureDetector,
-  ScrollView,
-  type GestureType,
-} from 'react-native-gesture-handler';
+import { GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
-  useAnimatedStyle,
   useSharedValue,
-  withSpring,
   type AnimatedStyle,
   type SharedValue,
 } from 'react-native-reanimated';
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import MonthGrid, { MonthWeekdayHeader } from '@/features/tasks/components/calendar/MonthGrid';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
-import { CREATE_TASK_FAB_CLEARANCE } from '@/features/tasks/components/form/CreateTaskButton';
-import type { AppColors } from '@/shared/constants/theme';
+import { createCalendarTasksStyles } from '@/features/tasks/components/calendarTasksStyles';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTasks } from '@/features/tasks/TasksContext';
+import { useCalendarExpandGesture } from '@/features/tasks/lib/useCalendarExpandGesture';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import {
@@ -46,13 +37,11 @@ import {
   taskMatchesScheduledDay,
   toDayKey,
 } from '@/features/tasks/lib/calendarDate';
-import { TASK_LIST_INSET } from '@/features/tasks/components/filters/TaskSearchBar';
-import { webInteractive } from '@/shared/lib/pressableWeb';
 import type { Task } from '@/types';
 
 export default function CalendarTasks() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createCalendarTasksStyles(colors), [colors]);
   const { activeTasks, loading } = useTasks();
   const { setScheduledDay } = useCreateTask();
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -76,69 +65,10 @@ export default function CalendarTasks() {
     year: 'numeric',
   });
   const monthScrollRef = useRef<ScrollView>(null);
-  const panRef = useRef<GestureType | undefined>(undefined);
   const paging = useRef(false);
   const [pageWidth, setPageWidth] = useState(0);
-  const [expanded, setExpanded] = useState(false);
-  const expandedSv = useSharedValue(0);
-  const expandedTarget = useSharedValue(0);
-  const dragOrigin = useSharedValue(0);
-  const panActivated = useSharedValue(false);
-  const rowHeightSv = useSharedValue(0);
-  const weekCountSv = useSharedValue(currentWeekCount);
-
-  useLayoutEffect(() => {
-    rowHeightSv.value = pageWidth > 0 ? pageWidth / 7 : 0;
-    weekCountSv.value = currentWeekCount;
-  }, [currentWeekCount, pageWidth, rowHeightSv, weekCountSv]);
-
-  const frameStyle = useAnimatedStyle(() => ({
-    height: monthFrameHeight(rowHeightSv.value, weekCountSv.value, expandedSv.value),
-  }));
-
-  const pan = useMemo(
-    () =>
-      Gesture.Pan()
-        .withRef(panRef)
-        .activeOffsetY([-10, 10])
-        .failOffsetX([-16, 16])
-        .onBegin(() => {
-          dragOrigin.value = expandedSv.value;
-          panActivated.value = false;
-        })
-        .onStart(() => {
-          panActivated.value = true;
-        })
-        .onUpdate((event) => {
-          const range = Math.max(rowHeightSv.value * (weekCountSv.value - 1), 1);
-          expandedSv.value = clamp01(dragOrigin.value + event.translationY / range);
-        })
-        .onEnd((event, success) => {
-          if (!success) return;
-          const range = Math.max(rowHeightSv.value * (weekCountSv.value - 1), 1);
-          const open = expandedSv.value + (event.velocityY / range) * 0.12 > 0.5;
-          expandedTarget.value = open ? 1 : 0;
-          expandedSv.value = withSpring(open ? 1 : 0, expandSpring(event.velocityY / range));
-          runOnJS(setExpanded)(open);
-        })
-        .onFinalize((_event, success) => {
-          if (success || !panActivated.value) return;
-          panActivated.value = false;
-          const open = expandedTarget.value > 0.5;
-          expandedSv.value = withSpring(open ? 1 : 0, expandSpring());
-          runOnJS(setExpanded)(open);
-        }),
-    [dragOrigin, expandedSv, expandedTarget, panActivated, rowHeightSv, weekCountSv]
-  );
-
-  const toggleExpanded = useCallback(() => {
-    setExpanded((open) => {
-      const next = !open;
-      expandedTarget.value = next ? 1 : 0;
-      expandedSv.value = withSpring(next ? 1 : 0, expandSpring());
-      return next;
-    });
-  }, [expandedSv, expandedTarget]);
+  const { pan, panRef, expanded, expandedSv, rowHeightSv, frameStyle, toggleExpanded } =
+    useCalendarExpandGesture(pageWidth, currentWeekCount);
 
   useLayoutEffect(() => {
     if (pageWidth <= 0) return;
@@ -395,172 +325,4 @@ function monthKey(month: Date) {
   return `${month.getFullYear()}-${month.getMonth()}`;
 }
 
-/** Matches MonthGrid inline weekday: paddingVertical 4 + lineHeight 14. */
-const INLINE_WEEKDAY_HEIGHT = 22;
-
-function expandSpring(velocity = 0) {
-  'worklet';
-  return {
-    damping: 22,
-    stiffness: 260,
-    mass: 0.65,
-    overshootClamping: true,
-    velocity,
-  };
-}
-
-type CalendarStyles = ReturnType<typeof createStyles>;
-
-function clamp01(value: number) {
-  'worklet';
-  return Math.min(1, Math.max(0, value));
-}
-
-function monthFrameHeight(rowHeight: number, weekCount: number, expanded: number) {
-  'worklet';
-  const rows = 1 + (weekCount - 1) * expanded;
-  return INLINE_WEEKDAY_HEIGHT + rowHeight * rows;
-}
-
-function createStyles(colors: AppColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      minHeight: 0,
-    },
-    monthShell: {
-      marginHorizontal: -6,
-      paddingTop: 8,
-      paddingBottom: 4,
-      gap: 2,
-      backgroundColor: colors.chrome,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.borderColor,
-    },
-    monthPager: {
-      width: '100%',
-      overflow: 'hidden',
-    },
-    handleHit: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingTop: 2,
-      paddingBottom: 4,
-    },
-    handlePill: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: colors.textMuted,
-      opacity: 0.45,
-    },
-    listInset: {
-      flex: 1,
-      minHeight: 0,
-      paddingHorizontal: TASK_LIST_INSET,
-      paddingTop: 12,
-    },
-    monthNavRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingHorizontal: 8,
-    },
-    navBtn: {
-      padding: 6,
-      borderRadius: 8,
-      ...webInteractive,
-    },
-    navBtnPressed: {
-      backgroundColor: colors.todoHighlight,
-    },
-    monthLabel: {
-      flexShrink: 1,
-      minWidth: 140,
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      textAlign: 'center',
-    },
-    dot: {
-      position: 'absolute',
-      bottom: 3,
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-    },
-    dotMarked: {
-      backgroundColor: colors.primary,
-    },
-    dotEmpty: {
-      backgroundColor: 'transparent',
-    },
-    dotOnSelected: {
-      backgroundColor: '#fff',
-    },
-    dayLabel: {
-      marginTop: 14,
-      marginBottom: 8,
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    tasksList: {
-      flex: 1,
-      minHeight: 0,
-    },
-    tasksContent: {
-      flexGrow: 1,
-      paddingBottom: CREATE_TASK_FAB_CLEARANCE,
-    },
-    tasksContentEmpty: {
-      justifyContent: 'center',
-    },
-    itemWrap: {
-      width: '100%',
-    },
-    empty: {
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 28,
-      paddingHorizontal: 24,
-    },
-    emptyIconRing: {
-      marginBottom: 6,
-      padding: 10,
-      borderRadius: 999,
-      borderWidth: 8,
-      borderColor: colors.todoHighlight,
-    },
-    emptyIcon: {
-      padding: 16,
-      borderRadius: 999,
-      backgroundColor: colors.primaryLight,
-    },
-    emptyTitle: {
-      fontSize: 20,
-      lineHeight: 26,
-      fontWeight: '700',
-      color: colors.textPrimary,
-      textAlign: 'center',
-    },
-    emptyText: {
-      fontSize: 16,
-      lineHeight: 22,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    loadingState: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-    },
-    loadingText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textMuted,
-    },
-  });
-}
+type CalendarStyles = ReturnType<typeof createCalendarTasksStyles>;
