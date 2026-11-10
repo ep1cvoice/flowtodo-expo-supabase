@@ -36,16 +36,15 @@ export interface SecureDekOptions {
  */
 export async function isDeviceUnlockAvailable(): Promise<boolean> {
   if (!(await secureStoreReady())) return false;
-  const hasHardware = await LocalAuthentication.hasHardwareAsync();
-  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
   // Some Android devices support device-credential (PIN) fallback even
   // without biometrics enrolled — SecureStore's requireAuthentication
   // still works there, so hardware presence alone is a reasonable gate.
-  return hasHardware && (isEnrolled || true);
+  return LocalAuthentication.hasHardwareAsync();
 }
 
 /**
- * Save the DEK to secure storage, bound to biometric/PIN authentication.
+ * Save the DEK to secure storage, bound to biometric/PIN authentication,
+ * and set the unprotected sentinel flag read by `hasStoredDek`.
  * Call this right after a successful password-based unlock.
  */
 export async function saveDekToSecureStore(
@@ -60,9 +59,9 @@ export async function saveDekToSecureStore(
   await SecureStore.setItemAsync(DEK_STORAGE_KEY, dekBase64, {
     requireAuthentication: true,
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    authenticationPrompt:
-      options.promptMessage ?? 'Odblokuj FlowTodo',
+    authenticationPrompt: options.promptMessage ?? strings.auth.unlock.biometricPrompt,
   });
+  await setStoredFlag(true);
 }
 
 /**
@@ -79,18 +78,21 @@ export async function loadDekFromSecureStore(
   const dekBase64 = await SecureStore.getItemAsync(DEK_STORAGE_KEY, {
     requireAuthentication: true,
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    authenticationPrompt:
-      options.promptMessage ?? 'Odblokuj FlowTodo',
+    authenticationPrompt: options.promptMessage ?? strings.auth.unlock.biometricPrompt,
   });
 
   if (!dekBase64) return null;
   return new Uint8Array(Buffer.from(dekBase64, 'base64'));
 }
 
-/** Call on explicit logout, password change, or "forget this device". */
+/**
+ * Remove the DEK and its sentinel flag.
+ * Call on explicit logout, password change, or "forget this device".
+ */
 export async function clearDekFromSecureStore(): Promise<void> {
   if (!(await secureStoreReady())) return;
   await SecureStore.deleteItemAsync(DEK_STORAGE_KEY);
+  await setStoredFlag(false);
 }
 
 /** Whether a DEK is currently saved for this device (no auth prompt triggered). */
@@ -111,20 +113,4 @@ async function setStoredFlag(value: boolean): Promise<void> {
   } else {
     await SecureStore.deleteItemAsync(`${DEK_STORAGE_KEY}_flag`);
   }
-}
-
-// Wrap the public save/clear to keep the sentinel flag in sync.
-const _save = saveDekToSecureStore;
-export async function saveDekToSecureStoreTracked(
-  dek: Uint8Array,
-  options?: SecureDekOptions
-): Promise<void> {
-  await _save(dek, options);
-  await setStoredFlag(true);
-}
-
-const _clear = clearDekFromSecureStore;
-export async function clearDekFromSecureStoreTracked(): Promise<void> {
-  await _clear();
-  await setStoredFlag(false);
 }

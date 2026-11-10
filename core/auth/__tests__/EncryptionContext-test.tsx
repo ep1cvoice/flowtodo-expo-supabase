@@ -8,8 +8,8 @@ jest.mock('@/core/auth/updatePassword', () => ({ rewrapDekAndUpdatePassword: jes
 jest.mock('@/core/auth/secureStorage', () => ({
   hasStoredDek: jest.fn(),
   loadDekFromSecureStore: jest.fn(),
-  saveDekToSecureStoreTracked: jest.fn(),
-  clearDekFromSecureStoreTracked: jest.fn(),
+  saveDekToSecureStore: jest.fn(),
+  clearDekFromSecureStore: jest.fn(),
 }));
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), log: jest.fn(), info: jest.fn(), debug: jest.fn() },
@@ -18,18 +18,18 @@ jest.mock('@/shared/lib/logger', () => ({
 import { resolveDekFromPassword } from '@/core/auth/dek';
 import { rewrapDekAndUpdatePassword } from '@/core/auth/updatePassword';
 import {
-  clearDekFromSecureStoreTracked,
+  clearDekFromSecureStore,
   hasStoredDek,
   loadDekFromSecureStore,
-  saveDekToSecureStoreTracked,
+  saveDekToSecureStore,
 } from '@/core/auth/secureStorage';
 
 const resolveDek = resolveDekFromPassword as jest.Mock;
 const rewrap = rewrapDekAndUpdatePassword as jest.Mock;
 const hasStored = hasStoredDek as jest.Mock;
 const loadDek = loadDekFromSecureStore as jest.Mock;
-const saveDek = saveDekToSecureStoreTracked as jest.Mock;
-const clearDek = clearDekFromSecureStoreTracked as jest.Mock;
+const saveDek = saveDekToSecureStore as jest.Mock;
+const clearDek = clearDekFromSecureStore as jest.Mock;
 
 const dek = new Uint8Array(32).fill(7);
 const user = { id: 'u1', email: 'a@b.c' };

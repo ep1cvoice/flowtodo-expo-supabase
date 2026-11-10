@@ -66,6 +66,7 @@ export const strings = {
       unlocking: 'Unlocking...',
       tryBiometric: 'Try biometric unlock again',
       failed: 'Could not unlock',
+      biometricPrompt: 'Odblokuj FlowTodo',
     },
     validation: {
       passwordMinLength: 'Password must be at least 8 characters long',

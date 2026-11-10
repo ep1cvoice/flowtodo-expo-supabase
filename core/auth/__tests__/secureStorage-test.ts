@@ -2,14 +2,13 @@
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Buffer } from 'buffer';
+import { strings } from '@/shared/lib/strings';
 import {
   clearDekFromSecureStore,
-  clearDekFromSecureStoreTracked,
   hasStoredDek,
   isDeviceUnlockAvailable,
   loadDekFromSecureStore,
   saveDekToSecureStore,
-  saveDekToSecureStoreTracked,
 } from '@/core/auth/secureStorage';
 
 jest.mock('expo-secure-store', () => ({
@@ -60,8 +59,20 @@ describe('saveDekToSecureStore', () => {
       expect.objectContaining({
         requireAuthentication: true,
         keychainAccessible: 'when-unlocked-this-device-only',
+        authenticationPrompt: strings.auth.unlock.biometricPrompt,
       })
     );
+  });
+
+  it('sets the sentinel flag after saving', async () => {
+    await saveDekToSecureStore(dek);
+    expect(store.setItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1_flag', '1');
+  });
+
+  it('does not set the flag when saving fails', async () => {
+    store.setItemAsync.mockRejectedValueOnce(new Error('boom'));
+    await expect(saveDekToSecureStore(dek)).rejects.toThrow('boom');
+    expect(store.setItemAsync).toHaveBeenCalledTimes(1);
   });
 
   it('throws when secure store is unavailable', async () => {
@@ -91,9 +102,10 @@ describe('loadDekFromSecureStore', () => {
 });
 
 describe('clearDekFromSecureStore', () => {
-  it('deletes the DEK, and is a no-op when the store is unavailable', async () => {
+  it('deletes the DEK and the flag, and is a no-op when the store is unavailable', async () => {
     await clearDekFromSecureStore();
     expect(store.deleteItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1');
+    expect(store.deleteItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1_flag');
     store.deleteItemAsync.mockClear();
     store.isAvailableAsync.mockResolvedValue(false);
     await clearDekFromSecureStore();
@@ -101,29 +113,12 @@ describe('clearDekFromSecureStore', () => {
   });
 });
 
-describe('hasStoredDek and tracked variants', () => {
+describe('hasStoredDek', () => {
   it('reads the unprotected sentinel flag', async () => {
     store.getItemAsync.mockResolvedValue('1');
     expect(await hasStoredDek()).toBe(true);
     expect(store.getItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1_flag');
     store.getItemAsync.mockResolvedValue(null);
     expect(await hasStoredDek()).toBe(false);
-  });
-
-  it('saveTracked sets the flag after saving', async () => {
-    await saveDekToSecureStoreTracked(dek);
-    expect(store.setItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1_flag', '1');
-  });
-
-  it('saveTracked does not set the flag when saving fails', async () => {
-    store.setItemAsync.mockRejectedValueOnce(new Error('boom'));
-    await expect(saveDekToSecureStoreTracked(dek)).rejects.toThrow('boom');
-    expect(store.setItemAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it('clearTracked deletes the DEK and the flag', async () => {
-    await clearDekFromSecureStoreTracked();
-    expect(store.deleteItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1');
-    expect(store.deleteItemAsync).toHaveBeenCalledWith('flowtodo_dek_v1_flag');
   });
 });

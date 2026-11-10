@@ -12,9 +12,9 @@ import { resolveDekFromPassword } from '@/core/auth/dek';
 import { rewrapDekAndUpdatePassword } from '@/core/auth/updatePassword';
 import { toastForError } from '@/shared/lib/networkError';
 import {
-  saveDekToSecureStoreTracked,
+  saveDekToSecureStore,
   loadDekFromSecureStore,
-  clearDekFromSecureStoreTracked,
+  clearDekFromSecureStore,
   hasStoredDek,
 } from '@/core/auth/secureStorage';
 import type { User } from '@/types';
@@ -88,7 +88,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
         // Ending the session invalidates the persisted DEK's usefulness too —
         // wipe it so a different account can't accidentally inherit it on
         // this device, and so re-login re-establishes it deliberately.
-        await clearDekFromSecureStoreTracked();
+        await clearDekFromSecureStore();
         setBiometricUnlockAvailable(false);
       },
 
@@ -141,7 +141,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
           };
         }
         try {
-          await saveDekToSecureStoreTracked(current);
+          await saveDekToSecureStore(current);
           setBiometricUnlockAvailable(true);
           return { error: null };
         } catch (err) {
@@ -151,7 +151,7 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
       },
 
       disableBiometricUnlock: async () => {
-        await clearDekFromSecureStoreTracked();
+        await clearDekFromSecureStore();
         setBiometricUnlockAvailable(false);
       },
 

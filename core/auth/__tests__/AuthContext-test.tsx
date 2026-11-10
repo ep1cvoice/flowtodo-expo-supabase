@@ -30,8 +30,8 @@ jest.mock('@/core/auth/updatePassword', () => ({ rewrapDekAndUpdatePassword: jes
 jest.mock('@/core/auth/secureStorage', () => ({
   hasStoredDek: jest.fn(),
   loadDekFromSecureStore: jest.fn(),
-  saveDekToSecureStoreTracked: jest.fn(),
-  clearDekFromSecureStoreTracked: jest.fn(),
+  saveDekToSecureStore: jest.fn(),
+  clearDekFromSecureStore: jest.fn(),
 }));
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   pausePomodoroBeforeLogout: jest.fn(),
@@ -41,17 +41,17 @@ import { supabase } from '@/core/supabase/client';
 import { resolveDekFromPassword } from '@/core/auth/dek';
 import { fetchProfile, minimalUserFromSession } from '@/core/auth/profile';
 import {
-  clearDekFromSecureStoreTracked,
+  clearDekFromSecureStore,
   hasStoredDek,
   loadDekFromSecureStore,
-  saveDekToSecureStoreTracked,
+  saveDekToSecureStore,
 } from '@/core/auth/secureStorage';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 
 const auth = supabase.auth as any;
 const resolveDek = resolveDekFromPassword as jest.Mock;
-const clearStoredDek = clearDekFromSecureStoreTracked as jest.Mock;
-const saveStoredDek = saveDekToSecureStoreTracked as jest.Mock;
+const clearStoredDek = clearDekFromSecureStore as jest.Mock;
+const saveStoredDek = saveDekToSecureStore as jest.Mock;
 const loadStoredDek = loadDekFromSecureStore as jest.Mock;
 
 const dek = new Uint8Array(32).fill(1);
