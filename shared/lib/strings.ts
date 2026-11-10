@@ -241,7 +241,6 @@ export const strings = {
     showCurrentWeek: 'Show current week',
     showFullMonth: 'Show full month',
     showDetails: 'Show task details',
-    detailsReorderHint: 'Opens details. Long press to reorder',
     loadMore: 'Load more',
     loadMoreCompleted: 'Load more completed tasks',
     searchLoadedOnly: 'Search covers loaded tasks only. Clear search to load more.',

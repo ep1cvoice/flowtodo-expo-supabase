@@ -37,7 +37,6 @@ interface ToDoItemProps {
   index?: number;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void | Promise<void>;
-  drag?: () => void;
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -50,7 +49,6 @@ export default function ToDoItem({
   index = 0,
   onToggle,
   onDelete,
-  drag,
   showReorderButtons = false,
   canMoveUp = false,
   canMoveDown = false,
@@ -157,11 +155,9 @@ export default function ToDoItem({
     <>
       <Pressable
         onPress={() => setShowDetailModal(true)}
-        onLongPress={drag}
-        delayLongPress={drag ? 450 : undefined}
         accessibilityRole="none"
         accessibilityLabel={task.title}
-        accessibilityHint={drag ? strings.tasks.detailsReorderHint : strings.tasks.showDetails}
+        accessibilityHint={strings.tasks.showDetails}
         {...(isWeb ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,

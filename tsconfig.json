@@ -20,7 +20,6 @@
     "types/**/*.d.ts"
   ],
   "exclude": [
-    "node_modules",
-    "node_modules/react-native-drag-flatlist"
+    "node_modules"
   ]
 }
