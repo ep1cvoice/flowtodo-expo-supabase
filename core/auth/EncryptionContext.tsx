@@ -101,7 +101,6 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
             userId: user.id,
             password,
             verifyEmail: user.email,
-            profileTimeoutLabel: 'unlockProfile',
             decryptFailLog: strings.auth.errors.unlockDekLog,
             decryptFailError: strings.auth.errors.invalidPassword,
           });

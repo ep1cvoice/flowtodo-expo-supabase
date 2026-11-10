@@ -31,6 +31,8 @@ interface AuthContextValue {
   deleteAccount: () => Promise<{ error: string | null }>;
 }
 
+const HANDLED_AUTH_EVENTS = new Set<string>(['INITIAL_SESSION', 'SIGNED_IN', 'USER_UPDATED']);
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -66,27 +68,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
+    // Not async and no Supabase calls inside the callback: awaiting supabase-js from
+    // within onAuthStateChange can deadlock. Profile loading is deferred instead.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        if (session?.user) {
-          const profile =
-            (await fetchProfile(session.user.id, session.user.email)) ??
-            minimalUserFromSession(session.user.id, session.user.email);
-          if (isMounted) setUserState(profile);
-        } else {
-          if (isMounted) {
-            setUserState(null);
-            clearDek();
-          }
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        if (isMounted) {
+          setUserState(null);
+          clearDek();
         }
-      } catch (err) {
-        logger.warn('onAuthStateChange profile load failed:', (err as Error)?.message ?? err);
-        if (session?.user && isMounted) {
-          setUserState(minimalUserFromSession(session.user.id, session.user.email));
-        }
+        return;
       }
+      // TOKEN_REFRESHED and other events carry no profile change.
+      if (!HANDLED_AUTH_EVENTS.has(event) || !session?.user) return;
+
+      const { id, email } = session.user;
+      setTimeout(() => {
+        void (async () => {
+          try {
+            const profile = (await fetchProfile(id, email)) ?? minimalUserFromSession(id, email);
+            if (isMounted) setUserState(profile);
+          } catch (err) {
+            logger.warn('onAuthStateChange profile load failed:', (err as Error)?.message ?? err);
+            if (isMounted) setUserState(minimalUserFromSession(id, email));
+          }
+        })();
+      }, 0);
     });
 
     return () => {
@@ -112,7 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const resolved = await resolveDekFromPassword({
           userId: data.user.id,
           password,
-          profileTimeoutLabel: 'signInProfile',
           decryptFailLog: strings.auth.errors.decryptDekLog,
           decryptFailError: strings.auth.errors.invalidPasswordOrCorrupted,
         });
@@ -161,8 +168,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await pausePomodoroBeforeLogout();
-    await supabase.auth.signOut();
-    await resetEncryption();
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      await resetEncryption();
+    }
   }, [resetEncryption]);
 
   const userId = user?.id ?? null;

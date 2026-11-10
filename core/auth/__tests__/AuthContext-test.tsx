@@ -125,6 +125,35 @@ describe('session bootstrap', () => {
   });
 });
 
+describe('onAuthStateChange', () => {
+  it('ignores TOKEN_REFRESHED: no profile fetch and no new user object', async () => {
+    const { result } = await renderAuth(session);
+    const before = result.current.user;
+    (fetchProfile as jest.Mock).mockClear();
+
+    await act(async () => {
+      mockAuthCallback!('TOKEN_REFRESHED', session);
+      await new Promise((r) => setTimeout(r, 5));
+    });
+
+    expect(fetchProfile).not.toHaveBeenCalled();
+    expect(result.current.user).toBe(before);
+  });
+
+  it('loads the profile on SIGNED_IN, deferred out of the callback', async () => {
+    const { result } = await renderAuth(null);
+    (fetchProfile as jest.Mock).mockClear();
+
+    await act(async () => {
+      mockAuthCallback!('SIGNED_IN', session);
+    });
+    expect(fetchProfile).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(result.current.user).toEqual(profile));
+    expect(fetchProfile).toHaveBeenCalledWith('u1', 'a@b.com');
+  });
+});
+
 describe('signIn', () => {
   it('keeps the DEK in memory only, without silently saving it to secure storage', async () => {
     const { result } = await renderAuth(null);
@@ -330,6 +359,20 @@ describe('DEK is cleared', () => {
     expect(clearStoredDek).toHaveBeenCalled();
     expect(result.current.dek).toBeNull();
     expect(result.current.biometricUnlockAvailable).toBe(false);
+  });
+
+  it('on logout even when signOut throws (DEK must not survive in memory or secure storage)', async () => {
+    (hasStoredDek as jest.Mock).mockResolvedValue(true);
+    const { result } = await renderAuth(null);
+    await signInAs(result);
+    auth.signOut.mockRejectedValue(new Error('network down'));
+
+    await act(async () => {
+      await result.current.logout().catch(() => {});
+    });
+
+    expect(clearStoredDek).toHaveBeenCalled();
+    expect(result.current.dek).toBeNull();
   });
 
   it('when Supabase reports the session ended (auth state change with no session)', async () => {

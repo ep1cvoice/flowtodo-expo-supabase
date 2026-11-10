@@ -1,7 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import {
   LEGACY_KDF_ITERATIONS,
-  PROFILE_FETCH_TIMEOUT_MS,
   PROFILE_RETRY_ATTEMPTS,
   PROFILE_RETRY_DELAY_MS,
 } from '@/core/auth/constants';
@@ -12,7 +11,7 @@ import {
   generateEncryptionMaterial,
 } from '@/core/crypto';
 import { withRetry } from '@/shared/lib/retry';
-import { withTimeout } from '@/shared/lib/withTimeout';
+import { fetchProfileRow } from '@/core/auth/profile';
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
 
@@ -117,21 +116,13 @@ export async function resolveDekFromPassword(options: {
   userId: string;
   password: string;
   verifyEmail?: string;
-  profileTimeoutLabel: string;
   decryptFailLog: string;
   decryptFailError: string;
 }): Promise<{ ok: true; dek: Uint8Array } | { ok: false; error: string }> {
-  const { data: profileData, error: profileError } = await withTimeout(
-    supabase
-      .from('profiles')
-      .select('salt, encrypted_dek, dek_iv, kdf_iterations')
-      .eq('id', options.userId)
-      .single(),
-    PROFILE_FETCH_TIMEOUT_MS,
-    options.profileTimeoutLabel
-  );
-
-  if (profileError || !profileData) {
+  let profileData;
+  try {
+    profileData = await fetchProfileRow(options.userId);
+  } catch {
     return { ok: false, error: strings.auth.errors.fetchEncryptionProfile };
   }
 
