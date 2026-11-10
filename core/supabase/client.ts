@@ -1,4 +1,5 @@
 import 'react-native-url-polyfill/auto';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
@@ -33,3 +34,17 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+/**
+ * Supabase recommended pattern for React Native: refresh tokens only while the
+ * app is in the foreground, and resume as soon as it becomes active again.
+ */
+if (!isWebSsr) {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
