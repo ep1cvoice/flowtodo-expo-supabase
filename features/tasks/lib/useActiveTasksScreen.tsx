@@ -20,7 +20,7 @@ export function useActiveTasksScreen() {
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const styles = useMemo(() => createActiveTasksStyles(colors), [colors]);
-  const { categories, tags, loading, error } = useTasksState();
+  const { categories, tags, loading, error, hasData } = useTasksState();
   const { retry } = useTasksActions();
   const { setScheduledDay } = useCreateTask();
   const filters = useActiveTaskFilters();
@@ -101,7 +101,7 @@ export function useActiveTasksScreen() {
     categories,
     tags,
     loading,
-    error,
+    showError: error != null && !hasData,
     retry,
     filters,
     handleToggle,

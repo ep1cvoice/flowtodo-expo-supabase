@@ -23,7 +23,7 @@ export default function ActiveTasksFrame({ view, children }: ActiveTasksFramePro
     categories,
     tags,
     loading,
-    error,
+    showError,
     retry,
     filters,
     showFilterSheet,
@@ -48,7 +48,7 @@ export default function ActiveTasksFrame({ view, children }: ActiveTasksFramePro
               <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
           </>
-        ) : error ? (
+        ) : showError ? (
           <TasksLoadError onRetry={retry} />
         ) : (
           <View style={styles.listArea}>

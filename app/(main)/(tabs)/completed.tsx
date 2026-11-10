@@ -36,6 +36,7 @@ export default function CompletedTasksScreen() {
     completedTasks,
     loading,
     error,
+    hasData,
     hasMoreCompleted,
     loadingMoreCompleted,
   } = useTasksState();
@@ -90,7 +91,7 @@ export default function CompletedTasksScreen() {
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
               </View>
-            ) : error ? (
+            ) : error && !hasData ? (
               <TasksLoadError onRetry={retry} />
             ) : (
               <SectionList

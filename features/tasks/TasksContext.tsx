@@ -12,7 +12,7 @@ import {
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
 import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
-import { initialTasksData, tasksReducer } from '@/features/tasks/lib/tasksReducer';
+import { initialTasksData, tasksReducer, type TasksData } from '@/features/tasks/lib/tasksReducer';
 import {
   useTaskMutations,
   type TaskMutationsSnapshot,
@@ -28,6 +28,9 @@ import type {
 import { withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 import { logger } from '@/shared/lib/logger';
+import { toastForError } from '@/shared/lib/networkError';
+import { strings } from '@/shared/lib/strings';
+import { useToast } from '@/shared/providers/ToastContext';
 
 interface TasksState {
   tasks: Task[];
@@ -39,8 +42,10 @@ interface TasksState {
   categories: Category[];
   tags: Tag[];
   loading: boolean;
-  /** Why the last (re)load failed; null while loading or after a successful load. */
+  /** Why the last (re)load or refetch failed; null while loading or after a success. */
   error: Error | null;
+  /** Whether there is anything to show; screens use the error view only when there isn't. */
+  hasData: boolean;
 }
 
 interface TasksActions {
@@ -65,9 +70,19 @@ interface TasksActions {
 const TasksStateContext = createContext<TasksState | null>(null);
 const TasksActionsContext = createContext<TasksActions | null>(null);
 
+function hasAnyData(d: TasksData): boolean {
+  return (
+    d.activeTasks.length > 0 ||
+    d.completedTasks.length > 0 ||
+    d.categories.length > 0 ||
+    d.tags.length > 0
+  );
+}
+
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { dek } = useEncryption();
+  const { showToast } = useToast();
   const [data, dispatch] = useReducer(tasksReducer, initialTasksData);
   const [loadingMoreCompleted, setLoadingMoreCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -83,6 +98,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const latest = useRef<TaskMutationsSnapshot>({ user, dek, data });
   latest.current = { user, dek, data };
   const loadingMoreRef = useRef(false);
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
 
   // Only the response of the newest refresh may touch state; see `refresh`.
   const requestIdRef = useRef(0);
@@ -188,8 +205,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       // E.g. the reconnect refetch succeeding after the initial load failed offline.
       setError(null);
     } catch (err) {
-      // Not surfaced as `error`: a failed background refetch must not hide a loaded list.
       logger.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      // With data on screen the list stays (screens show the error view only when there is
+      // nothing to show), so tell the user the refresh itself failed.
+      const { data: current } = latest.current;
+      if (hasAnyData(current)) {
+        showToastRef.current(toastForError(err, strings.common.refreshFailed), 'error');
+      }
     }
   }, [refresh]);
 
@@ -251,6 +274,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       tags,
       loading,
       error,
+      hasData: hasAnyData(data),
     }),
     [
       tasks,
@@ -263,6 +287,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       tags,
       loading,
       error,
+      data,
     ]
   );
 

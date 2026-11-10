@@ -23,6 +23,7 @@ export const strings = {
     yesterday: 'Yesterday',
     unknown: 'Unknown',
     loadingTasks: 'Loading tasks…',
+    refreshFailed: 'Could not refresh your tasks.',
     loadTasksFailed: 'Could not load your tasks',
     loadTasksFailedHint: 'Check your connection and try again.',
     retry: 'Try again',

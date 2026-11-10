@@ -36,10 +36,16 @@ export async function pausePomodoroRow(options: {
   elapsed: number;
   pausedAt: string;
   onlyActive?: boolean;
+  /** True when freezing the session because the user is logging out. */
+  onLogout?: boolean;
 }) {
   let query = supabase
     .from('pomodoros')
-    .update({ elapsed: options.elapsed, paused_at: options.pausedAt })
+    .update({
+      elapsed: options.elapsed,
+      paused_at: options.pausedAt,
+      paused_on_logout: options.onLogout ?? false,
+    })
     .eq('id', options.id)
     .eq('user_id', options.userId);
   if (options.onlyActive) query = query.is('ended_at', null);
@@ -55,7 +61,7 @@ export async function resumePomodoroRow(options: {
 }) {
   const { error } = await supabase
     .from('pomodoros')
-    .update({ paused_at: null, started_at: options.startedAt })
+    .update({ paused_at: null, paused_on_logout: false, started_at: options.startedAt })
     .eq('id', options.id)
     .eq('user_id', options.userId);
   if (error) throw error;
@@ -69,7 +75,7 @@ export async function resumePomodoroAndFetch(options: {
 }): Promise<PomoData> {
   const { data, error } = await supabase
     .from('pomodoros')
-    .update({ paused_at: null, started_at: options.startedAt })
+    .update({ paused_at: null, paused_on_logout: false, started_at: options.startedAt })
     .eq('id', options.id)
     .eq('user_id', options.userId)
     .select('*')
@@ -92,6 +98,7 @@ export async function endPomodoroRow(options: {
       elapsed: options.elapsed,
       ended_at: options.endedAt,
       paused_at: null,
+      paused_on_logout: false,
       ...(await encryptedColumns(options.dek, 'task_name', options.taskName)),
     })
     .eq('id', options.id)

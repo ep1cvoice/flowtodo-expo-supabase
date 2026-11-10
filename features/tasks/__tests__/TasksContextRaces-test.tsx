@@ -10,6 +10,10 @@ const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
 };
 let mockForceTimeout: (() => void) | null = null;
 
+const mockShowToast = jest.fn();
+jest.mock('@/shared/providers/ToastContext', () => ({
+  useToast: () => ({ showToast: mockShowToast }),
+}));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuthState }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuthState }));
 jest.mock('@/shared/lib/withTimeout', () => ({

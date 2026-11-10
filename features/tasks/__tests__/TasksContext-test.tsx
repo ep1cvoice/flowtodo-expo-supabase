@@ -11,6 +11,10 @@ const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
   dek: null,
 };
 
+const mockShowToast = jest.fn();
+jest.mock('@/shared/providers/ToastContext', () => ({
+  useToast: () => ({ showToast: mockShowToast }),
+}));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuthState }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuthState }));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
@@ -200,7 +204,7 @@ describe('load errors', () => {
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
   });
 
-  it('does not set an error when a refetch fails and the list is already loaded', async () => {
+  it('records a failed refetch as error and toasts when a list is already loaded', async () => {
     const { result } = await renderTasks();
     fetchSnapshot.mockRejectedValueOnce(new Error('flaky'));
 
@@ -208,8 +212,23 @@ describe('load errors', () => {
       await result.current.refetch();
     });
 
-    expect(result.current.error).toBeNull();
+    expect(result.current.error?.message).toBe('flaky');
+    expect(result.current.hasData).toBe(true); // screens keep the list, no error view
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('does not toast a failed refetch when there is nothing to show (error view covers it)', async () => {
+    fetchSnapshot.mockRejectedValue(new Error('offline'));
+    const { result } = await renderTasks();
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.hasData).toBe(false);
+    expect(result.current.error).not.toBeNull();
+    expect(mockShowToast).not.toHaveBeenCalled();
   });
 
   it('has no error after a successful load', async () => {

@@ -30,6 +30,7 @@ export function mapActivePomo(row: PomoRow): PomoData {
     duration: Number(row.duration),
     elapsed: Number(row.elapsed),
     pausedAt: row.paused_at,
+    pausedOnLogout: row.paused_on_logout,
   };
 }
 

@@ -22,7 +22,6 @@ import {
   resumePomodoroAndFetch,
   resumePomodoroRow,
 } from '@/features/pomodoro/lib/mutations';
-import { clearPomodoroSignIn, consumePomodoroSignIn } from '@/features/pomodoro/lib/pomodoroSignIn';
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
@@ -96,8 +95,9 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
     let active = fetched;
 
-    // After login: continue the session that was frozen on logout.
-    if (resumeIfPaused && active.pausedAt && !active.endedAt) {
+    // After login: continue the session that was frozen on logout. Sessions paused by hand
+    // (`pausedOnLogout` false) stay paused, wherever and whenever the app is opened.
+    if (resumeIfPaused && active.pausedOnLogout && active.pausedAt && !active.endedAt) {
       try {
         active = await resumePomodoroAndFetch({
           userId,
@@ -118,7 +118,6 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     if (!user) {
-      clearPomodoroSignIn();
       setActivePomo(null);
       setHistory([]);
       setLoading(false);
@@ -132,12 +131,8 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Resume only right after an actual sign-in (true once). An app restart with a stored
-    // session, or the DEK changing after an unlock, must not resume a session paused by hand.
-    const resumeIfPaused = consumePomodoroSignIn(user.id);
-
     setLoading(true);
-    withTimeout(refresh(user.id, { resumeIfPaused }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
+    withTimeout(refresh(user.id, { resumeIfPaused: true }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
       .catch((err) => {
         logger.warn('Failed to load pomodoros:', err?.message ?? err);
       })

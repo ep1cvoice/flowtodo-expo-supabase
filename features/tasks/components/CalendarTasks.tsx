@@ -36,7 +36,7 @@ import { isWeb } from '@/shared/lib/platform';
 export default function CalendarTasks() {
   const { colors } = useTheme();
   const styles = useMemo(() => createCalendarTasksStyles(colors), [colors]);
-  const { activeTasks, loading, error } = useTasksState();
+  const { activeTasks, loading, error, hasData } = useTasksState();
   const { retry } = useTasksActions();
   const { setScheduledDay } = useCreateTask();
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -195,7 +195,7 @@ export default function CalendarTasks() {
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
-          ) : error ? (
+          ) : error && !hasData ? (
             <TasksLoadError onRetry={retry} />
           ) : (
             <FlatList
