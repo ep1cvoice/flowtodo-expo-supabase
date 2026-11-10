@@ -12,7 +12,7 @@ type CreateTaskContextValue = {
 const CreateTaskContext = createContext<CreateTaskContextValue | null>(null);
 
 export function CreateTaskProvider({ children }: { children: ReactNode }) {
-  const { categories, tags, addTask } = useTasks();
+  const { addTask } = useTasks();
   const scheduledRef = useRef<Record<ScheduledRoute, Date | null>>({
     active: null,
     calendar: null,
@@ -45,8 +45,6 @@ export function CreateTaskProvider({ children }: { children: ReactNode }) {
         visible={visible}
         onClose={() => setVisible(false)}
         onAdd={addTask}
-        categories={categories}
-        tags={tags}
         defaultScheduled={scheduled}
       />
     </CreateTaskContext.Provider>

@@ -8,7 +8,7 @@ import { useSettingsStyles } from '@/features/settings/components/settingsStyles
 import { useEncryption } from '@/core/auth/EncryptionContext';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
-import { toastForError } from '@/shared/lib/networkError';
+import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { isDeviceUnlockAvailable } from '@/core/auth/secureStorage';
 
 interface DataSectionProps {
@@ -19,6 +19,7 @@ interface DataSectionProps {
 export default function DataSection({ open, onToggle }: DataSectionProps) {
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
+  const runToasted = useToastedAction();
   const { activeTasks, completedCount, deleteAllActive, deleteAllCompleted } = useTasks();
   const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useEncryption();
   const [deviceSupportsUnlock, setDeviceSupportsUnlock] = useState(false);
@@ -39,19 +40,19 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
     if (biometricBusy) return;
     setBiometricBusy(true);
     try {
-      if (next) {
-        const { error } = await enableBiometricUnlock();
-        if (error) {
-          showToast(error, 'error');
+      await runToasted(async () => {
+        if (next) {
+          const { error } = await enableBiometricUnlock();
+          if (error) {
+            showToast(error, 'error');
+          } else {
+            showToast(strings.settings.data.biometricEnabled);
+          }
         } else {
-          showToast(strings.settings.data.biometricEnabled);
+          await disableBiometricUnlock();
+          showToast(strings.settings.data.biometricDisabled);
         }
-      } else {
-        await disableBiometricUnlock();
-        showToast(strings.settings.data.biometricDisabled);
-      }
-    } catch (err) {
-      showToast(toastForError(err, strings.settings.data.biometricFailed), 'error');
+      }, strings.settings.data.biometricFailed);
     } finally {
       setBiometricBusy(false);
     }
@@ -97,14 +98,8 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
                 <Fingerprint size={16} color={colors.primary} />
                 <Text style={styles.encryptionInfoTitle}>{strings.settings.data.biometricTitle}</Text>
               </View>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: 8,
-                }}>
-                <Text style={[styles.encryptionInfoText, { flex: 1, marginRight: 12 }]}>
+              <View style={styles.switchRow}>
+                <Text style={[styles.encryptionInfoText, styles.switchRowText]}>
                   {strings.settings.data.biometricText}
                 </Text>
                 <Switch
@@ -157,15 +152,15 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
         onConfirm={async () => {
           const kind = pendingBulk;
           try {
-            if (kind === 'active') {
-              await deleteAllActive();
-              showToast(strings.settings.data.activeDeleted);
-            } else if (kind === 'completed') {
-              await deleteAllCompleted();
-              showToast(strings.settings.data.completedDeleted);
-            }
-          } catch (err) {
-            showToast(toastForError(err, strings.settings.data.deleteFailed), 'error');
+            await runToasted(async () => {
+              if (kind === 'active') {
+                await deleteAllActive();
+                showToast(strings.settings.data.activeDeleted);
+              } else if (kind === 'completed') {
+                await deleteAllCompleted();
+                showToast(strings.settings.data.completedDeleted);
+              }
+            }, strings.settings.data.deleteFailed);
           } finally {
             setPendingBulk(null);
           }

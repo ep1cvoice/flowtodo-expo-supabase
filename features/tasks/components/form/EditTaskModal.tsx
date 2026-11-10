@@ -1,5 +1,5 @@
 import { Pencil } from 'lucide-react-native';
-import type { Category, Tag, Task } from '@/types';
+import type { Task } from '@/types';
 import TaskFormModal from '@/features/tasks/components/form/TaskFormModal';
 import type { TaskFormInput } from '@/features/tasks/lib/types';
 
@@ -8,8 +8,6 @@ interface EditTaskModalProps {
   task: Task;
   onUpdate: (id: number, updates: TaskFormInput) => void | Promise<void>;
   onClose: () => void;
-  categories: Category[];
-  tags: Tag[];
 }
 
 export default function EditTaskModal({
@@ -17,8 +15,6 @@ export default function EditTaskModal({
   task,
   onUpdate,
   onClose,
-  categories,
-  tags,
 }: EditTaskModalProps) {
   return (
     <TaskFormModal
@@ -27,8 +23,6 @@ export default function EditTaskModal({
       submitLabel="Save changes"
       submittingLabel="Saving…"
       SubmitIcon={Pencil}
-      categories={categories}
-      tags={tags}
       initialValues={{
         title: task.title,
         description: task.description || '',

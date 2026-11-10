@@ -1,5 +1,4 @@
 import { Plus } from 'lucide-react-native';
-import type { Category, Tag } from '@/types';
 import TaskFormModal from '@/features/tasks/components/form/TaskFormModal';
 import { toScheduledIso } from '@/features/tasks/lib/calendarDate';
 import type { AddTaskInput } from '@/features/tasks/lib/types';
@@ -8,8 +7,6 @@ interface AddTaskModalProps {
   visible: boolean;
   onAdd: (task: AddTaskInput) => void | Promise<void>;
   onClose: () => void;
-  categories: Category[];
-  tags: Tag[];
   defaultCategoryId?: number | null;
   defaultTagIds?: number[];
   defaultScheduled?: Date | null;
@@ -19,8 +16,6 @@ export default function AddTaskModal({
   visible,
   onAdd,
   onClose,
-  categories,
-  tags,
   defaultCategoryId = null,
   defaultTagIds = [],
   defaultScheduled = null,
@@ -32,8 +27,6 @@ export default function AddTaskModal({
       submitLabel="Add Task"
       submittingLabel="Adding…"
       SubmitIcon={Plus}
-      categories={categories}
-      tags={tags}
       initialValues={{
         title: '',
         description: '',

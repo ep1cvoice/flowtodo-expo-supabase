@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,17 @@ import {
   ScrollView,
 } from 'react-native';
 import { type LucideIcon } from 'lucide-react-native';
-import type { Category, CategoryIcon, Tag } from '@/types';
+import type { CategoryIcon } from '@/types';
 import LabelModal from '@/features/tasks/components/form/LabelModal';
 import { useTaskFormStyles } from '@/features/tasks/components/form/taskFormStyles';
+import CategoryChipPicker from '@/features/tasks/components/form/CategoryChipPicker';
 import TagChipPicker from '@/features/tasks/components/form/TagChipPicker';
 import SheetFrame from '@/shared/ui/SheetFrame';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { categoryCardWash } from '@/shared/lib/color';
-import { toastForError } from '@/shared/lib/networkError';
+import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { useAutoFocus } from '@/shared/lib/useAutoFocus';
 import { validateTaskTitle, type TaskFormInput } from '@/features/tasks/lib/taskValidation';
 import { logger } from '@/shared/lib/logger';
@@ -30,8 +31,6 @@ interface TaskFormModalProps {
   submitLabel: string;
   submittingLabel: string;
   SubmitIcon: LucideIcon;
-  categories: Category[];
-  tags: Tag[];
   initialValues: TaskFormInput;
   syncKey?: unknown;
   disableCloseWhileSubmitting?: boolean;
@@ -49,8 +48,6 @@ export default function TaskFormModal({
   submitLabel,
   submittingLabel,
   SubmitIcon,
-  categories,
-  tags,
   initialValues,
   syncKey,
   disableCloseWhileSubmitting = false,
@@ -64,7 +61,8 @@ export default function TaskFormModal({
   const { isDark } = useTheme();
   const { colors, styles } = useTaskFormStyles();
   const { showToast } = useToast();
-  const { addCategory, addTag } = useTasks();
+  const runToasted = useToastedAction();
+  const { categories, tags, addCategory, addTag } = useTasks();
 
   const [title, setTitle] = useState(initialValues.title);
   const [description, setDescription] = useState(initialValues.description);
@@ -86,7 +84,14 @@ export default function TaskFormModal({
     : undefined;
   const [showTagModal, setShowTagModal] = useState(false);
 
-  const applyInitial = (values: TaskFormInput) => {
+  // Callers usually pass a fresh initialValues object every render, so the sync effect reads the
+  // latest one through a ref and only re-runs when `visible` or `syncKey` changes.
+  const initialValuesRef = useRef(initialValues);
+  useEffect(() => {
+    initialValuesRef.current = initialValues;
+  });
+
+  const applyInitial = useCallback((values: TaskFormInput) => {
     setTitle(values.title);
     setDescription(values.description);
     setCategoryId(values.categoryId);
@@ -94,12 +99,12 @@ export default function TaskFormModal({
     setInputError('');
     setSubmitting(false);
     submittingRef.current = false;
-  };
+  }, []);
 
   useEffect(() => {
     if (syncKey === undefined || !visible) return;
-    applyInitial(initialValues);
-  }, [visible, syncKey]);
+    applyInitial(initialValuesRef.current);
+  }, [visible, syncKey, applyInitial]);
 
   const reset = () => applyInitial(initialValues);
 
@@ -125,14 +130,14 @@ export default function TaskFormModal({
 
     submittingRef.current = true;
     setSubmitting(true);
-    try {
+    const result = await runToasted(async () => {
       await onSubmit({ title, description, categoryId, tagIds });
       showToast(successToast);
       if (resetOnClose) reset();
       onClose();
-    } catch (err) {
-      logger.warn(failLog, err);
-      showToast(toastForError(err, strings.tasks.saveFailed), 'error');
+    }, strings.tasks.saveFailed);
+    if (!result.ok) {
+      logger.warn(failLog, result.error);
       submittingRef.current = false;
       setSubmitting(false);
     }
@@ -155,14 +160,14 @@ export default function TaskFormModal({
             visible={showCategoryModal}
             onClose={() => setShowCategoryModal(false)}
             onSave={async (name, color, icon) => {
-              try {
+              const result = await runToasted(async () => {
                 const created = await addCategory({ name, color, icon: icon as CategoryIcon });
                 setCategoryId(created.id);
                 showToast(strings.form.categoryCreated);
-              } catch (err) {
-                logger.warn('Failed to create category:', err);
-                showToast(toastForError(err, strings.form.saveCategoryFailed), 'error');
-                throw err;
+              }, strings.form.saveCategoryFailed);
+              if (!result.ok) {
+                logger.warn('Failed to create category:', result.error);
+                throw result.error;
               }
             }}
           />
@@ -171,14 +176,14 @@ export default function TaskFormModal({
             visible={showTagModal}
             onClose={() => setShowTagModal(false)}
             onSave={async (name, color) => {
-              try {
+              const result = await runToasted(async () => {
                 const created = await addTag({ name, color });
                 setTagIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
                 showToast(strings.form.tagCreated);
-              } catch (err) {
-                logger.warn('Failed to create tag:', err);
-                showToast(toastForError(err, strings.form.saveTagFailed), 'error');
-                throw err;
+              }, strings.form.saveTagFailed);
+              if (!result.ok) {
+                logger.warn('Failed to create tag:', result.error);
+                throw result.error;
               }
             }}
           />
@@ -217,53 +222,12 @@ export default function TaskFormModal({
               </View>
 
               <View style={styles.inputGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>{strings.form.category}</Text>
-                  <Pressable
-                    onPress={() => setShowCategoryModal(true)}
-                    hitSlop={8}
-                    style={styles.newLinkBtn}>
-                    <Text style={styles.newLink}>{strings.form.newLink}</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.categoryList}>
-                  <Pressable
-                    onPress={() => setCategoryId(null)}
-                    style={[
-                      styles.categoryChip,
-                      categoryId === null && styles.categoryChipSelected,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        categoryId === null && styles.categoryChipTextSelected,
-                      ]}>
-                      {strings.form.noCategory}
-                    </Text>
-                  </Pressable>
-                  {categories.map((cat) => {
-                    const selected = categoryId === cat.id;
-                    return (
-                      <Pressable
-                        key={cat.id}
-                        onPress={() => setCategoryId(cat.id)}
-                        style={[
-                          styles.categoryChip,
-                          { borderColor: cat.color },
-                          selected && { backgroundColor: `${cat.color}22` },
-                        ]}>
-                        <Text
-                          style={[
-                            styles.categoryChipText,
-                            { color: cat.color },
-                            selected && styles.categoryChipTextSelected,
-                          ]}>
-                          {cat.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <CategoryChipPicker
+                  categories={categories}
+                  selectedId={categoryId}
+                  onChange={setCategoryId}
+                  onAddPress={() => setShowCategoryModal(true)}
+                />
               </View>
 
               <View style={styles.inputGroup}>
