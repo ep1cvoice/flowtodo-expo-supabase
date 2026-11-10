@@ -73,3 +73,16 @@ describe('fetchProfile', () => {
     expect(logger.warn).toHaveBeenCalledWith('fetchProfile threw after retries:', 'network down');
   });
 });
+
+describe('fetchProfileRow sharing', () => {
+  it('concurrent callers share one query; a later call fetches fresh data', async () => {
+    from.mockImplementation(() => createBuilder({ data: row }));
+    const { fetchProfileRow } = require('@/core/auth/profile');
+
+    await Promise.all([fetchProfileRow('u1'), fetchProfileRow('u1'), fetchProfile('u1', 'a@b.c')]);
+    expect(from).toHaveBeenCalledTimes(1);
+
+    await fetchProfileRow('u1');
+    expect(from).toHaveBeenCalledTimes(2);
+  });
+});

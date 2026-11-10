@@ -1,4 +1,5 @@
 import { PBKDF2_WEBVIEW_TIMEOUT_MS } from '@/shared/constants/timing';
+import { registerPbkdf2Provider, unregisterPbkdf2Provider } from '@/core/crypto/pbkdf2Provider';
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import WebView from 'react-native-webview';
@@ -74,7 +75,7 @@ export const Pbkdf2WebView = () => {
   }>>({});
 
   useEffect(() => {
-    (globalThis as { deriveKeyViaWebView?: typeof derive }).deriveKeyViaWebView = derive;
+    registerPbkdf2Provider(derive);
 
     function derive(password: string, saltBase64: string, iterations: number) {
       return new Promise<string>((resolve, reject) => {
@@ -99,7 +100,7 @@ export const Pbkdf2WebView = () => {
     }
 
     return () => {
-      delete (globalThis as { deriveKeyViaWebView?: unknown }).deriveKeyViaWebView;
+      unregisterPbkdf2Provider(derive);
       Object.values(pendingRequests.current).forEach((req) => {
         clearTimeout(req.timer);
         req.reject(new Error('WebView PBKDF2 unmounted'));

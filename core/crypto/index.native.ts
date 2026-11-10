@@ -11,6 +11,7 @@ import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { gcm } from '@noble/ciphers/aes.js';
+import { getPbkdf2Provider } from '@/core/crypto/pbkdf2Provider';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
 
@@ -28,13 +29,15 @@ export const CURRENT_PBKDF2_ITERATIONS = PBKDF2_ITERATIONS;
 
 type QuickCryptoModule = {
   randomBytes: (length: number) => Buffer;
-  pbkdf2Sync: (
+  // Async variant runs on a native background thread, so the JS thread stays responsive.
+  pbkdf2: (
     password: string,
     salt: Buffer,
     iterations: number,
     keylen: number,
-    digest: string
-  ) => Buffer;
+    digest: string,
+    callback: (err: Error | null, derivedKey?: Buffer) => void
+  ) => void;
   createCipheriv: (
     algorithm: string,
     key: Buffer,
@@ -100,21 +103,17 @@ async function randomBytes(length: number): Promise<Uint8Array> {
 
 async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
   if (QuickCrypto) {
-    const derived = QuickCrypto.pbkdf2Sync(
-      password,
-      Buffer.from(salt),
-      iterations,
-      DEK_BYTES,
-      'sha256'
-    );
+    const quick = QuickCrypto;
+    const derived = await new Promise<Buffer>((resolve, reject) => {
+      quick.pbkdf2(password, Buffer.from(salt), iterations, DEK_BYTES, 'sha256', (err, key) => {
+        if (err || !key) reject(err ?? new Error('pbkdf2 returned no key'));
+        else resolve(key);
+      });
+    });
     return new Uint8Array(derived);
   }
 
-  const deriveViaWebView = (globalThis as { deriveKeyViaWebView?: (
-    password: string,
-    saltBase64: string,
-    iterations: number
-  ) => Promise<string> }).deriveKeyViaWebView;
+  const deriveViaWebView = getPbkdf2Provider();
 
   if (deriveViaWebView) {
     try {

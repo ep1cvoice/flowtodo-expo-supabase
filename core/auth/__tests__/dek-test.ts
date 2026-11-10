@@ -33,7 +33,6 @@ const decrypt = decryptDek as jest.Mock;
 const options = {
   userId: 'u1',
   password: 'pw',
-  profileTimeoutLabel: 'profile',
   decryptFailLog: 'decrypt failed',
   decryptFailError: 'Wrong password',
 };
