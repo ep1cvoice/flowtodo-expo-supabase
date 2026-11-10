@@ -1,3 +1,4 @@
+import { POMO_REFRESH_TIMEOUT_MS } from '@/shared/constants/timing';
 import { strings } from '@/shared/lib/strings';
 import {
   createContext,
@@ -27,7 +28,6 @@ import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
 
-const POMO_REFRESH_TIMEOUT_MS = 12_000;
 
 interface PomodoroContextValue {
   activeTaskId: number | null;

@@ -1,3 +1,4 @@
+import { DRAG_ACTIVATION_DELAY_MS } from '@/shared/constants/timing';
 import { strings } from '@/shared/lib/strings';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
@@ -237,7 +238,7 @@ export default function ActiveTasks() {
                     scrollableRef={scrollableRef}
                     customHandle
                     sortEnabled={canReorder}
-                    dragActivationDelay={450}
+                    dragActivationDelay={DRAG_ACTIVATION_DELAY_MS}
                     activeItemScale={1.04}
                     inactiveItemOpacity={1}
                     hapticsEnabled

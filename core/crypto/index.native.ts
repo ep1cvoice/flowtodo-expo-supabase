@@ -3,6 +3,7 @@
  * Fall back to @noble when the native module is missing (Expo Go).
  * Wire format matches the web implementation (PBKDF2-SHA256 + AES-256-GCM with tag appended).
  */
+import { PBKDF2_WEBVIEW_OUTER_TIMEOUT_MS } from '@/shared/constants/timing';
 import { Buffer } from 'buffer';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as ExpoCrypto from 'expo-crypto';
@@ -120,7 +121,7 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array, iterati
       const saltBase64 = toBase64(salt);
       const keyBase64 = await withTimeout(
         deriveViaWebView(password, saltBase64, iterations),
-        16_000,
+        PBKDF2_WEBVIEW_OUTER_TIMEOUT_MS,
         'pbkdf2WebView'
       );
       return fromBase64(keyBase64);

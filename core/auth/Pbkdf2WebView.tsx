@@ -1,10 +1,10 @@
+import { PBKDF2_WEBVIEW_TIMEOUT_MS } from '@/shared/constants/timing';
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import WebView from 'react-native-webview';
 
 const CryptoWebView = WebView as React.ComponentType<Record<string, unknown>>;
 
-const WEBVIEW_PBKDF2_TIMEOUT_MS = 15_000;
 
 const htmlContent = `
 <!DOCTYPE html>
@@ -87,7 +87,7 @@ export const Pbkdf2WebView = () => {
         const timer = setTimeout(() => {
           delete pendingRequests.current[id];
           reject(new Error('WebView PBKDF2 timed out'));
-        }, WEBVIEW_PBKDF2_TIMEOUT_MS);
+        }, PBKDF2_WEBVIEW_TIMEOUT_MS);
 
         pendingRequests.current[id] = { resolve, reject, timer };
 

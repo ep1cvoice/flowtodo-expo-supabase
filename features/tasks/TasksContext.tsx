@@ -1,3 +1,4 @@
+import { TASKS_REFRESH_TIMEOUT_MS } from '@/shared/constants/timing';
 import {
   createContext,
   useCallback,
@@ -28,7 +29,6 @@ import { logger } from '@/shared/lib/logger';
 
 export type { AddCategoryInput, AddTagInput, AddTaskInput, TaskFormInput, UpdateTaskInput };
 
-const TASKS_REFRESH_TIMEOUT_MS = 15_000;
 
 interface TasksContextValue {
   tasks: Task[];
