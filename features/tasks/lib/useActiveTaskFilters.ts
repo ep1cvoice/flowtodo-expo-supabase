@@ -1,3 +1,4 @@
+import { strings } from '@/shared/lib/strings';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -56,10 +57,7 @@ export function useActiveTaskFilters() {
       setSelectedCategoryIds((prev) => {
         if (prev.includes(id)) return prev.filter((x) => x !== id);
         if (prev.length + selectedTagIds.length >= maxFilterSelections) {
-          showToast(
-            `You can select up to ${maxFilterSelections} categories and tags combined.`,
-            'error'
-          );
+          showToast(strings.tasks.filterLimitReached(maxFilterSelections), 'error');
           return prev;
         }
         return [...prev, id];
@@ -73,10 +71,7 @@ export function useActiveTaskFilters() {
       setSelectedTagIds((prev) => {
         if (prev.includes(id)) return prev.filter((x) => x !== id);
         if (selectedCategoryIds.length + prev.length >= maxFilterSelections) {
-          showToast(
-            `You can select up to ${maxFilterSelections} categories and tags combined.`,
-            'error'
-          );
+          showToast(strings.tasks.filterLimitReached(maxFilterSelections), 'error');
           return prev;
         }
         return [...prev, id];

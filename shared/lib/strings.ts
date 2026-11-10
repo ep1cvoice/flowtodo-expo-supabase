@@ -24,6 +24,7 @@ export const strings = {
     unknown: 'Unknown',
     loadingTasks: 'Loading tasks…',
     notSignedIn: 'Not signed in',
+    noConnection: "No connection. Try again when you're back online.",
     requestTimedOut: 'Request timed out',
     request: 'Request',
   },
@@ -67,6 +68,8 @@ export const strings = {
       tryBiometric: 'Try biometric unlock again',
       failed: 'Could not unlock',
       biometricPrompt: 'Odblokuj FlowTodo',
+      passwordPlaceholder: 'Enter your password',
+      submit: 'Unlock',
     },
     validation: {
       passwordMinLength: 'Password must be at least 8 characters long',
@@ -103,6 +106,9 @@ export const strings = {
         'No decrypted key available. Sign in again before changing your password.',
       appLocked: 'The app is locked. Unlock it with your password to save data.',
       secureStorageUnavailable: 'Secure storage is not available on this device.',
+      updateEncryptionFailed: 'Unable to update encryption. Password was not changed — try again.',
+      passwordRollbackFailed:
+        'Critical password change error. Contact support — your data is safe, but requires manual recovery.',
     },
   },
 
@@ -128,6 +134,10 @@ export const strings = {
       new: 'New password',
       confirmNew: 'Confirm new password',
       submit: 'Update password',
+      currentRequired: 'Current password is required',
+      newRequired: 'New password is required',
+      mustDiffer: 'New password must be different from current password',
+      updated: 'Password updated.',
     },
     preferences: {
       title: 'Preferences',
@@ -155,6 +165,8 @@ export const strings = {
       maxSelected: 'Max selected',
       filterLimitRange: (min: number, max: number) => `Limit must be between ${min} and ${max}`,
       filterLimitSaved: 'Filter limit saved.',
+      filterLimitDescription: (min: number, max: number) =>
+        `Shared max for selected categories + tags (${min}–${max})`,
       addCategory: 'Add category',
       addTag: 'Add tag',
       noCategories: 'No categories yet.',
@@ -197,6 +209,9 @@ export const strings = {
       activeDeleted: 'Active tasks deleted.',
       completedDeleted: 'Completed tasks deleted.',
       deleteFailed: 'Could not delete tasks.',
+      deleteAllActive: (count: number) => `Delete all active (${count})`,
+      deleteAllCompleted: (count: number) => `Delete all completed (${count})`,
+      taskNoun: (count: number) => (count === 1 ? 'task' : 'tasks'),
     },
   },
 
@@ -283,6 +298,8 @@ export const strings = {
     },
 
     // Empty states
+    filterLimitReached: (limit: number) =>
+      `You can select up to ${limit} categories and tags combined.`,
     empty: {
       noTasksOnDay: { title: 'No tasks on this day', text: 'Create a task or pick another day' },
       noMatchSearch: { title: 'No matching tasks', text: 'Try a different search term' },

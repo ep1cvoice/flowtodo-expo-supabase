@@ -60,14 +60,14 @@ export function getActiveEmptyCopy(options: {
   }
   if (hasSearch && !hasFilters) {
     return {
-      title: 'No matching tasks',
-      text: 'Try a different search term',
+      title: strings.tasks.empty.noMatchSearch.title,
+      text: strings.tasks.empty.noMatchSearch.text,
     };
   }
   if (hasSearch && hasFilters) {
     return {
-      title: 'No matching tasks',
-      text: 'Try clearing search or filters',
+      title: strings.tasks.empty.noMatchSearchOrFilters.title,
+      text: strings.tasks.empty.noMatchSearchOrFilters.text,
     };
   }
   if (!hasFilters) {
@@ -78,8 +78,8 @@ export function getActiveEmptyCopy(options: {
   }
   if (validTagIds.length > 0 && validCategoryIds.length > 0) {
     return {
-      title: 'No matching tasks',
-      text: 'Try clearing some filters or create a task with these labels',
+      title: strings.tasks.empty.noMatchFilters.title,
+      text: strings.tasks.empty.noMatchFilters.text,
     };
   }
   if (validTagIds.length > 0) {

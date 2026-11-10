@@ -93,7 +93,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
           <>
             <Text style={styles.label}>{strings.settings.labels.filterLimit}</Text>
             <Text style={styles.description}>
-              Shared max for selected categories + tags ({FILTER_LIMIT_MIN}–{FILTER_LIMIT_MAX})
+              {strings.settings.labels.filterLimitDescription(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX)}
             </Text>
             <View style={styles.filterLimitBlock}>
               <View style={styles.filterLimitRow}>
@@ -117,7 +117,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
                   disabled={filterLimitSaving}
                   onPress={handleFilterLimitsSave}>
                   <Text style={styles.primaryBtnText}>
-                    {filterLimitSaving ? 'Saving…' : 'Save'}
+                    {filterLimitSaving ? strings.common.saving : strings.common.save}
                   </Text>
                 </Pressable>
               </View>

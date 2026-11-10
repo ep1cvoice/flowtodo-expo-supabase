@@ -118,7 +118,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
             text={strings.auth.unlock.subtitle}
           />
           <Field
-            innerText="Enter your password"
+            innerText={strings.auth.unlock.passwordPlaceholder}
             Icon={Lock}
             type="password"
             label={strings.common.password}
@@ -132,7 +132,7 @@ export function UnlockGate({ children }: { children: React.ReactNode }) {
             editable={!submitting}
             onSubmitEditing={handleUnlock}
           />
-          <Button inner="Unlock" onPress={handleUnlock} />
+          <Button inner={strings.auth.unlock.submit} onPress={handleUnlock} />
           {biometricUnlockAvailable && (
             <Pressable
               onPress={handleBiometricRetry}

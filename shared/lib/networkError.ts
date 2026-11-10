@@ -1,5 +1,6 @@
-export const NETWORK_TOAST =
-  "No connection. Try again when you're back online.";
+import { strings } from '@/shared/lib/strings';
+
+export const NETWORK_TOAST = strings.common.noConnection;
 
 export function isNetworkError(err: unknown): boolean {
   if (err == null) return false;

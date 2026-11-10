@@ -74,7 +74,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
   };
 
   const pendingCount = pendingBulk === 'active' ? activeTasks.length : completedCount;
-  const pendingNoun = pendingCount === 1 ? 'task' : 'tasks';
+  const pendingNoun = strings.settings.data.taskNoun(pendingCount);
 
   return (
     <>
@@ -126,7 +126,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
             onPress={confirmDeleteAllActive}>
             <Trash2 size={16} color={colors.red} />
             <Text style={styles.dangerBtnText}>
-              Delete all active ({activeTasks.length})
+              {strings.settings.data.deleteAllActive(activeTasks.length)}
             </Text>
           </Pressable>
           <Pressable
@@ -137,7 +137,7 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
             onPress={confirmDeleteAllCompleted}>
             <Trash2 size={16} color={colors.red} />
             <Text style={styles.dangerBtnText}>
-              Delete all completed ({completedCount})
+              {strings.settings.data.deleteAllCompleted(completedCount)}
             </Text>
           </Pressable>
         </>

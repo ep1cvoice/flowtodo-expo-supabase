@@ -68,8 +68,7 @@ export async function rewrapDekAndUpdatePassword(options: {
   } catch (err) {
     logger.warn('Failed to re-encrypt DEK:', err);
     return {
-      error:
-        'Unable to update encryption. Password was not changed — try again.',
+      error: strings.auth.errors.updateEncryptionFailed,
     };
   }
 
@@ -101,8 +100,7 @@ export async function rewrapDekAndUpdatePassword(options: {
     } catch (rollbackErr) {
       logger.error('CRITICAL: rollback of encrypted_dek also failed:', rollbackErr);
       return {
-        error:
-          'Critical password change error. Contact support — your data is safe, but requires manual recovery.',
+        error: strings.auth.errors.passwordRollbackFailed,
       };
     }
 

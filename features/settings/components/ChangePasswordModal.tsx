@@ -47,16 +47,16 @@ export default function ChangePasswordModal({
 
   const handleSave = async () => {
     const nextErrors: Record<string, string> = {};
-    if (!currentPassword) nextErrors.currentPassword = 'Current password is required';
+    if (!currentPassword) nextErrors.currentPassword = strings.settings.changePassword.currentRequired;
 
-    const newErr = validatePassword(newPassword, 'New password is required');
+    const newErr = validatePassword(newPassword, strings.settings.changePassword.newRequired);
     if (newErr) nextErrors.newPassword = newErr;
 
     const confirmErr = confirmPasswordError(newPassword, confirmPassword);
     if (confirmErr) nextErrors.confirmPassword = confirmErr;
 
     if (currentPassword && newPassword && currentPassword === newPassword) {
-      nextErrors.newPassword = 'New password must be different from current password';
+      nextErrors.newPassword = strings.settings.changePassword.mustDiffer;
     }
 
     setErrors(nextErrors);
@@ -73,7 +73,7 @@ export default function ChangePasswordModal({
       return;
     }
 
-    setSuccess('Password updated.');
+    setSuccess(strings.settings.changePassword.updated);
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -100,7 +100,7 @@ export default function ChangePasswordModal({
           label={strings.settings.changePassword.current}
           type="password"
           Icon={Lock}
-          innerText="Current password"
+          innerText={strings.settings.changePassword.current}
           value={currentPassword}
           onChangeText={(text) => {
             setCurrentPassword(text);
@@ -112,7 +112,7 @@ export default function ChangePasswordModal({
           label={strings.settings.changePassword.new}
           type="password"
           Icon={Lock}
-          innerText="New password"
+          innerText={strings.settings.changePassword.new}
           value={newPassword}
           onChangeText={(text) => {
             setNewPassword(text);
@@ -124,7 +124,7 @@ export default function ChangePasswordModal({
           label={strings.settings.changePassword.confirmNew}
           type="password"
           Icon={Lock}
-          innerText="Confirm new password"
+          innerText={strings.settings.changePassword.confirmNew}
           value={confirmPassword}
           onChangeText={(text) => {
             setConfirmPassword(text);
