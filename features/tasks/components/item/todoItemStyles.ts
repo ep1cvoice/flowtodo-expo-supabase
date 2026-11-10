@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
+import { memoizeStyles } from '@/shared/lib/memoizeStyles';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 import { platformSelect } from '@/shared/lib/platform';
 
@@ -255,8 +255,11 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
 
 export type TodoItemStyles = ReturnType<typeof createTodoItemStyles>;
 
+// One StyleSheet per theme, shared by every component instance.
+const getTodoItemStyles = memoizeStyles(createTodoItemStyles);
+
 export function useTodoItemStyles() {
   const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createTodoItemStyles(colors, isDark), [colors, isDark]);
+  const styles = getTodoItemStyles(colors, isDark);
   return { colors, styles };
 }

@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
+import { memoizeStyles } from '@/shared/lib/memoizeStyles';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
@@ -129,8 +129,11 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
 
 export type TaskFormStyles = ReturnType<typeof createTaskFormStyles>;
 
+// One StyleSheet per theme, shared by every component instance.
+const getTaskFormStyles = memoizeStyles(createTaskFormStyles);
+
 export function useTaskFormStyles() {
   const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createTaskFormStyles(colors, isDark), [colors, isDark]);
+  const styles = getTaskFormStyles(colors, isDark);
   return { colors, styles };
 }

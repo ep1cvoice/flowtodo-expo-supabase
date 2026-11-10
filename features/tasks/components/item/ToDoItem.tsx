@@ -1,34 +1,24 @@
 import { strings } from '@/shared/lib/strings';
-import { useState } from 'react';
 import {
   Pressable,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
-import EditTaskModal from '@/features/tasks/components/form/EditTaskModal';
-import ConfirmModal from '@/shared/ui/ConfirmModal';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
-import MobileActionsSheet from '@/features/tasks/components/item/MobileActionsSheet';
 import TaskCheckbox from '@/features/tasks/components/item/TaskCheckbox';
 import TaskDesktopActions from '@/features/tasks/components/item/TaskDesktopActions';
-import TaskDetailModal from '@/features/tasks/components/item/TaskDetailModal';
 import TaskMobileTrailing from '@/features/tasks/components/item/TaskMobileTrailing';
 import TaskReorderButtons from '@/features/tasks/components/item/TaskReorderButtons';
 import TaskTagLabels from '@/features/tasks/components/item/TaskTagLabels';
 import PomodoroTimer from '@/features/pomodoro/components/PomodoroTimer';
+import { useTaskItemModals } from '@/features/tasks/components/item/TaskItemModalsContext';
+import { useTaskItemActions } from '@/features/tasks/lib/useTaskItemActions';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
 import { getCategoryIcon } from '@/shared/constants/categoryIcons';
 import { tokens } from '@/shared/constants/theme';
-import { usePomodoro } from '@/features/pomodoro/PomodoroContext';
-import { useTasks } from '@/features/tasks/TasksContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { useToast } from '@/shared/providers/ToastContext';
-import { toScheduledIso } from '@/features/tasks/lib/calendarDate';
 import { categoryCardWash } from '@/shared/lib/color';
-import { toastForError } from '@/shared/lib/networkError';
 import type { Task } from '@/types';
 import { isWeb } from '@/shared/lib/platform';
 
@@ -36,7 +26,6 @@ interface ToDoItemProps {
   task: Task;
   index?: number;
   onToggle: (id: number) => void;
-  onDelete: (id: number) => void | Promise<void>;
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
@@ -48,7 +37,6 @@ export default function ToDoItem({
   task,
   index = 0,
   onToggle,
-  onDelete,
   showReorderButtons = false,
   canMoveUp = false,
   canMoveDown = false,
@@ -59,16 +47,11 @@ export default function ToDoItem({
   const isMobile = width < tokens.desktopBreakpoint;
   const { isDark } = useTheme();
   const { colors, styles } = useTodoItemStyles();
-  const { showToast } = useToast();
-  const { categories, tags: allTags, updateTask, setTaskScheduled } = useTasks();
-  const { activeTaskId, canStart, startPomo, endPomo } = usePomodoro();
-
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showMobileActions, setShowMobileActions] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const isPomoActive = activeTaskId === task.id;
+  const { open } = useTaskItemModals();
+  const { isPomoActive, canStart, handleStartPomodoro, handleToggleDone } = useTaskItemActions(
+    task,
+    onToggle,
+  );
 
   const category = task.category;
   const tags = task.tags ?? [];
@@ -82,79 +65,15 @@ export default function ToDoItem({
   const completedWash = task.done && !isDark && !categoryWash ? colors.chrome : null;
   const cardWash = categoryWash ?? completedWash;
 
-  const handleEdit = () => {
-    setShowEditModal(true);
-  };
-
-  const handleStartPomodoro = () => {
-    if (!canStart || task.done) return;
-    startPomo(task.id).catch((err) => {
-      showToast(toastForError(err, strings.tasks.startPomodoroFailed), 'error');
-    });
-  };
-
-  const handleToggleDone = async () => {
-    if (isPomoActive) {
-      try {
-        await endPomo();
-      } catch (err) {
-        showToast(toastForError(err, strings.tasks.stopPomodoroFailed), 'error');
-        return false;
-      }
-    }
-    if (!isWeb) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    onToggle(task.id);
-    return true;
-  };
-
-  const handleDelete = async () => {
-    if (isPomoActive) {
-      try {
-        await endPomo();
-      } catch (err) {
-        showToast(toastForError(err, strings.tasks.stopPomodoroFailed), 'error');
-        return false;
-      }
-    }
-    if (!isWeb) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    }
-    await onDelete(task.id);
-    return true;
-  };
-
-  const requestDelete = () => {
-    setConfirmDelete(true);
-  };
-
-  const openCalendar = () => {
-    setShowCalendarModal(true);
-  };
-
-  const handleClearDate = async () => {
-    try {
-      await setTaskScheduled(task.id, null);
-      setShowCalendarModal(false);
-    } catch (err) {
-      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
-    }
-  };
-
-  const handleConfirmDate = async (date: Date) => {
-    try {
-      await setTaskScheduled(task.id, toScheduledIso(date));
-      setShowCalendarModal(false);
-    } catch (err) {
-      showToast(toastForError(err, strings.tasks.updateDateFailed), 'error');
-    }
-  };
+  const openDetail = () => open('detail', task);
+  const openActions = () => open('actions', task);
+  const requestDelete = () => open('confirmDelete', task);
+  const handleEdit = () => open('edit', task);
+  const openCalendar = () => open('calendar', task);
 
   return (
-    <>
       <Pressable
-        onPress={() => setShowDetailModal(true)}
+        onPress={openDetail}
         accessibilityRole="none"
         accessibilityLabel={task.title}
         accessibilityHint={strings.tasks.showDetails}
@@ -219,7 +138,7 @@ export default function ToDoItem({
                     done={task.done}
                     colors={colors}
                     styles={styles}
-                    onOpenActions={() => setShowMobileActions(true)}
+                    onOpenActions={openActions}
                     onDelete={requestDelete}
                   />
                 )}
@@ -241,67 +160,5 @@ export default function ToDoItem({
           </View>
         </View>
       </Pressable>
-
-      <TaskDetailModal
-        visible={showDetailModal}
-        task={task}
-        canStart={canStart}
-        isPomoActive={isPomoActive}
-        onClose={() => setShowDetailModal(false)}
-        onDelete={async () => {
-          const deleted = await handleDelete();
-          if (deleted) setShowDetailModal(false);
-          return deleted;
-        }}
-        onEdit={handleEdit}
-        onOpenCalendar={openCalendar}
-        onStartPomodoro={handleStartPomodoro}
-        onToggleComplete={async () => {
-          const ok = await handleToggleDone();
-          if (ok && !task.done) setShowDetailModal(false);
-        }}
-      />
-
-      <MobileActionsSheet
-        visible={showMobileActions}
-        canStart={canStart}
-        taskTitle={task.title}
-        colors={colors}
-        styles={styles}
-        onClose={() => setShowMobileActions(false)}
-        onStartPomodoro={handleStartPomodoro}
-        onOpenCalendar={openCalendar}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
-
-      <ConfirmModal
-        visible={confirmDelete}
-        title={strings.tasks.deleteConfirmTitle}
-        message={strings.tasks.deleteConfirmMessage(task.title)}
-        onClose={() => setConfirmDelete(false)}
-        onConfirm={async () => {
-          const deleted = await handleDelete();
-          if (deleted) setConfirmDelete(false);
-        }}
-      />
-
-      <EditTaskModal
-        visible={showEditModal}
-        task={task}
-        categories={categories}
-        tags={allTags}
-        onClose={() => setShowEditModal(false)}
-        onUpdate={updateTask}
-      />
-
-      <CalendarModal
-        visible={showCalendarModal}
-        selected={dueDate}
-        onClose={() => setShowCalendarModal(false)}
-        onClear={handleClearDate}
-        onConfirm={handleConfirmDate}
-      />
-    </>
   );
 }

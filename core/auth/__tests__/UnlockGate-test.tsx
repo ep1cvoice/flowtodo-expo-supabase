@@ -1,17 +1,22 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { UnlockGate } from '@/core/auth/UnlockGate';
 
 const mockUnlock = jest.fn();
 const mockLogout = jest.fn();
+const mockUnlockWithBiometrics = jest.fn();
 
 const authState = {
   isAuthenticated: true,
   dek: null as Uint8Array | null,
   loading: false,
   isAuthenticating: false,
-  unlock: mockUnlock,
-  logout: mockLogout,
+  // Wrappers resolve the mocks lazily (the mock factories run during import hoisting).
+  unlock: (...args: unknown[]) => mockUnlock(...args),
+  logout: (...args: unknown[]) => mockLogout(...args),
+  unlockWithBiometrics: (...args: unknown[]) => mockUnlockWithBiometrics(...args),
+  biometricUnlockAvailable: false,
+  user: { id: 'u1' } as unknown,
 };
 
 jest.mock('@/core/auth/AuthContext', () => ({
@@ -80,6 +85,8 @@ describe('<UnlockGate />', () => {
   beforeEach(() => {
     mockUnlock.mockReset();
     mockLogout.mockReset();
+    mockUnlockWithBiometrics.mockReset();
+    authState.biometricUnlockAvailable = false;
     authState.isAuthenticated = true;
     authState.dek = null;
     authState.loading = false;
@@ -138,5 +145,62 @@ describe('<UnlockGate />', () => {
 
     expect(result.getByText('SECRET_APP')).toBeTruthy();
     expect(result.queryByText('Unlock application')).toBeNull();
+  });
+
+  describe('unlock flow', () => {
+    const PLACEHOLDER = 'Enter your password';
+
+    it('unlocks with the typed password and the current user', async () => {
+      mockUnlock.mockResolvedValue({ error: null });
+      const result = await render(<UnlockGate><Text>SECRET_APP</Text></UnlockGate>);
+
+      await fireEvent.changeText(result.getByPlaceholderText(PLACEHOLDER), 'hunter2');
+      await fireEvent.press(result.getByText('Unlock'));
+
+      await waitFor(() => expect(mockUnlock).toHaveBeenCalledWith('hunter2', authState.user));
+    });
+
+    it('shows the unlock error and clears it when the user types again', async () => {
+      mockUnlock.mockResolvedValue({ error: 'Wrong password' });
+      const result = await render(<UnlockGate><Text>SECRET_APP</Text></UnlockGate>);
+
+      await fireEvent.changeText(result.getByPlaceholderText(PLACEHOLDER), 'bad');
+      await fireEvent.press(result.getByText('Unlock'));
+      await waitFor(() => expect(result.getByText('Wrong password')).toBeTruthy());
+
+      await fireEvent.changeText(result.getByPlaceholderText(PLACEHOLDER), 'bad2');
+      expect(result.queryByText('Wrong password')).toBeNull();
+    });
+
+    it('logs out from the locked screen', async () => {
+      mockLogout.mockResolvedValue(undefined);
+      const result = await render(<UnlockGate><Text>SECRET_APP</Text></UnlockGate>);
+
+      await fireEvent.press(result.getByText('Log Out'));
+      await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
+    });
+
+    it('tries biometrics once automatically and falls back to the form on failure', async () => {
+      authState.biometricUnlockAvailable = true;
+      mockUnlockWithBiometrics.mockResolvedValue({ error: 'cancelled' });
+      const result = await render(<UnlockGate><Text>SECRET_APP</Text></UnlockGate>);
+
+      await waitFor(() => expect(result.getByText('Unlock application')).toBeTruthy());
+      expect(mockUnlockWithBiometrics).toHaveBeenCalledTimes(1);
+      // The automatic failure is not surfaced as a form error.
+      expect(result.queryByText('cancelled')).toBeNull();
+    });
+
+    it('shows a biometric retry error on a manual retry', async () => {
+      authState.biometricUnlockAvailable = true;
+      mockUnlockWithBiometrics.mockResolvedValueOnce({ error: 'cancelled' });
+      const result = await render(<UnlockGate><Text>SECRET_APP</Text></UnlockGate>);
+      await waitFor(() => expect(result.getByText('Unlock application')).toBeTruthy());
+
+      mockUnlockWithBiometrics.mockResolvedValueOnce({ error: 'Biometrics failed' });
+      await fireEvent.press(result.getByText('Try biometric unlock again'));
+      await waitFor(() => expect(result.getByText('Biometrics failed')).toBeTruthy());
+      expect(mockUnlockWithBiometrics).toHaveBeenCalledTimes(2);
+    });
   });
 });

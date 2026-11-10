@@ -5,7 +5,7 @@ import TaskFormModal from '@/features/tasks/components/form/TaskFormModal';
 const mockShowToast = jest.fn();
 
 jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ addCategory: jest.fn(), addTag: jest.fn() }),
+  useTasks: () => ({ categories: [], tags: [], addCategory: jest.fn(), addTag: jest.fn() }),
 }));
 
 jest.mock('@/shared/providers/ToastContext', () => ({
@@ -62,8 +62,6 @@ function formProps(overrides: Record<string, unknown> = {}): any {
     submitLabel: 'Add Task',
     submittingLabel: 'Adding…',
     SubmitIcon: () => null,
-    categories: [],
-    tags: [],
     initialValues: { title: '', description: '', categoryId: null, tagIds: [] },
     resetOnClose: true,
     failLog: 'Failed to add task:',
@@ -175,8 +173,6 @@ describe('<AddTaskModal />', () => {
       visible: true,
       onAdd: jest.fn().mockResolvedValue(undefined),
       onClose: jest.fn(),
-      categories: [],
-      tags: [],
       ...overrides,
     };
   }

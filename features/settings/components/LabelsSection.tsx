@@ -16,6 +16,7 @@ import { useAuth } from '@/core/auth/AuthContext';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
+import { useToastedAction } from '@/shared/lib/useToastedAction';
 import type { CategoryIcon } from '@/types';
 
 interface LabelsSectionProps {
@@ -27,6 +28,7 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
   const { user, updateProfile } = useAuth();
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
+  const runToasted = useToastedAction();
   const { categories, tags, addCategory, addTag, deleteCategory, deleteTag } = useTasks();
   const [filterLimit, setFilterLimit] = useState<string>(
     String(user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT)
@@ -67,20 +69,18 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
     const current = pendingRemove;
     try {
       if (current.kind === 'category') {
-        await deleteCategory(current.id);
-        showToast(strings.settings.labels.categoryRemoved);
+        const result = await runToasted(
+          () => deleteCategory(current.id),
+          strings.settings.labels.removeCategoryFailed
+        );
+        if (result.ok) showToast(strings.settings.labels.categoryRemoved);
       } else {
-        await deleteTag(current.id);
-        showToast(strings.settings.labels.tagRemoved);
+        const result = await runToasted(
+          () => deleteTag(current.id),
+          strings.settings.labels.removeTagFailed
+        );
+        if (result.ok) showToast(strings.settings.labels.tagRemoved);
       }
-    } catch (err) {
-      showToast(
-        toastForError(
-          err,
-          current.kind === 'category' ? strings.settings.labels.removeCategoryFailed : strings.settings.labels.removeTagFailed
-        ),
-        'error'
-      );
     } finally {
       setPendingRemove(null);
     }
@@ -227,13 +227,12 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
         visible={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
         onSave={async (name, color, icon) => {
-          try {
-            await addCategory({ name, color, icon: icon as CategoryIcon });
-            showToast(strings.settings.labels.categoryCreated);
-          } catch (err) {
-            showToast(toastForError(err, strings.settings.labels.saveCategoryFailed), 'error');
-            throw new Error('category save failed');
-          }
+          const result = await runToasted(
+            () => addCategory({ name, color, icon: icon as CategoryIcon }),
+            strings.settings.labels.saveCategoryFailed
+          );
+          if (!result.ok) throw new Error('category save failed');
+          showToast(strings.settings.labels.categoryCreated);
         }}
       />
       <LabelModal
@@ -241,13 +240,12 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
         visible={showTagModal}
         onClose={() => setShowTagModal(false)}
         onSave={async (name, color) => {
-          try {
-            await addTag({ name, color });
-            showToast(strings.settings.labels.tagCreated);
-          } catch (err) {
-            showToast(toastForError(err, strings.settings.labels.saveTagFailed), 'error');
-            throw new Error('tag save failed');
-          }
+          const result = await runToasted(
+            () => addTag({ name, color }),
+            strings.settings.labels.saveTagFailed
+          );
+          if (!result.ok) throw new Error('tag save failed');
+          showToast(strings.settings.labels.tagCreated);
         }}
       />
     </>

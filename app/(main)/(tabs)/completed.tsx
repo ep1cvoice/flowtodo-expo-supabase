@@ -12,18 +12,18 @@ import { useNavigation } from 'expo-router';
 import { useTasks } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { useToast } from '@/shared/providers/ToastContext';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
 import TaskSearchBar, {
   TASK_LIST_INSET,
   TaskSearchToggle,
 } from '@/features/tasks/components/filters/TaskSearchBar';
 import EmptyState from '@/shared/ui/EmptyState';
+import { TaskItemModalsProvider } from '@/features/tasks/components/item/TaskItemModalsContext';
 import ScreenBackground from '@/shared/ui/ScreenBackground';
 import type { AppColors } from '@/shared/constants/theme';
 import { tokens } from '@/shared/constants/theme';
 import { groupCompletedTasks } from '@/features/tasks/lib/completedGroups';
-import { toastForError } from '@/shared/lib/networkError';
+import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { filterTasksBySearch } from '@/features/tasks/lib/taskSearch';
 import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
 import { webInteractive } from '@/shared/lib/pressableWeb';
@@ -38,7 +38,6 @@ export default function CompletedTasksScreen() {
     loadMoreCompleted,
   } = useTasks();
   const { colors } = useTheme();
-  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     searchOpen,
@@ -66,92 +65,91 @@ export default function CompletedTasksScreen() {
 
   const { handleToggle, handleDelete } = useTaskActions();
 
+  const runToasted = useToastedAction();
+
   const handleLoadMore = useCallback(async () => {
-    try {
-      await loadMoreCompleted();
-    } catch (err) {
-      showToast(toastForError(err, strings.tasks.loadMoreFailed), 'error');
-    }
-  }, [loadMoreCompleted, showToast]);
+    await runToasted(() => loadMoreCompleted(), strings.tasks.loadMoreFailed);
+  }, [loadMoreCompleted, runToasted]);
 
   return (
-    <ScreenBackground style={styles.container}>
-      <View style={styles.panel}>
-        <View style={styles.contentInset}>
-          <TaskSearchBar
-            visible={searchOpen}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {loading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
-            </View>
-          ) : (
-            <SectionList
-              style={styles.list}
-              sections={sections}
-              keyExtractor={(item) => String(item.id)}
-              stickySectionHeadersEnabled
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
-              ListEmptyComponent={
-                <EmptyState
-                  variant="plain"
-                  title={hasSearch ? strings.tasks.empty.noMatchSearch.title : strings.tasks.noCompleted}
-                  text={
-                    hasSearch
-                      ? strings.tasks.empty.noMatchSearch.text
-                      : strings.tasks.noCompletedHint
-                  }
-                />
-              }
-              ListFooterComponent={
-                showLoadMore ? (
-                  <View style={styles.footer}>
-                    <Pressable
-                      onPress={() => void handleLoadMore()}
-                      disabled={loadingMoreCompleted}
-                      style={({ pressed, hovered }) => [
-                        styles.loadMoreBtn,
-                        (hovered || pressed) && styles.loadMoreBtnPressed,
-                        loadingMoreCompleted && styles.loadMoreBtnDisabled,
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={strings.tasks.loadMoreCompleted}>
-                      {loadingMoreCompleted ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <Text style={styles.loadMoreText}>{strings.tasks.loadMore}</Text>
-                      )}
-                    </Pressable>
-                  </View>
-                ) : hasSearch && hasMoreCompleted ? (
-                  <Text style={styles.searchHint}>
-                    {strings.tasks.searchLoadedOnly}
-                  </Text>
-                ) : null
-              }
-              renderSectionHeader={({ section }) => (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{section.title}</Text>
-                  <Text style={styles.sectionCount}>{section.data.length}</Text>
-                </View>
-              )}
-              renderItem={({ item, index }) => (
-                <ToDoItem
-                  task={item}
-                  index={index}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                />
-              )}
+    <TaskItemModalsProvider onToggle={handleToggle} onDelete={handleDelete}>
+      <ScreenBackground style={styles.container}>
+        <View style={styles.panel}>
+          <View style={styles.contentInset}>
+            <TaskSearchBar
+              visible={searchOpen}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
-          )}
+            {loading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
+              </View>
+            ) : (
+              <SectionList
+                style={styles.list}
+                sections={sections}
+                keyExtractor={(item) => String(item.id)}
+                stickySectionHeadersEnabled
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
+                ListEmptyComponent={
+                  <EmptyState
+                    variant="plain"
+                    title={hasSearch ? strings.tasks.empty.noMatchSearch.title : strings.tasks.noCompleted}
+                    text={
+                      hasSearch
+                        ? strings.tasks.empty.noMatchSearch.text
+                        : strings.tasks.noCompletedHint
+                    }
+                  />
+                }
+                ListFooterComponent={
+                  showLoadMore ? (
+                    <View style={styles.footer}>
+                      <Pressable
+                        onPress={() => void handleLoadMore()}
+                        disabled={loadingMoreCompleted}
+                        style={({ pressed, hovered }) => [
+                          styles.loadMoreBtn,
+                          (hovered || pressed) && styles.loadMoreBtnPressed,
+                          loadingMoreCompleted && styles.loadMoreBtnDisabled,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={strings.tasks.loadMoreCompleted}>
+                        {loadingMoreCompleted ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <Text style={styles.loadMoreText}>{strings.tasks.loadMore}</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  ) : hasSearch && hasMoreCompleted ? (
+                    <Text style={styles.searchHint}>
+                      {strings.tasks.searchLoadedOnly}
+                    </Text>
+                  ) : null
+                }
+                renderSectionHeader={({ section }) => (
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                    <Text style={styles.sectionCount}>{section.data.length}</Text>
+                  </View>
+                )}
+                renderItem={({ item, index }) => (
+                  <ToDoItem
+                    task={item}
+                    index={index}
+                    onToggle={handleToggle}
+                  />
+                )}
+              />
+            )}
+          </View>
         </View>
-      </View>
-    </ScreenBackground>
+      </ScreenBackground>
+    </TaskItemModalsProvider>
   );
 }
 

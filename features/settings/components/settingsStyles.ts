@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { tokens, type AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
+import { memoizeStyles } from '@/shared/lib/memoizeStyles';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export function createSettingsStyles(colors: AppColors, isDark: boolean) {
@@ -345,6 +345,16 @@ export function createSettingsStyles(colors: AppColors, isDark: boolean) {
       gap: 6,
       marginBottom: 4,
     },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 8,
+    },
+    switchRowText: {
+      flex: 1,
+      marginRight: 12,
+    },
     encryptionInfoHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -365,8 +375,11 @@ export function createSettingsStyles(colors: AppColors, isDark: boolean) {
 
 export type SettingsStyles = ReturnType<typeof createSettingsStyles>;
 
+// One StyleSheet per theme, shared by every component instance.
+const getSettingsStyles = memoizeStyles(createSettingsStyles);
+
 export function useSettingsStyles() {
   const { colors, isDark } = useTheme();
-  const styles = useMemo(() => createSettingsStyles(colors, isDark), [colors, isDark]);
+  const styles = getSettingsStyles(colors, isDark);
   return { colors, styles, isDark };
 }
