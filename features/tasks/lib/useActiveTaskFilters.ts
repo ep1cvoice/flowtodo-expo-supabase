@@ -1,99 +1,38 @@
-import { strings } from '@/shared/lib/strings';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDeferredValue, useMemo } from 'react';
 import {
   clampFilterLimit,
   FILTER_LIMIT_DEFAULT,
 } from '@/shared/constants/filterLimits';
 import { useAuth } from '@/core/auth/AuthContext';
-import { useTasks } from '@/features/tasks/TasksContext';
-import { useToast } from '@/shared/providers/ToastContext';
-import { collectDayTaskCounts } from '@/features/tasks/lib/calendarDate';
+import { useTasksState } from '@/features/tasks/TasksContext';
 import {
   filterActiveTaskList,
   getActiveEmptyCopy,
 } from '@/features/tasks/lib/taskFilters';
-import { isTaskSortMode, type TaskSortMode } from '@/features/tasks/lib/taskSort';
+import { useDayFilter } from '@/features/tasks/lib/useDayFilter';
+import { useLabelFilter } from '@/features/tasks/lib/useLabelFilter';
 import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
-
-const SORT_STORAGE_KEY = '@flowtodo/active-task-sort';
+import { useTaskSort } from '@/features/tasks/lib/useTaskSort';
 
 export function useActiveTaskFilters() {
   const { user } = useAuth();
-  const { activeTasks, categories, tags } = useTasks();
-  const { showToast } = useToast();
+  const { activeTasks, categories, tags } = useTasksState();
   const search = useTaskSearch();
-  const [sortMode, setSortMode] = useState<TaskSortMode>('manual');
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const { sortMode, handleSelectSort } = useTaskSort();
+  const day = useDayFilter(activeTasks);
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
   );
+  const labels = useLabelFilter(categories, tags, maxFilterSelections);
+  const { validCategoryIds, validTagIds, hasFilters } = labels;
+  const { selectedDay, hasDayFilter } = day;
 
-  useEffect(() => {
-    AsyncStorage.getItem(SORT_STORAGE_KEY)
-      .then((value) => {
-        if (isTaskSortMode(value)) setSortMode(value);
-      })
-      .catch(() => {});
-  }, []);
+  // The search input follows the raw query; filtering the whole list can lag a keystroke.
+  const deferredSearchQuery = useDeferredValue(search.searchQuery);
 
-  useEffect(() => {
-    setSelectedCategoryIds((cats) => {
-      const nextCats =
-        cats.length > maxFilterSelections ? cats.slice(0, maxFilterSelections) : cats;
-      setSelectedTagIds((currentTags) => {
-        const room = maxFilterSelections - nextCats.length;
-        return currentTags.length > room ? currentTags.slice(0, room) : currentTags;
-      });
-      return nextCats;
-    });
-  }, [maxFilterSelections]);
-
-  const handleToggleCategory = useCallback(
-    (id: number) => {
-      setSelectedCategoryIds((prev) => {
-        if (prev.includes(id)) return prev.filter((x) => x !== id);
-        if (prev.length + selectedTagIds.length >= maxFilterSelections) {
-          showToast(strings.tasks.filterLimitReached(maxFilterSelections), 'error');
-          return prev;
-        }
-        return [...prev, id];
-      });
-    },
-    [maxFilterSelections, selectedTagIds.length, showToast]
-  );
-
-  const handleToggleTag = useCallback(
-    (id: number) => {
-      setSelectedTagIds((prev) => {
-        if (prev.includes(id)) return prev.filter((x) => x !== id);
-        if (selectedCategoryIds.length + prev.length >= maxFilterSelections) {
-          showToast(strings.tasks.filterLimitReached(maxFilterSelections), 'error');
-          return prev;
-        }
-        return [...prev, id];
-      });
-    },
-    [maxFilterSelections, selectedCategoryIds.length, showToast]
-  );
-
-  const validCategoryIds = useMemo(
-    () => selectedCategoryIds.filter((id) => categories.some((c) => c.id === id)),
-    [selectedCategoryIds, categories]
-  );
-  const validTagIds = useMemo(
-    () => selectedTagIds.filter((id) => tags.some((t) => t.id === id)),
-    [selectedTagIds, tags]
-  );
-  const hasFilters = validCategoryIds.length > 0 || validTagIds.length > 0;
-  const hasDayFilter = selectedDay != null;
   const hasListConstraints = hasFilters || search.hasSearch || hasDayFilter;
   const isManualSort = sortMode === 'manual';
-
-  const dayTaskCounts = useMemo(() => collectDayTaskCounts(activeTasks), [activeTasks]);
 
   const filteredTasks = useMemo(
     () =>
@@ -101,30 +40,13 @@ export function useActiveTaskFilters() {
         sortMode,
         categoryIds: validCategoryIds,
         tagIds: validTagIds,
-        searchQuery: search.searchQuery,
+        searchQuery: deferredSearchQuery,
         selectedDay,
       }),
-    [
-      activeTasks,
-      sortMode,
-      validCategoryIds,
-      validTagIds,
-      search.searchQuery,
-      selectedDay,
-    ]
+    [activeTasks, sortMode, validCategoryIds, validTagIds, deferredSearchQuery, selectedDay]
   );
 
   const canReorder = isManualSort && filteredTasks.length > 1;
-
-  const clearFilters = useCallback(() => {
-    setSelectedCategoryIds([]);
-    setSelectedTagIds([]);
-  }, []);
-
-  const handleSelectSort = useCallback((mode: TaskSortMode) => {
-    setSortMode(mode);
-    AsyncStorage.setItem(SORT_STORAGE_KEY, mode).catch(() => {});
-  }, []);
 
   const emptyCopy = getActiveEmptyCopy({
     hasDayFilter,
@@ -136,27 +58,15 @@ export function useActiveTaskFilters() {
 
   return {
     ...search,
+    ...day,
+    ...labels,
     activeTasks,
     sortMode,
     handleSelectSort,
-    selectedDay,
-    setSelectedDay,
-    dayTaskCounts,
-    selectedCategoryIds,
-    selectedTagIds,
-    validCategoryIds,
-    validTagIds,
     maxFilterSelections,
-    hasFilters,
-    hasDayFilter,
     hasListConstraints,
     filteredTasks,
     canReorder,
-    handleToggleCategory,
-    handleToggleTag,
-    clearFilters,
     emptyCopy,
-    setSelectedCategoryIds,
-    setSelectedTagIds,
   };
 }

@@ -1,3 +1,4 @@
+import TasksLoadError from '@/features/tasks/components/TasksLoadError';
 import { strings } from '@/shared/lib/strings';
 import { useCallback, useLayoutEffect, useMemo } from 'react';
 import {
@@ -9,7 +10,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
@@ -25,6 +26,7 @@ import { tokens } from '@/shared/constants/theme';
 import { groupCompletedTasks } from '@/features/tasks/lib/completedGroups';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { filterTasksBySearch } from '@/features/tasks/lib/taskSearch';
+import { useTaskRowProps } from '@/features/tasks/lib/useTaskListActions';
 import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
@@ -33,10 +35,11 @@ export default function CompletedTasksScreen() {
   const {
     completedTasks,
     loading,
+    error,
     hasMoreCompleted,
     loadingMoreCompleted,
-    loadMoreCompleted,
-  } = useTasks();
+  } = useTasksState();
+  const { loadMoreCompleted, retry } = useTasksActions();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
@@ -64,6 +67,7 @@ export default function CompletedTasksScreen() {
   }, [navigation, searchOpen, hasSearch, toggleSearch]);
 
   const { handleToggle, handleDelete } = useTaskActions();
+  const { rowProps, activeTaskId } = useTaskRowProps(handleToggle);
 
   const runToasted = useToastedAction();
 
@@ -86,6 +90,8 @@ export default function CompletedTasksScreen() {
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
               </View>
+            ) : error ? (
+              <TasksLoadError onRetry={retry} />
             ) : (
               <SectionList
                 style={styles.list}
@@ -141,7 +147,8 @@ export default function CompletedTasksScreen() {
                   <ToDoItem
                     task={item}
                     index={index}
-                    onToggle={handleToggle}
+                    {...rowProps}
+                    isPomoActive={activeTaskId === item.id}
                   />
                 )}
               />

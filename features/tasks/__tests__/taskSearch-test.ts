@@ -41,3 +41,28 @@ describe('taskSearch', () => {
     expect(filterTasksBySearch(tasks, 'zzz')).toEqual([]);
   });
 });
+
+describe('taskSearch lowercase cache', () => {
+  it('lowercases a task once, however many queries run against it', () => {
+    let reads = 0;
+    const t = task({ id: 1, title: 'Buy Milk', description: 'From The Store' });
+    Object.defineProperty(t, 'title', {
+      get() {
+        reads++;
+        return 'Buy Milk';
+      },
+    });
+
+    expect(filterTasksBySearch([t], 'milk')).toHaveLength(1);
+    expect(filterTasksBySearch([t], 'store')).toHaveLength(1);
+    expect(filterTasksBySearch([t], 'bread')).toHaveLength(0);
+
+    expect(reads).toBe(1);
+  });
+
+  it('does not reuse the cache for an updated (new) task object', () => {
+    const t = task({ id: 1, title: 'Buy milk' });
+    expect(filterTasksBySearch([t], 'milk')).toHaveLength(1);
+    expect(filterTasksBySearch([{ ...t, title: 'Walk dog' }], 'milk')).toHaveLength(0);
+  });
+});

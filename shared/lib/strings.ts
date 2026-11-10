@@ -23,6 +23,9 @@ export const strings = {
     yesterday: 'Yesterday',
     unknown: 'Unknown',
     loadingTasks: 'Loading tasks…',
+    loadTasksFailed: 'Could not load your tasks',
+    loadTasksFailedHint: 'Check your connection and try again.',
+    retry: 'Try again',
     notSignedIn: 'Not signed in',
     noConnection: "No connection. Try again when you're back online.",
     requestTimedOut: 'Request timed out',
@@ -228,7 +231,9 @@ export const strings = {
     startPomodoroFailed: 'Could not start pomodoro.',
     stopPomodoroFailed: 'Could not stop pomodoro.',
     descriptionSaveLog: 'Failed to update description:',
-    fallbackName: 'Task',
+    undecryptableTitle: 'Unable to decrypt',
+    undecryptableLabelLog: 'Showing placeholder for a category/tag that could not be decrypted:',
+    undecryptableLog: 'Showing placeholder for a task that could not be decrypted:',
 
     // Actions / accessibility
     filterTasks: 'Filter tasks',

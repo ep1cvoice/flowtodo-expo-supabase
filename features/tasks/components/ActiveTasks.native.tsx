@@ -8,12 +8,14 @@ import ActiveTasksFrame from '@/features/tasks/components/ActiveTasksFrame';
 import ActiveTasksHeader from '@/features/tasks/components/ActiveTasksHeader';
 import EmptyState from '@/shared/ui/EmptyState';
 import { useActiveTasksScreen } from '@/features/tasks/lib/useActiveTasksScreen';
+import { useTaskRowProps } from '@/features/tasks/lib/useTaskListActions';
 import type { Task } from '@/types';
 
 export default function ActiveTasks() {
   const view = useActiveTasksScreen();
   const { styles, filters, handleToggle, handleDragEnd } = view;
   const { canReorder, filteredTasks, emptyCopy } = filters;
+  const { rowProps, activeTaskId } = useTaskRowProps(handleToggle);
   const scrollableRef = useAnimatedRef<Animated.ScrollView>();
 
   const renderItem = useCallback<SortableGridRenderItem<Task>>(
@@ -25,12 +27,13 @@ export default function ActiveTasks() {
           <ToDoItem
             task={item}
             index={index}
-            onToggle={handleToggle}
+            {...rowProps}
+            isPomoActive={activeTaskId === item.id}
           />
         </Sortable.Handle>
       </View>
     ),
-    [canReorder, handleToggle, styles.itemHandle, styles.itemWrap]
+    [canReorder, rowProps, activeTaskId, styles.itemHandle, styles.itemWrap]
   );
 
   const listContentStyle = [

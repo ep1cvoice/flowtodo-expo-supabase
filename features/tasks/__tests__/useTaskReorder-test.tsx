@@ -6,7 +6,7 @@ const mockReorderTasks = jest.fn();
 const mockShowToast = jest.fn();
 
 jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ reorderTasks: mockReorderTasks }),
+  useTasksActions: () => ({ reorderTasks: mockReorderTasks }),
 }));
 jest.mock('@/shared/providers/ToastContext', () => ({
   useToast: () => ({ showToast: mockShowToast }),

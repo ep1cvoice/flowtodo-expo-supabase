@@ -9,6 +9,7 @@ import {
   updateProfileSettings,
 } from '@/core/auth/profile';
 import { toastForError } from '@/shared/lib/networkError';
+import { markPomodoroSignIn } from '@/features/pomodoro/lib/pomodoroSignIn';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
@@ -121,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: resolved.error };
         }
 
+        markPomodoroSignIn(data.user.id);
         setDek(resolved.dek);
         // Note: this does NOT silently enable biometric unlock. Persisting
         // the DEK to the secure store is an explicit opt-in via

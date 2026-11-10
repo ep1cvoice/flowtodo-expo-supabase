@@ -10,7 +10,7 @@ import TaskItemModals, {
   type TaskModalKind,
   type TaskModalVisibility,
 } from '@/features/tasks/components/item/TaskItemModals';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksState } from '@/features/tasks/TasksContext';
 import type { Task } from '@/types';
 
 const CLOSED: TaskModalVisibility = {
@@ -36,7 +36,7 @@ interface ProviderProps {
 
 // Wraps a task list and renders one TaskItemModals instance for all of its rows.
 export function TaskItemModalsProvider({ children, onToggle, onDelete }: ProviderProps) {
-  const { tasks } = useTasks();
+  const { tasks } = useTasksState();
   const [snapshot, setSnapshot] = useState<Task | null>(null);
   const [visible, setVisible] = useState<TaskModalVisibility>(CLOSED);
 

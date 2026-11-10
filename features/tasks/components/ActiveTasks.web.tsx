@@ -5,12 +5,14 @@ import ActiveTasksFrame from '@/features/tasks/components/ActiveTasksFrame';
 import ActiveTasksHeader from '@/features/tasks/components/ActiveTasksHeader';
 import EmptyState from '@/shared/ui/EmptyState';
 import { useActiveTasksScreen } from '@/features/tasks/lib/useActiveTasksScreen';
+import { useTaskRowProps } from '@/features/tasks/lib/useTaskListActions';
 import type { Task } from '@/types';
 
 export default function ActiveTasks() {
   const view = useActiveTasksScreen();
   const { styles, filters, handleToggle, moveTask } = view;
   const { canReorder, filteredTasks, emptyCopy } = filters;
+  const { rowProps, activeTaskId } = useTaskRowProps(handleToggle);
 
   const renderItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
@@ -18,16 +20,16 @@ export default function ActiveTasks() {
         <ToDoItem
           task={item}
           index={index}
-          onToggle={handleToggle}
+          {...rowProps}
+          isPomoActive={activeTaskId === item.id}
           showReorderButtons={canReorder}
           canMoveUp={canReorder && index > 0}
           canMoveDown={canReorder && index < filteredTasks.length - 1}
-          onMoveUp={() => moveTask(item.id, -1)}
-          onMoveDown={() => moveTask(item.id, 1)}
+          onMove={moveTask}
         />
       </View>
     ),
-    [canReorder, filteredTasks.length, handleToggle, moveTask, styles.itemWrap]
+    [canReorder, filteredTasks.length, rowProps, activeTaskId, moveTask, styles.itemWrap]
   );
 
   const listContentStyle = [

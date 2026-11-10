@@ -1,7 +1,8 @@
 // Characterization tests for the optimistic-update / rollback behavior of useTaskMutations.
-import { useState } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
-import { useTaskMutations } from '@/features/tasks/lib/useTaskMutations';
+import { initialTasksData, tasksReducer } from '@/features/tasks/lib/tasksReducer';
+import { useTaskMutations, type TaskMutationsSnapshot } from '@/features/tasks/lib/useTaskMutations';
 
 jest.mock('@/features/tasks/lib/mutations', () => ({
   deleteCategoryForUser: jest.fn(),
@@ -41,29 +42,26 @@ const tag = (id: number): any => ({ id, name: `t${id}`, color: '#000' });
 
 function setup(initial?: { active?: any[]; completed?: any[]; categories?: any[]; tags?: any[] }) {
   return renderHook(() => {
-    const [activeTasks, setActiveTasks] = useState<any[]>(initial?.active ?? []);
-    const [completedTasks, setCompletedTasks] = useState<any[]>(initial?.completed ?? []);
-    const [completedCount, setCompletedCount] = useState((initial?.completed ?? []).length);
-    const [categories, setCategories] = useState<any[]>(initial?.categories ?? []);
-    const [tags, setTags] = useState<any[]>(initial?.tags ?? []);
-    const actions = useTaskMutations({
-      user: { id: 'u1', email: 'a@b.c' } as any,
-      dek: new Uint8Array(32),
-      activeTasks,
-      completedTasks,
-      completedCount,
-      categories,
-      tags,
-      refresh: jest.fn(),
-      setActiveTasks,
-      setCompletedTasks,
-      setCompletedCount,
-      setCompletedCursor: jest.fn(),
-      setHasMoreCompleted: jest.fn(),
-      setCategories,
-      setTags,
+    const [data, dispatch] = useReducer(tasksReducer, {
+      ...initialTasksData,
+      activeTasks: initial?.active ?? [],
+      completedTasks: initial?.completed ?? [],
+      completedCount: (initial?.completed ?? []).length,
+      categories: initial?.categories ?? [],
+      tags: initial?.tags ?? [],
     });
-    return { actions, activeTasks, completedTasks, completedCount, categories, tags };
+    const latest = useRef<TaskMutationsSnapshot>({ user: null, dek: null, data });
+    latest.current = { user: { id: 'u1', email: 'a@b.c' } as any, dek: new Uint8Array(32), data };
+    const refresh = useCallback(async () => {}, []);
+    const actions = useTaskMutations({ latest, dispatch, refresh });
+    return {
+      actions,
+      activeTasks: data.activeTasks,
+      completedTasks: data.completedTasks,
+      completedCount: data.completedCount,
+      categories: data.categories,
+      tags: data.tags,
+    };
   });
 }
 
@@ -193,5 +191,67 @@ describe('reorderTasks', () => {
     const { result } = await setup({ active: [task(1, 0)] });
     await act(() => result.current.actions.reorderTasks([]));
     expect(mocked.updateTaskSortOrders).not.toHaveBeenCalled();
+  });
+});
+
+describe('stable actions', () => {
+  it('keeps every action referentially stable across state changes', async () => {
+    const { result } = await setup({ active: [task(1, 0), task(2, 1)] });
+    const before = result.current.actions;
+    await act(() => result.current.actions.toggleTask(1));
+    expect(result.current.actions).toBe(before);
+  });
+});
+
+describe('rollback does not clobber concurrent changes', () => {
+  it('failed toggle leaves a concurrent reorder of another task intact', async () => {
+    let rejectToggle: (e: Error) => void = () => {};
+    mocked.setTaskDoneRow.mockReturnValue(new Promise((_, rej) => (rejectToggle = rej)));
+    const { result } = await setup({ active: [task(1, 0), task(2, 1), task(3, 2)] });
+
+    let toggle!: Promise<void>;
+    await act(async () => {
+      toggle = result.current.actions.toggleTask(1);
+      toggle.catch(() => {});
+    });
+    await act(() => result.current.actions.reorderTasks([{ id: 3, sortOrder: -5 }]));
+    await act(async () => {
+      rejectToggle(new Error('boom'));
+      await expect(toggle).rejects.toThrow('boom');
+    });
+
+    expect(result.current.activeTasks.map((t) => [t.id, t.sortOrder])).toEqual([
+      [3, -5],
+      [1, 0],
+      [2, 1],
+    ]);
+    expect(result.current.completedTasks).toEqual([]);
+    expect(result.current.completedCount).toBe(0);
+  });
+
+  it('failed reorder keeps a concurrently added category', async () => {
+    let rejectReorder: (e: Error) => void = () => {};
+    mocked.updateTaskSortOrders.mockReturnValue(new Promise((_, rej) => (rejectReorder = rej)));
+    mocked.insertEncryptedCategory.mockResolvedValue(cat(9));
+    const { result } = await setup({ active: [task(1, 0), task(2, 1)] });
+
+    let reorder!: Promise<void>;
+    await act(async () => {
+      reorder = result.current.actions.reorderTasks([{ id: 1, sortOrder: 7 }]);
+      reorder.catch(() => {});
+    });
+    await act(() =>
+      result.current.actions.addCategory({ name: 'c9', color: '#000', icon: 'x' })
+    );
+    await act(async () => {
+      rejectReorder(new Error('boom'));
+      await expect(reorder).rejects.toThrow('boom');
+    });
+
+    expect(result.current.activeTasks.map((t) => [t.id, t.sortOrder])).toEqual([
+      [1, 0],
+      [2, 1],
+    ]);
+    expect(result.current.categories.map((c) => c.id)).toEqual([9]);
   });
 });

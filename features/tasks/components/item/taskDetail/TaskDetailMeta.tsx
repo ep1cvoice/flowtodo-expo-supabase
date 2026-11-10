@@ -103,7 +103,7 @@ export default function TaskDetailMeta({
       </View>
       {isPomoActive ? (
         <View style={styles.timerRow}>
-          <PomodoroTimer taskId={task.id} />
+          <PomodoroTimer taskId={task.id} taskTitle={task.title} />
         </View>
       ) : null}
     </View>

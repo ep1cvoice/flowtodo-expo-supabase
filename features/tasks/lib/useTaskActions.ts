@@ -1,6 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import { useCallback, useMemo } from 'react';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 
@@ -9,7 +9,7 @@ import { useToastedAction } from '@/shared/lib/useToastedAction';
  * calendar and completed task views.
  */
 export function useTaskActions() {
-  const { toggleTask, deleteTask } = useTasks();
+  const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const runToasted = useToastedAction();
 

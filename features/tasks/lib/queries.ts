@@ -5,7 +5,12 @@ import {
   sortCompletedTasks,
   type CompletedCursor,
 } from '@/features/tasks/lib/completedPagination';
-import { mapCategory, mapTag, mapTask, type TaskQueryRow } from '@/features/tasks/lib/taskMappers';
+import {
+  mapCategoryOrPlaceholder,
+  mapTagOrPlaceholder,
+  mapTaskOrPlaceholder,
+  type TaskQueryRow,
+} from '@/features/tasks/lib/taskMappers';
 import { supabase } from '@/core/supabase/client';
 import type { Category, Tag, Task } from '@/types';
 
@@ -31,7 +36,7 @@ export function mapTaskRows(
   rows: TaskQueryRow[] | null | undefined,
   dek: Uint8Array | null
 ): Task[] {
-  return (rows ?? []).map((row) => mapTask(row, dek));
+  return (rows ?? []).map((row) => mapTaskOrPlaceholder(row, dek));
 }
 
 export async function fetchCompletedPage(
@@ -90,9 +95,9 @@ export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null)
   // Names are encrypted, so the database cannot sort by them — sort after decrypting.
   const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
   const categories: Category[] = (categoriesRes.data ?? [])
-    .map((row) => mapCategory(row, dek))
+    .map((row) => mapCategoryOrPlaceholder(row, dek))
     .sort(byName);
-  const tags: Tag[] = (tagsRes.data ?? []).map((row) => mapTag(row, dek)).sort(byName);
+  const tags: Tag[] = (tagsRes.data ?? []).map((row) => mapTagOrPlaceholder(row, dek)).sort(byName);
   const activeTasks = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek);
   const completedTasks = sortCompletedTasks(completedPage.page);
 

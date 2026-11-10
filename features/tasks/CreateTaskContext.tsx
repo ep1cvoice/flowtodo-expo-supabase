@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import AddTaskModal from '@/features/tasks/components/form/AddTaskModal';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 
 type ScheduledRoute = 'active' | 'calendar';
 
@@ -12,7 +12,7 @@ type CreateTaskContextValue = {
 const CreateTaskContext = createContext<CreateTaskContextValue | null>(null);
 
 export function CreateTaskProvider({ children }: { children: ReactNode }) {
-  const { addTask } = useTasks();
+  const { addTask } = useTasksActions();
   const scheduledRef = useRef<Record<ScheduledRoute, Date | null>>({
     active: null,
     calendar: null,

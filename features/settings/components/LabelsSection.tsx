@@ -13,7 +13,7 @@ import {
   FILTER_LIMIT_MIN,
 } from '@/shared/constants/filterLimits';
 import { useAuth } from '@/core/auth/AuthContext';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
@@ -29,7 +29,8 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
   const runToasted = useToastedAction();
-  const { categories, tags, addCategory, addTag, deleteCategory, deleteTag } = useTasks();
+  const { categories, tags } = useTasksState();
+  const { addCategory, addTag, deleteCategory, deleteTag } = useTasksActions();
   const [filterLimit, setFilterLimit] = useState<string>(
     String(user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT)
   );

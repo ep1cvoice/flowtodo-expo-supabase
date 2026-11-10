@@ -5,7 +5,7 @@ import Svg, { G, Path } from 'react-native-svg';
 import { AlarmClock, Pause, Play, X } from 'lucide-react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { tokens } from '@/shared/constants/theme';
-import { usePomodoro } from '@/features/pomodoro/PomodoroContext';
+import { usePomodoroActions, usePomodoroState } from '@/features/pomodoro/PomodoroContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { playPomodoroAlarm, stopPomodoroAlarm } from '@/features/pomodoro/pomodoroAlarm';
 import AppModal from '@/shared/ui/AppModal';
@@ -13,6 +13,8 @@ import { webInteractive } from '@/shared/lib/pressableWeb';
 
 interface PomodoroTimerProps {
   taskId: number;
+  /** Names the history record when the session is ended from the timer. */
+  taskTitle: string;
 }
 
 const POMO_BORDER_LIGHT = '#fca5a5';
@@ -36,17 +38,11 @@ function formatTime(total: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
+export default function PomodoroTimer({ taskId, taskTitle }: PomodoroTimerProps) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const {
-    activeTaskId,
-    activePomo,
-    pausePomo,
-    resumePomo,
-    endPomo,
-    getElapsedSeconds,
-  } = usePomodoro();
+  const { activeTaskId, activePomo } = usePomodoroState();
+  const { pausePomo, resumePomo, endPomo, getElapsedSeconds } = usePomodoroActions();
 
   const show = activeTaskId === taskId && !!activePomo;
   const [seconds, setSeconds] = useState(0);
@@ -92,7 +88,7 @@ export default function PomodoroTimer({ taskId }: PomodoroTimerProps) {
   const stopAlarmAndEnd = () => {
     void stopPomodoroAlarm();
     setShowAlarm(false);
-    void endPomo();
+    void endPomo(taskTitle);
   };
 
   const handleDismissAlarm = () => {

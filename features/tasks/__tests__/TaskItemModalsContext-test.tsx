@@ -10,12 +10,12 @@ const mockEndPomo = jest.fn();
 const mockPomo = { activeTaskId: null as number | null };
 
 jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ tasks: mockState.tasks, updateTask: jest.fn(), setTaskScheduled: jest.fn() }),
+  useTasksState: () => ({ tasks: mockState.tasks }),
+  useTasksActions: () => ({ updateTask: jest.fn(), setTaskScheduled: jest.fn() }),
 }));
 jest.mock('@/features/pomodoro/PomodoroContext', () => ({
-  usePomodoro: () => ({
-    activeTaskId: mockPomo.activeTaskId,
-    canStart: true,
+  usePomodoroState: () => ({ activeTaskId: mockPomo.activeTaskId, canStart: true }),
+  usePomodoroActions: () => ({
     startPomo: jest.fn(),
     endPomo: (...a: unknown[]) => mockEndPomo(...a),
   }),

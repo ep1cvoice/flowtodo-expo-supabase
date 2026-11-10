@@ -14,7 +14,7 @@ import { useTaskFormStyles } from '@/features/tasks/components/form/taskFormStyl
 import CategoryChipPicker from '@/features/tasks/components/form/CategoryChipPicker';
 import TagChipPicker from '@/features/tasks/components/form/TagChipPicker';
 import SheetFrame from '@/shared/ui/SheetFrame';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { categoryCardWash } from '@/shared/lib/color';
@@ -62,7 +62,8 @@ export default function TaskFormModal({
   const { colors, styles } = useTaskFormStyles();
   const { showToast } = useToast();
   const runToasted = useToastedAction();
-  const { categories, tags, addCategory, addTag } = useTasks();
+  const { categories, tags } = useTasksState();
+  const { addCategory, addTag } = useTasksActions();
 
   const [title, setTitle] = useState(initialValues.title);
   const [description, setDescription] = useState(initialValues.description);
