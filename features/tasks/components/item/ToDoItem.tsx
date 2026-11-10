@@ -1,10 +1,6 @@
+import { memo, useMemo } from 'react';
 import { strings } from '@/shared/lib/strings';
-import {
-  Pressable,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
 import TaskCheckbox from '@/features/tasks/components/item/TaskCheckbox';
 import TaskDesktopActions from '@/features/tasks/components/item/TaskDesktopActions';
@@ -13,10 +9,8 @@ import TaskReorderButtons from '@/features/tasks/components/item/TaskReorderButt
 import TaskTagLabels from '@/features/tasks/components/item/TaskTagLabels';
 import PomodoroTimer from '@/features/pomodoro/components/PomodoroTimer';
 import { useTaskItemModals } from '@/features/tasks/components/item/TaskItemModalsContext';
-import { useTaskItemActions } from '@/features/tasks/lib/useTaskItemActions';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
 import { getCategoryIcon } from '@/shared/constants/categoryIcons';
-import { tokens } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { categoryCardWash } from '@/shared/lib/color';
 import type { Task } from '@/types';
@@ -25,39 +19,47 @@ import { isWeb } from '@/shared/lib/platform';
 interface ToDoItemProps {
   task: Task;
   index?: number;
-  onToggle: (id: number) => void;
+  // The row is memoized: global state (pomodoro, window size) is read by the list and passed
+  // in, and the handlers must be referentially stable for memoization to help (see
+  // useTaskRowProps).
+  isMobile: boolean;
+  isPomoActive: boolean;
+  canStart: boolean;
+  onStartPomodoro: (task: Task) => void;
+  onToggleDone: (task: Task) => Promise<boolean>;
   showReorderButtons?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  onMove?: (id: number, direction: -1 | 1) => void;
 }
 
-export default function ToDoItem({
+function ToDoItem({
   task,
   index = 0,
-  onToggle,
+  isMobile,
+  isPomoActive,
+  canStart,
+  onStartPomodoro,
+  onToggleDone,
   showReorderButtons = false,
   canMoveUp = false,
   canMoveDown = false,
-  onMoveUp,
-  onMoveDown,
+  onMove,
 }: ToDoItemProps) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < tokens.desktopBreakpoint;
   const { isDark } = useTheme();
   const { colors, styles } = useTodoItemStyles();
   const { open } = useTaskItemModals();
-  const { isPomoActive, canStart, handleStartPomodoro, handleToggleDone } = useTaskItemActions(
-    task,
-    onToggle,
-  );
+  const handleStartPomodoro = () => onStartPomodoro(task);
+  const handleToggleDone = () => onToggleDone(task);
 
   const category = task.category;
   const tags = task.tags ?? [];
   const CategoryIconComp = category ? getCategoryIcon(category.icon) : null;
 
-  const dueDate = task.scheduled ? new Date(task.scheduled) : null;
+  const dueDate = useMemo(
+    () => (task.scheduled ? new Date(task.scheduled) : null),
+    [task.scheduled]
+  );
 
   const categoryWash = category
     ? categoryCardWash(category.color, isDark ? 0.42 : 0.2)
@@ -92,8 +94,8 @@ export default function ToDoItem({
               canMoveDown={canMoveDown}
               colors={colors}
               styles={styles}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
+              onMoveUp={onMove ? () => onMove(task.id, -1) : undefined}
+              onMoveDown={onMove ? () => onMove(task.id, 1) : undefined}
             />
           ) : null}
 
@@ -151,7 +153,7 @@ export default function ToDoItem({
                     {dueDate ? (
                       <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
                     ) : null}
-                    {isPomoActive ? <PomodoroTimer taskId={task.id} /> : null}
+                    {isPomoActive ? <PomodoroTimer taskId={task.id} taskTitle={task.title} /> : null}
                   </View>
                 ) : null}
                 <TaskTagLabels tags={tags} styles={styles} />
@@ -162,3 +164,5 @@ export default function ToDoItem({
       </Pressable>
   );
 }
+
+export default memo(ToDoItem);

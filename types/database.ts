@@ -63,6 +63,7 @@ export type Database = {
           ended_at: string | null
           id: number
           paused_at: string | null
+          paused_on_logout: boolean
           started_at: string
           task_id: number | null
           task_name_enc: string | null
@@ -76,6 +77,7 @@ export type Database = {
           ended_at?: string | null
           id?: number
           paused_at?: string | null
+          paused_on_logout?: boolean
           started_at?: string
           task_id?: number | null
           task_name_enc?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           ended_at?: string | null
           id?: number
           paused_at?: string | null
+          paused_on_logout?: boolean
           started_at?: string
           task_id?: number | null
           task_name_enc?: string | null

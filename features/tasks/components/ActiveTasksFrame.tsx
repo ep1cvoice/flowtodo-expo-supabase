@@ -2,6 +2,7 @@ import { strings } from '@/shared/lib/strings';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, View, Text } from 'react-native';
 import ActiveTasksHeader from '@/features/tasks/components/ActiveTasksHeader';
+import TasksLoadError from '@/features/tasks/components/TasksLoadError';
 import TaskFilterSheet from '@/features/tasks/components/filters/TaskFilterSheet';
 import TaskSearchBar from '@/features/tasks/components/filters/TaskSearchBar';
 import TaskSortMenu from '@/features/tasks/components/filters/TaskSortMenu';
@@ -10,7 +11,7 @@ import type { ActiveTasksView } from '@/features/tasks/lib/useActiveTasksScreen'
 
 interface ActiveTasksFrameProps {
   view: ActiveTasksView;
-  // The platform-specific list; rendered once tasks have loaded.
+  // The platform-specific list; rendered once tasks have loaded; a load error replaces it.
   children: ReactNode;
 }
 
@@ -22,6 +23,8 @@ export default function ActiveTasksFrame({ view, children }: ActiveTasksFramePro
     categories,
     tags,
     loading,
+    showError,
+    retry,
     filters,
     showFilterSheet,
     setShowFilterSheet,
@@ -45,6 +48,8 @@ export default function ActiveTasksFrame({ view, children }: ActiveTasksFramePro
               <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
           </>
+        ) : showError ? (
+          <TasksLoadError onRetry={retry} />
         ) : (
           <View style={styles.listArea}>
             <TaskItemModalsProvider onToggle={view.handleToggle} onDelete={view.handleDelete}>

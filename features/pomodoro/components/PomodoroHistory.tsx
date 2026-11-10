@@ -4,7 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { CheckCircle, XCircle, Trash2 } from 'lucide-react-native';
 import type { PomoRecord } from '@/types';
 import type { AppColors } from '@/shared/constants/theme';
-import { usePomodoro } from '@/features/pomodoro/PomodoroContext';
+import { usePomodoroActions, usePomodoroState } from '@/features/pomodoro/PomodoroContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
@@ -39,7 +39,8 @@ function isCompleted(record: PomoRecord) {
 export default function PomodoroHistory() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { history, deleteHistoryRecord } = usePomodoro();
+  const { history } = usePomodoroState();
+  const { deleteHistoryRecord } = usePomodoroActions();
 
   if (history.length === 0) {
     return <Text style={styles.empty}>{strings.pomodoro.noSessions}</Text>;

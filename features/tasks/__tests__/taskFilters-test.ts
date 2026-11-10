@@ -1,4 +1,5 @@
 import { filterActiveTaskList, filterTasksByLabels, getActiveEmptyCopy } from '@/features/tasks/lib/taskFilters';
+import * as taskSort from '@/features/tasks/lib/taskSort';
 import type { Task } from '@/types';
 
 function task(partial: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {
@@ -86,5 +87,30 @@ describe('getActiveEmptyCopy', () => {
         validTagIds: [1],
       }).title
     ).toBe('No tasks with these tags');
+  });
+});
+
+describe('filterActiveTaskList order of operations', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('filters first and sorts only the remaining tasks', () => {
+    const sortSpy = jest.spyOn(taskSort, 'sortTasks');
+    const tasks = [
+      task({ id: 1, title: 'Buy milk', categoryId: 10 }),
+      task({ id: 2, title: 'Walk dog', categoryId: 20 }),
+      task({ id: 3, title: 'Buy bread', categoryId: 10 }),
+    ];
+
+    const result = filterActiveTaskList(tasks, {
+      sortMode: 'title',
+      categoryIds: [10],
+      tagIds: [],
+      searchQuery: 'buy',
+      selectedDay: null,
+    });
+
+    expect(sortSpy).toHaveBeenCalledTimes(1);
+    expect(sortSpy.mock.calls[0][0].map((t) => t.id)).toEqual([1, 3]);
+    expect(result.map((t) => t.title)).toEqual(['Buy bread', 'Buy milk']);
   });
 });

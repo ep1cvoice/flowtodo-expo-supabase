@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { logger } from '@/shared/lib/logger';
 import { strings } from '@/shared/lib/strings';
@@ -9,7 +9,7 @@ import type { Task } from '@/types';
 // Owns the description draft of the task detail sheet and saves it when the field blurs,
 // the sheet closes, or the user taps elsewhere in the sheet.
 export function useDescriptionAutosave(task: Task) {
-  const { updateTask } = useTasks();
+  const { updateTask } = useTasksActions();
   const runToasted = useToastedAction();
   const [draft, setDraft] = useState(task.description ?? '');
   const inputRef = useRef<TextInput>(null);

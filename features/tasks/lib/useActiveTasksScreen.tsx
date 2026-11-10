@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import { useWindowDimensions } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { createActiveTasksStyles } from '@/features/tasks/components/activeTasksStyles';
@@ -20,7 +20,8 @@ export function useActiveTasksScreen() {
   const isMobile = width < tokens.desktopBreakpoint;
   const { colors } = useTheme();
   const styles = useMemo(() => createActiveTasksStyles(colors), [colors]);
-  const { categories, tags, loading } = useTasks();
+  const { categories, tags, loading, error, hasData } = useTasksState();
+  const { retry } = useTasksActions();
   const { setScheduledDay } = useCreateTask();
   const filters = useActiveTaskFilters();
   const {
@@ -100,6 +101,8 @@ export function useActiveTasksScreen() {
     categories,
     tags,
     loading,
+    showError: error != null && !hasData,
+    retry,
     filters,
     handleToggle,
     handleDelete,

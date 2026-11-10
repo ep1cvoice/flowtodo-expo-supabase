@@ -1,6 +1,6 @@
 import { strings } from '@/shared/lib/strings';
-import { useCallback } from 'react';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useCallback, useRef } from 'react';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
 import { applyFilteredReorder } from '@/features/tasks/lib/taskReorder';
@@ -20,7 +20,7 @@ export function useTaskReorder({
   canReorder,
   hasListConstraints,
 }: Params) {
-  const { reorderTasks } = useTasks();
+  const { reorderTasks } = useTasksActions();
   const { showToast } = useToast();
 
   const persistOrder = useCallback(
@@ -55,21 +55,23 @@ export function useTaskReorder({
     [canReorder, filteredTasks, persistVisibleOrder]
   );
 
-  const moveTask = useCallback(
-    (taskId: number, direction: -1 | 1) => {
-      if (!canReorder) return;
-      const list = [...filteredTasks];
-      const index = list.findIndex((task) => task.id === taskId);
-      const swapIndex = index + direction;
-      if (index < 0 || swapIndex < 0 || swapIndex >= list.length) return;
-      const next = [...list];
-      const tmp = next[index];
-      next[index] = next[swapIndex];
-      next[swapIndex] = tmp;
-      persistVisibleOrder(next);
-    },
-    [canReorder, filteredTasks, persistVisibleOrder]
-  );
+  // Kept in a ref so `moveTask` stays referentially stable: it is passed to memoized rows.
+  const moveContext = useRef({ canReorder, filteredTasks, persistVisibleOrder });
+  moveContext.current = { canReorder, filteredTasks, persistVisibleOrder };
+
+  const moveTask = useCallback((taskId: number, direction: -1 | 1) => {
+    const { canReorder, filteredTasks, persistVisibleOrder } = moveContext.current;
+    if (!canReorder) return;
+    const list = [...filteredTasks];
+    const index = list.findIndex((task) => task.id === taskId);
+    const swapIndex = index + direction;
+    if (index < 0 || swapIndex < 0 || swapIndex >= list.length) return;
+    const next = [...list];
+    const tmp = next[index];
+    next[index] = next[swapIndex];
+    next[swapIndex] = tmp;
+    persistVisibleOrder(next);
+  }, []);
 
   return { handleDragEnd, moveTask };
 }

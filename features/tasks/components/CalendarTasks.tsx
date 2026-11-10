@@ -1,3 +1,4 @@
+import TasksLoadError from '@/features/tasks/components/TasksLoadError';
 import { strings } from '@/shared/lib/strings';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -17,8 +18,9 @@ import { TaskItemModalsProvider } from '@/features/tasks/components/item/TaskIte
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
 import { createCalendarTasksStyles } from '@/features/tasks/components/calendarTasksStyles';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useCalendarExpandGesture } from '@/features/tasks/lib/useCalendarExpandGesture';
+import { useTaskRowProps } from '@/features/tasks/lib/useTaskListActions';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import {
@@ -34,7 +36,8 @@ import { isWeb } from '@/shared/lib/platform';
 export default function CalendarTasks() {
   const { colors } = useTheme();
   const styles = useMemo(() => createCalendarTasksStyles(colors), [colors]);
-  const { activeTasks, loading } = useTasks();
+  const { activeTasks, loading, error, hasData } = useTasksState();
+  const { retry } = useTasksActions();
   const { setScheduledDay } = useCreateTask();
   const today = useMemo(() => startOfDay(new Date()), []);
   const [selectedDay, setSelectedDay] = useState<Date>(() => today);
@@ -85,14 +88,20 @@ export default function CalendarTasks() {
   };
 
   const { handleToggle, handleDelete } = useTaskActions();
+  const { rowProps, activeTaskId } = useTaskRowProps(handleToggle);
 
   const renderTask = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
       <View style={styles.itemWrap}>
-        <ToDoItem task={item} index={index} onToggle={handleToggle} />
+        <ToDoItem
+          task={item}
+          index={index}
+          {...rowProps}
+          isPomoActive={activeTaskId === item.id}
+        />
       </View>
     ),
-    [handleToggle, styles.itemWrap]
+    [rowProps, activeTaskId, styles.itemWrap]
   );
 
   return (
@@ -186,6 +195,8 @@ export default function CalendarTasks() {
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>{strings.common.loadingTasks}</Text>
             </View>
+          ) : error && !hasData ? (
+            <TasksLoadError onRetry={retry} />
           ) : (
             <FlatList
               style={styles.tasksList}

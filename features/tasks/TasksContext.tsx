@@ -5,16 +5,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
+  useRef,
   useState,
 } from 'react';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import {
-  mergeCompletedTasks,
-  type CompletedCursor,
-} from '@/features/tasks/lib/completedPagination';
 import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
-import { useTaskMutations } from '@/features/tasks/lib/useTaskMutations';
+import { initialTasksData, tasksReducer, type TasksData } from '@/features/tasks/lib/tasksReducer';
+import {
+  useTaskMutations,
+  type TaskMutationsSnapshot,
+} from '@/features/tasks/lib/useTaskMutations';
 import { fetchCompletedPage, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
 import type {
   AddCategoryInput,
@@ -26,8 +28,11 @@ import type {
 import { withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 import { logger } from '@/shared/lib/logger';
+import { toastForError } from '@/shared/lib/networkError';
+import { strings } from '@/shared/lib/strings';
+import { useToast } from '@/shared/providers/ToastContext';
 
-interface TasksContextValue {
+interface TasksState {
   tasks: Task[];
   activeTasks: Task[];
   completedTasks: Task[];
@@ -37,6 +42,15 @@ interface TasksContextValue {
   categories: Category[];
   tags: Tag[];
   loading: boolean;
+  /** Why the last (re)load or refetch failed; null while loading or after a success. */
+  error: Error | null;
+  /** Whether there is anything to show; screens use the error view only when there isn't. */
+  hasData: boolean;
+}
+
+interface TasksActions {
+  /** Reloads everything after a failed load, showing the loading state again. */
+  retry: () => Promise<void>;
   refetch: () => Promise<void>;
   loadMoreCompleted: () => Promise<void>;
   addTask: (input: AddTaskInput) => Promise<void>;
@@ -53,39 +67,95 @@ interface TasksContextValue {
   reorderTasks: (items: { id: number; sortOrder: number }[]) => Promise<void>;
 }
 
-const TasksContext = createContext<TasksContextValue | null>(null);
+const TasksStateContext = createContext<TasksState | null>(null);
+const TasksActionsContext = createContext<TasksActions | null>(null);
+
+function hasAnyData(d: TasksData): boolean {
+  return (
+    d.activeTasks.length > 0 ||
+    d.completedTasks.length > 0 ||
+    d.categories.length > 0 ||
+    d.tags.length > 0
+  );
+}
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { dek } = useEncryption();
-  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
-  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [completedCursor, setCompletedCursor] = useState<CompletedCursor | null>(null);
-  const [hasMoreCompleted, setHasMoreCompleted] = useState(false);
+  const { showToast } = useToast();
+  const [data, dispatch] = useReducer(tasksReducer, initialTasksData);
   const [loadingMoreCompleted, setLoadingMoreCompleted] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
+  const { activeTasks, completedTasks } = data;
   const tasks = useMemo(
     () => [...activeTasks, ...completedTasks],
     [activeTasks, completedTasks]
   );
 
-  const refresh = useCallback(
-    async (userId: string) => {
-      const snapshot = await fetchTasksSnapshot(userId, dek);
-      setCategories(snapshot.categories);
-      setTags(snapshot.tags);
-      setActiveTasks(snapshot.activeTasks);
-      setCompletedTasks(snapshot.completedTasks);
-      setCompletedCount(snapshot.completedCount);
-      setCompletedCursor(snapshot.nextCursor);
-      setHasMoreCompleted(snapshot.hasMore);
+  // Actions read the latest user/DEK/data through this ref so they can stay referentially stable.
+  const latest = useRef<TaskMutationsSnapshot>({ user, dek, data });
+  latest.current = { user, dek, data };
+  const loadingMoreRef = useRef(false);
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+
+  // Only the response of the newest refresh may touch state; see `refresh`.
+  const requestIdRef = useRef(0);
+
+  /**
+   * Fetches and applies a snapshot. Late responses are dropped: a response is applied only if
+   * no newer refresh started, it did not time out (when `timeoutLabel` is given), and the
+   * signed-in user is still the one it was requested for.
+   */
+  const refresh = useCallback(async (userId: string, timeoutLabel?: string) => {
+    const requestId = ++requestIdRef.current;
+    const request = fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
+      if (requestId === requestIdRef.current && latest.current.user?.id === userId) {
+        dispatch({ type: 'snapshotLoaded', snapshot });
+      }
       return snapshot;
+    });
+    if (!timeoutLabel) return request;
+    try {
+      return await withTimeout(request, TASKS_REFRESH_TIMEOUT_MS, timeoutLabel);
+    } catch (err) {
+      // Whatever the timed-out request returns later must not overwrite newer state.
+      if (requestId === requestIdRef.current) requestIdRef.current++;
+      throw err;
+    }
+  }, []);
+
+  /** Loads the snapshot (seeding demo data into an empty account) and tracks loading/error. */
+  const loadTasks = useCallback(
+    async (userId: string, isCurrent: () => boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const snapshot = await refresh(userId, 'refreshTasks');
+        if (!isCurrent()) return;
+
+        const isEmpty =
+          snapshot.categories.length === 0 &&
+          snapshot.tags.length === 0 &&
+          snapshot.activeTasks.length === 0 &&
+          snapshot.completedTasks.length === 0;
+
+        const activeDek = latest.current.dek;
+        if (isEmpty && activeDek) {
+          await withTimeout(seedDemoData(userId, activeDek), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
+          if (!isCurrent()) return;
+          await refresh(userId, 'refreshTasksAfterSeed');
+        }
+      } catch (err) {
+        logger.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
+        if (isCurrent()) setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        if (isCurrent()) setLoading(false);
+      }
     },
-    [dek]
+    [refresh]
   );
 
   useEffect(() => {
@@ -97,88 +167,83 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!user) {
-      setActiveTasks([]);
-      setCompletedTasks([]);
-      setCompletedCount(0);
-      setCompletedCursor(null);
-      setHasMoreCompleted(false);
-      setCategories([]);
-      setTags([]);
+      requestIdRef.current++;
+      dispatch({ type: 'reset' });
+      setError(null);
       setLoading(false);
       return;
     }
 
-    const userId = user.id;
-    setLoading(true);
+    // Rows cannot be decrypted without the DEK (on login `user` is set before it, and a
+    // locked session has none), so wait for it; this effect re-runs once it is available.
+    if (!dek) {
+      setLoading(true);
+      return;
+    }
 
-    (async () => {
-      try {
-        const snapshot = await withTimeout(
-          refresh(userId),
-          TASKS_REFRESH_TIMEOUT_MS,
-          'refreshTasks'
-        );
-        if (cancelled) return;
-
-        const isEmpty =
-          snapshot.categories.length === 0 &&
-          snapshot.tags.length === 0 &&
-          snapshot.activeTasks.length === 0 &&
-          snapshot.completedTasks.length === 0;
-
-        // Seeding needs the DEK; when it is not available yet the effect re-runs once it is.
-        if (isEmpty && dek) {
-          await withTimeout(seedDemoData(userId, dek), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
-          if (cancelled) return;
-          await withTimeout(refresh(userId), TASKS_REFRESH_TIMEOUT_MS, 'refreshTasksAfterSeed');
-        }
-      } catch (err) {
-        logger.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    void loadTasks(user.id, () => !cancelled);
 
     return () => {
       cancelled = true;
     };
-  }, [user?.id, authLoading, refresh]);
+    // `dek` is a dependency on purpose: refresh reads it through a ref, and the list
+    // is fetched (and decrypted) once the DEK becomes available.
+  }, [user?.id, authLoading, dek, loadTasks]);
+
+  const retry = useCallback(async () => {
+    const { user: currentUser, dek: currentDek } = latest.current;
+    if (!currentUser || !currentDek) return;
+    const userId = currentUser.id;
+    await loadTasks(userId, () => latest.current.user?.id === userId);
+  }, [loadTasks]);
 
   const refetch = useCallback(async () => {
-    if (!user) return;
+    const { user: currentUser } = latest.current;
+    if (!currentUser) return;
     try {
-      await withTimeout(refresh(user.id), TASKS_REFRESH_TIMEOUT_MS, 'refetchTasks');
+      await refresh(currentUser.id, 'refetchTasks');
+      // E.g. the reconnect refetch succeeding after the initial load failed offline.
+      setError(null);
     } catch (err) {
       logger.warn('Failed to refetch tasks domain:', (err as Error)?.message ?? err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      // With data on screen the list stays (screens show the error view only when there is
+      // nothing to show), so tell the user the refresh itself failed.
+      const { data: current } = latest.current;
+      if (hasAnyData(current)) {
+        showToastRef.current(toastForError(err, strings.common.refreshFailed), 'error');
+      }
     }
-  }, [user, refresh]);
+  }, [refresh]);
 
   const loadMoreCompleted = useCallback(async () => {
-    if (!user || !hasMoreCompleted || loadingMoreCompleted || !completedCursor) return;
+    const { user: currentUser, dek: currentDek, data: current } = latest.current;
+    if (
+      !currentUser ||
+      !current.hasMoreCompleted ||
+      loadingMoreRef.current ||
+      !current.completedCursor
+    ) {
+      return;
+    }
 
+    loadingMoreRef.current = true;
     setLoadingMoreCompleted(true);
     try {
       const { page, hasMore, nextCursor } = await fetchCompletedPage(
-        user.id,
-        completedCursor,
-        dek
+        currentUser.id,
+        current.completedCursor,
+        currentDek
       );
-      setCompletedTasks((prev) => mergeCompletedTasks(prev, page));
-      setCompletedCursor(nextCursor);
-      setHasMoreCompleted(hasMore);
+      dispatch({ type: 'completedPageLoaded', page, nextCursor, hasMore });
     } catch (err) {
       logger.warn('Failed to load more completed:', (err as Error)?.message ?? err);
       throw err;
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMoreCompleted(false);
     }
-  }, [
-    user,
-    hasMoreCompleted,
-    loadingMoreCompleted,
-    completedCursor,
-    dek,
-  ]);
+  }, []);
 
   const {
     addTask,
@@ -193,58 +258,93 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     deleteAllActive,
     deleteAllCompleted,
     reorderTasks,
-  } = useTaskMutations({
-    user,
-    dek,
-    activeTasks,
-    completedTasks,
-    completedCount,
-    categories,
-    tags,
-    refresh,
-    setActiveTasks,
-    setCompletedTasks,
-    setCompletedCount,
-    setCompletedCursor,
-    setHasMoreCompleted,
-    setCategories,
-    setTags,
-  });
+  } = useTaskMutations({ latest, dispatch, refresh });
+
+  const { completedCount, hasMoreCompleted, categories, tags } = data;
+
+  const state = useMemo<TasksState>(
+    () => ({
+      tasks,
+      activeTasks,
+      completedTasks,
+      completedCount,
+      hasMoreCompleted,
+      loadingMoreCompleted,
+      categories,
+      tags,
+      loading,
+      error,
+      hasData: hasAnyData(data),
+    }),
+    [
+      tasks,
+      activeTasks,
+      completedTasks,
+      completedCount,
+      hasMoreCompleted,
+      loadingMoreCompleted,
+      categories,
+      tags,
+      loading,
+      error,
+      data,
+    ]
+  );
+
+  const actions = useMemo<TasksActions>(
+    () => ({
+      retry,
+      refetch,
+      loadMoreCompleted,
+      addTask,
+      updateTask,
+      setTaskScheduled,
+      addCategory,
+      addTag,
+      deleteCategory,
+      deleteTag,
+      toggleTask,
+      deleteTask,
+      deleteAllActive,
+      deleteAllCompleted,
+      reorderTasks,
+    }),
+    [
+      retry,
+      refetch,
+      loadMoreCompleted,
+      addTask,
+      updateTask,
+      setTaskScheduled,
+      addCategory,
+      addTag,
+      deleteCategory,
+      deleteTag,
+      toggleTask,
+      deleteTask,
+      deleteAllActive,
+      deleteAllCompleted,
+      reorderTasks,
+    ]
+  );
 
   return (
-    <TasksContext.Provider
-      value={{
-        tasks,
-        activeTasks,
-        completedTasks,
-        completedCount,
-        hasMoreCompleted,
-        loadingMoreCompleted,
-        categories,
-        tags,
-        loading,
-        refetch,
-        loadMoreCompleted,
-        addTask,
-        updateTask,
-        setTaskScheduled,
-        addCategory,
-        addTag,
-        deleteCategory,
-        deleteTag,
-        toggleTask,
-        deleteTask,
-        deleteAllActive,
-        deleteAllCompleted,
-        reorderTasks,
-      }}>
-      {children}
-    </TasksContext.Provider>
+    <TasksActionsContext.Provider value={actions}>
+      <TasksStateContext.Provider value={state}>{children}</TasksStateContext.Provider>
+    </TasksActionsContext.Provider>
   );
 }
 
-export function useTasks(): TasksContextValue {
-  const ctx = useContext(TasksContext);
-  if (!ctx) throw new Error('useTasks must be used within TasksProvider');
+/** Task data only; re-renders whenever the data changes. */
+export function useTasksState(): TasksState {
+  const ctx = useContext(TasksStateContext);
+  if (!ctx) throw new Error('useTasksState must be used within TasksProvider');
+  return ctx;
+}
+
+/** Actions only; components using this do not re-render on data changes. */
+export function useTasksActions(): TasksActions {
+  const ctx = useContext(TasksActionsContext);
+  if (!ctx) throw new Error('useTasksActions must be used within TasksProvider');
   return ctx;
 }

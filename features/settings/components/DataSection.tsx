@@ -6,7 +6,7 @@ import SettingsSection from '@/features/settings/components/SettingsSection';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { isDeviceUnlockAvailable } from '@/core/auth/secureStorage';
@@ -20,7 +20,8 @@ export default function DataSection({ open, onToggle }: DataSectionProps) {
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
   const runToasted = useToastedAction();
-  const { activeTasks, completedCount, deleteAllActive, deleteAllCompleted } = useTasks();
+  const { activeTasks, completedCount } = useTasksState();
+  const { deleteAllActive, deleteAllCompleted } = useTasksActions();
   const { biometricUnlockAvailable, enableBiometricUnlock, disableBiometricUnlock } = useEncryption();
   const [deviceSupportsUnlock, setDeviceSupportsUnlock] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);

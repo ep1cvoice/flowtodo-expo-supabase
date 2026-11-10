@@ -53,6 +53,8 @@ export interface PomoData {
   duration: number;
   elapsed: number;
   pausedAt: string | null;
+  /** Frozen by logout (not paused by hand); the next login continues it. */
+  pausedOnLogout: boolean;
 }
 
 export interface PomoRecord {

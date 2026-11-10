@@ -20,6 +20,7 @@ const baseRow = {
   elapsed: 120000,
   started_at: '2026-01-02T10:00:00Z',
   paused_at: null,
+  paused_on_logout: false,
   ended_at: null,
   created_at: '2026-01-02T10:00:00Z',
 };
@@ -34,6 +35,7 @@ describe('pomo mappers', () => {
       duration: 25,
       elapsed: 120000,
       pausedAt: null,
+      pausedOnLogout: false,
     });
   });
 

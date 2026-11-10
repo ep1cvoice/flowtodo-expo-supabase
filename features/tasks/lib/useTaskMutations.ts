@@ -1,11 +1,7 @@
 import { strings } from '@/shared/lib/strings';
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, type Dispatch, type MutableRefObject } from 'react';
 
 import { requireDek } from '@/core/auth/requireDek';
-import {
-  mergeCompletedTasks,
-  type CompletedCursor,
-} from '@/features/tasks/lib/completedPagination';
 import {
   deleteCategoryForUser,
   deleteTagForUser,
@@ -25,265 +21,230 @@ import type {
   AddTaskInput,
   UpdateTaskInput,
 } from '@/features/tasks/lib/types';
+import type { TasksAction, TasksData } from '@/features/tasks/lib/tasksReducer';
 import type { Category, Tag, Task, User } from '@/types';
 
-type OptimisticSlice =
-  | 'activeTasks'
-  | 'completedTasks'
-  | 'completedCount'
-  | 'categories'
-  | 'tags';
-
-type Setter<T> = Dispatch<SetStateAction<T>>;
-
-export interface TaskMutationsParams {
+/** Latest auth + data values, read at call time so the returned actions can stay stable. */
+export interface TaskMutationsSnapshot {
   user: User | null;
   dek: Uint8Array | null;
-  activeTasks: Task[];
-  completedTasks: Task[];
-  completedCount: number;
-  categories: Category[];
-  tags: Tag[];
-  refresh: (userId: string) => Promise<unknown>;
-  setActiveTasks: Setter<Task[]>;
-  setCompletedTasks: Setter<Task[]>;
-  setCompletedCount: Setter<number>;
-  setCompletedCursor: Setter<CompletedCursor | null>;
-  setHasMoreCompleted: Setter<boolean>;
-  setCategories: Setter<Category[]>;
-  setTags: Setter<Tag[]>;
+  data: TasksData;
 }
 
-export function useTaskMutations({
-  user,
-  dek,
-  activeTasks,
-  completedTasks,
-  completedCount,
-  categories,
-  tags,
-  refresh,
-  setActiveTasks,
-  setCompletedTasks,
-  setCompletedCount,
-  setCompletedCursor,
-  setHasMoreCompleted,
-  setCategories,
-  setTags,
-}: TaskMutationsParams) {
-  const requireUserId = () => {
-    if (!user) throw new Error(strings.common.notSignedIn);
-    return user.id;
-  };
+export interface TaskMutationsParams {
+  latest: MutableRefObject<TaskMutationsSnapshot>;
+  dispatch: Dispatch<TasksAction>;
+  refresh: (userId: string) => Promise<unknown>;
+}
 
-  /**
-   * Applies an optimistic state change, persists it, and restores the previous
-   * values of the given state slices if persisting fails (then rethrows).
-   */
-  const runOptimistic = async (
-    slices: OptimisticSlice[],
-    apply: () => void,
-    persist: () => Promise<void>
-  ) => {
-    const snapshot: Record<OptimisticSlice, () => void> = {
-      activeTasks: ((v) => () => setActiveTasks(v))(activeTasks),
-      completedTasks: ((v) => () => setCompletedTasks(v))(completedTasks),
-      completedCount: ((v) => () => setCompletedCount(v))(completedCount),
-      categories: ((v) => () => setCategories(v))(categories),
-      tags: ((v) => () => setTags(v))(tags),
+/**
+ * All returned actions are referentially stable as long as `latest`, `dispatch` and `refresh`
+ * are; they read the current user, DEK and task data through `latest`.
+ */
+export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsParams) {
+  return useMemo(() => {
+    const requireUserId = () => {
+      const { user } = latest.current;
+      if (!user) throw new Error(strings.common.notSignedIn);
+      return user.id;
     };
-    apply();
-    try {
-      await persist();
-    } catch (error) {
-      slices.forEach((slice) => snapshot[slice]());
-      throw error;
-    }
-  };
 
-  const addTask = async ({
-    title,
-    description,
-    categoryId,
-    tagIds,
-    scheduled = null,
-  }: AddTaskInput) => {
-    const userId = requireUserId();
-    const activeDek = requireDek(dek);
-    const minSort = activeTasks.length
-      ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
-      : 0;
+    /**
+     * Applies an optimistic change, persists it, and on failure dispatches the inverse
+     * actions (then rethrows). The inverse only undoes this mutation's own effect, so
+     * concurrent changes to the same slices are not overwritten.
+     */
+    const runOptimistic = async (
+      apply: TasksAction[],
+      inverse: TasksAction[],
+      persist: () => Promise<void>
+    ) => {
+      apply.forEach(dispatch);
+      try {
+        await persist();
+      } catch (error) {
+        inverse.forEach(dispatch);
+        throw error;
+      }
+    };
 
-    await insertEncryptedTask({
-      userId,
-      dek: activeDek,
+    const addTask = async ({
       title,
       description,
       categoryId,
       tagIds,
-      scheduled: scheduled ?? null,
-      sortOrder: minSort,
-    });
-    await refresh(userId);
-  };
+      scheduled = null,
+    }: AddTaskInput) => {
+      const userId = requireUserId();
+      const activeDek = requireDek(latest.current.dek);
+      const { activeTasks } = latest.current.data;
+      const minSort = activeTasks.length
+        ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
+        : 0;
 
-  const updateTask = async (
-    id: number,
-    { title, description, categoryId, tagIds }: UpdateTaskInput
-  ) => {
-    const userId = requireUserId();
-    const activeDek = requireDek(dek);
-    await updateEncryptedTask({
-      userId,
-      dek: activeDek,
-      id,
-      title,
-      description,
-      categoryId,
-      tagIds,
-    });
-    await refresh(userId);
-  };
+      await insertEncryptedTask({
+        userId,
+        dek: activeDek,
+        title,
+        description,
+        categoryId,
+        tagIds,
+        scheduled: scheduled ?? null,
+        sortOrder: minSort,
+      });
+      await refresh(userId);
+    };
 
-  const patchTaskLocal = (id: number, patch: Partial<Task>) => {
-    setActiveTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    setCompletedTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  };
+    const updateTask = async (
+      id: number,
+      { title, description, categoryId, tagIds }: UpdateTaskInput
+    ) => {
+      const userId = requireUserId();
+      const activeDek = requireDek(latest.current.dek);
+      await updateEncryptedTask({
+        userId,
+        dek: activeDek,
+        id,
+        title,
+        description,
+        categoryId,
+        tagIds,
+      });
+      await refresh(userId);
+    };
 
-  const setTaskScheduled = async (id: number, scheduled: string | null) => {
-    const userId = requireUserId();
-    await setTaskScheduledRow(userId, id, scheduled);
-    patchTaskLocal(id, { scheduled });
-  };
+    const setTaskScheduled = async (id: number, scheduled: string | null) => {
+      const userId = requireUserId();
+      await setTaskScheduledRow(userId, id, scheduled);
+      dispatch({ type: 'tasksPatched', patches: { [id]: { scheduled } } });
+    };
 
-  const addCategory = async (input: AddCategoryInput): Promise<Category> => {
-    const userId = requireUserId();
-    const category = await insertEncryptedCategory(userId, requireDek(dek), input);
-    setCategories((prev) => [...prev, category]);
-    return category;
-  };
+    const addCategory = async (input: AddCategoryInput): Promise<Category> => {
+      const userId = requireUserId();
+      const category = await insertEncryptedCategory(
+        userId,
+        requireDek(latest.current.dek),
+        input
+      );
+      dispatch({ type: 'categoryAdded', category });
+      return category;
+    };
 
-  const addTag = async (input: AddTagInput): Promise<Tag> => {
-    const userId = requireUserId();
-    const tag = await insertEncryptedTag(userId, requireDek(dek), input);
-    setTags((prev) => [...prev, tag]);
-    return tag;
-  };
+    const addTag = async (input: AddTagInput): Promise<Tag> => {
+      const userId = requireUserId();
+      const tag = await insertEncryptedTag(userId, requireDek(latest.current.dek), input);
+      dispatch({ type: 'tagAdded', tag });
+      return tag;
+    };
 
-  const deleteCategory = async (id: number) => {
-    const userId = requireUserId();
-    await runOptimistic(
-      ['categories', 'activeTasks', 'completedTasks'],
-      () => {
-        setCategories((prev) => prev.filter((c) => c.id !== id));
-        const clearCategory = (t: Task): Task =>
-          t.categoryId === id ? { ...t, categoryId: null, category: null } : t;
-        setActiveTasks((prev) => prev.map(clearCategory));
-        setCompletedTasks((prev) => prev.map(clearCategory));
-      },
-      () => deleteCategoryForUser(userId, id)
-    );
-  };
+    const allTasks = ({ activeTasks, completedTasks }: TasksData) => [
+      ...activeTasks,
+      ...completedTasks,
+    ];
 
-  const deleteTag = async (id: number) => {
-    const userId = requireUserId();
-    await runOptimistic(
-      ['tags', 'activeTasks', 'completedTasks'],
-      () => {
-        setTags((prev) => prev.filter((t) => t.id !== id));
-        const stripTag = (t: Task): Task => ({
-          ...t,
-          tags: (t.tags ?? []).filter((tag) => tag.id !== id),
-        });
-        setActiveTasks((prev) => prev.map(stripTag));
-        setCompletedTasks((prev) => prev.map(stripTag));
-      },
-      () => deleteTagForUser(userId, id)
-    );
-  };
+    const deleteCategory = async (id: number) => {
+      const userId = requireUserId();
+      const { data } = latest.current;
+      const index = data.categories.findIndex((c) => c.id === id);
+      const inverse: TasksAction[] = [];
+      if (index >= 0) {
+        inverse.push({ type: 'categoryInserted', category: data.categories[index], index });
+      }
+      const patches: Record<number, Partial<Task>> = {};
+      for (const t of allTasks(data)) {
+        if (t.categoryId === id) patches[t.id] = { categoryId: t.categoryId, category: t.category };
+      }
+      inverse.push({ type: 'tasksPatched', patches });
 
-  const toggleTask = async (id: number) => {
-    const userId = requireUserId();
-    const current =
-      activeTasks.find((t) => t.id === id) ?? completedTasks.find((t) => t.id === id);
-    if (!current) return;
+      await runOptimistic(
+        [{ type: 'categoryRemoved', id }],
+        inverse,
+        () => deleteCategoryForUser(userId, id)
+      );
+    };
 
-    const nextDone = !current.done;
-    const nextCompletedAt = nextDone ? new Date().toISOString() : null;
-    const nextTask: Task = { ...current, done: nextDone, completedAt: nextCompletedAt };
+    const deleteTag = async (id: number) => {
+      const userId = requireUserId();
+      const { data } = latest.current;
+      const index = data.tags.findIndex((t) => t.id === id);
+      const inverse: TasksAction[] = [];
+      if (index >= 0) inverse.push({ type: 'tagInserted', tag: data.tags[index], index });
+      const patches: Record<number, Partial<Task>> = {};
+      for (const t of allTasks(data)) {
+        if ((t.tags ?? []).some((tag) => tag.id === id)) patches[t.id] = { tags: t.tags };
+      }
+      inverse.push({ type: 'tasksPatched', patches });
 
-    await runOptimistic(
-      ['activeTasks', 'completedTasks', 'completedCount'],
-      () => {
-        if (nextDone) {
-          setActiveTasks((prev) => prev.filter((t) => t.id !== id));
-          setCompletedTasks((prev) => mergeCompletedTasks([nextTask], prev));
-          setCompletedCount((n) => n + 1);
-        } else {
-          setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
-          setActiveTasks((prev) =>
-            [...prev, nextTask].sort((a, b) => a.sortOrder - b.sortOrder)
-          );
-          setCompletedCount((n) => Math.max(0, n - 1));
-        }
-      },
-      () => setTaskDoneRow(userId, id, nextDone, nextCompletedAt)
-    );
-  };
+      await runOptimistic([{ type: 'tagRemoved', id }], inverse, () =>
+        deleteTagForUser(userId, id)
+      );
+    };
 
-  const deleteTask = async (id: number) => {
-    const userId = requireUserId();
-    const wasCompleted = completedTasks.some((t) => t.id === id);
-    await deleteTaskForUser(userId, id);
-    setActiveTasks((prev) => prev.filter((t) => t.id !== id));
-    setCompletedTasks((prev) => prev.filter((t) => t.id !== id));
-    if (wasCompleted) setCompletedCount((n) => Math.max(0, n - 1));
-  };
+    const toggleTask = async (id: number) => {
+      const userId = requireUserId();
+      const { activeTasks, completedTasks } = latest.current.data;
+      const current =
+        activeTasks.find((t) => t.id === id) ?? completedTasks.find((t) => t.id === id);
+      if (!current) return;
 
-  const deleteAllActive = async () => {
-    const userId = requireUserId();
-    await deleteTasksByDone(userId, false);
-    setActiveTasks([]);
-  };
+      const nextDone = !current.done;
+      const nextCompletedAt = nextDone ? new Date().toISOString() : null;
+      const nextTask: Task = { ...current, done: nextDone, completedAt: nextCompletedAt };
 
-  const deleteAllCompleted = async () => {
-    const userId = requireUserId();
-    await deleteTasksByDone(userId, true);
-    setCompletedTasks([]);
-    setCompletedCount(0);
-    setCompletedCursor(null);
-    setHasMoreCompleted(false);
-  };
+      await runOptimistic(
+        [{ type: 'taskMoved', task: nextTask }],
+        [{ type: 'taskMoved', task: current }],
+        () => setTaskDoneRow(userId, id, nextDone, nextCompletedAt)
+      );
+    };
 
-  const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
-    if (items.length === 0) return;
-    const userId = requireUserId();
-    const orderMap = new Map(items.map((item) => [item.id, item.sortOrder]));
+    const deleteTask = async (id: number) => {
+      const userId = requireUserId();
+      await deleteTaskForUser(userId, id);
+      dispatch({ type: 'taskRemoved', id });
+    };
 
-    await runOptimistic(
-      ['activeTasks'],
-      () =>
-        setActiveTasks((current) =>
-          current.map((task) =>
-            orderMap.has(task.id) ? { ...task, sortOrder: orderMap.get(task.id)! } : task
-          )
-        ),
-      () => updateTaskSortOrders(userId, items)
-    );
-  };
+    const deleteAllActive = async () => {
+      const userId = requireUserId();
+      await deleteTasksByDone(userId, false);
+      dispatch({ type: 'allActiveCleared' });
+    };
 
-  return {
-    addTask,
-    updateTask,
-    setTaskScheduled,
-    addCategory,
-    addTag,
-    deleteCategory,
-    deleteTag,
-    toggleTask,
-    deleteTask,
-    deleteAllActive,
-    deleteAllCompleted,
-    reorderTasks,
-  };
+    const deleteAllCompleted = async () => {
+      const userId = requireUserId();
+      await deleteTasksByDone(userId, true);
+      dispatch({ type: 'allCompletedCleared' });
+    };
+
+    const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
+      if (items.length === 0) return;
+      const userId = requireUserId();
+      const orders = Object.fromEntries(items.map((item) => [item.id, item.sortOrder]));
+      const previous: Record<number, number> = {};
+      for (const t of latest.current.data.activeTasks) {
+        if (orders[t.id] !== undefined) previous[t.id] = t.sortOrder;
+      }
+
+      await runOptimistic(
+        [{ type: 'sortOrdersApplied', orders }],
+        [{ type: 'sortOrdersApplied', orders: previous }],
+        () => updateTaskSortOrders(userId, items)
+      );
+    };
+
+    return {
+      addTask,
+      updateTask,
+      setTaskScheduled,
+      addCategory,
+      addTag,
+      deleteCategory,
+      deleteTag,
+      toggleTask,
+      deleteTask,
+      deleteAllActive,
+      deleteAllCompleted,
+      reorderTasks,
+    };
+  }, [latest, dispatch, refresh]);
 }

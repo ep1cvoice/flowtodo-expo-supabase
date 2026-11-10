@@ -7,7 +7,7 @@ const mockShowToast = jest.fn();
 const mockUpdateTask = jest.fn();
 
 jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ updateTask: mockUpdateTask }),
+  useTasksActions: () => ({ updateTask: mockUpdateTask }),
 }));
 jest.mock('@/shared/providers/ToastContext', () => ({
   useToast: () => ({ showToast: mockShowToast }),

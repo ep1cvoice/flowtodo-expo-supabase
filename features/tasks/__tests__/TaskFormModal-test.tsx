@@ -5,7 +5,8 @@ import TaskFormModal from '@/features/tasks/components/form/TaskFormModal';
 const mockShowToast = jest.fn();
 
 jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ categories: [], tags: [], addCategory: jest.fn(), addTag: jest.fn() }),
+  useTasksState: () => ({ categories: [], tags: [] }),
+  useTasksActions: () => ({ addCategory: jest.fn(), addTag: jest.fn() }),
 }));
 
 jest.mock('@/shared/providers/ToastContext', () => ({

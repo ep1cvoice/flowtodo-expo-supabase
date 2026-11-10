@@ -36,11 +36,13 @@ export function filterActiveTaskList(
     selectedDay: Date | null;
   }
 ): Task[] {
-  const sorted = sortTasks(tasks, options.sortMode);
-  const byLabels = filterTasksByLabels(sorted, options.categoryIds, options.tagIds);
+  // Filter first (cheap, shrinks the list), then sort only what is left.
+  const byLabels = filterTasksByLabels(tasks, options.categoryIds, options.tagIds);
   const bySearch = filterTasksBySearch(byLabels, options.searchQuery);
-  if (!options.selectedDay) return bySearch;
-  return bySearch.filter((task) => taskMatchesScheduledDay(task, options.selectedDay));
+  const byDay = options.selectedDay
+    ? bySearch.filter((task) => taskMatchesScheduledDay(task, options.selectedDay))
+    : bySearch;
+  return sortTasks(byDay, options.sortMode);
 }
 
 export function getActiveEmptyCopy(options: {

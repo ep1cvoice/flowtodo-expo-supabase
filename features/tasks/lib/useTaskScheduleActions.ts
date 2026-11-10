@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { toScheduledIso } from '@/features/tasks/lib/calendarDate';
 import { strings } from '@/shared/lib/strings';
@@ -8,7 +8,7 @@ import type { Task } from '@/types';
 // Clear / confirm handlers for a task's due date. `onSaved` runs only after a successful
 // update (typically closes the calendar); failures show an error toast and keep it open.
 export function useTaskScheduleActions(task: Pick<Task, 'id'>, onSaved: () => void) {
-  const { setTaskScheduled } = useTasks();
+  const { setTaskScheduled } = useTasksActions();
   const runToasted = useToastedAction();
 
   const run = useCallback(

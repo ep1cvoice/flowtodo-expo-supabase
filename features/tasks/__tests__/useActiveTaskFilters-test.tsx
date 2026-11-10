@@ -1,21 +1,23 @@
 // Characterization tests for filter limits and stale-id filtering in useActiveTaskFilters.
-import { act, renderHook } from '@testing-library/react-native';
+import { StrictMode, type ReactNode } from 'react';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useActiveTaskFilters } from '@/features/tasks/lib/useActiveTaskFilters';
 
 const mockShowToast = jest.fn();
 const mockState: { user: any; tasks: any } = { user: null, tasks: null };
+const mockSearch = { query: '' };
 
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => ({ user: mockState.user }) }));
-jest.mock('@/features/tasks/TasksContext', () => ({ useTasks: () => mockState.tasks }));
+jest.mock('@/features/tasks/TasksContext', () => ({ useTasksState: () => mockState.tasks }));
 jest.mock('@/shared/providers/ToastContext', () => ({
   useToast: () => ({ showToast: mockShowToast }),
 }));
 jest.mock('@/features/tasks/lib/useTaskSearch', () => ({
   useTaskSearch: () => ({
     searchOpen: false,
-    searchQuery: '',
+    searchQuery: mockSearch.query,
     setSearchQuery: jest.fn(),
-    hasSearch: false,
+    hasSearch: mockSearch.query.trim().length > 0,
     toggleSearch: jest.fn(),
     closeSearch: jest.fn(),
   }),
@@ -61,6 +63,7 @@ const toggleTags = async (r: Hook, ids: number[]) => {
 
 beforeEach(() => {
   mockShowToast.mockClear();
+  mockSearch.query = '';
   mockState.user = { id: 'u1', settings: { maxFilterSelections: 5 } };
   setTasksState();
 });
@@ -138,4 +141,46 @@ it('hasFilters is false when all selected ids are stale', async () => {
   await rerender({});
   expect(result.current.hasFilters).toBe(false);
   expect(result.current.filteredTasks).toHaveLength(3);
+});
+
+it('shows the limit toast exactly once per rejected toggle, also under StrictMode', async () => {
+  const strict = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>;
+  const hook = await renderHook(() => useActiveTaskFilters(), { wrapper: strict });
+  await toggleCats(hook, [1, 2, 3, 4, 5]);
+  expect(mockShowToast).not.toHaveBeenCalled();
+
+  await toggleTags(hook, [1]);
+
+  expect(mockShowToast).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.selectedTagIds).toEqual([]);
+});
+
+it('trims the selection without side effects inside state updaters (StrictMode)', async () => {
+  const strict = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>;
+  const hook = await renderHook(() => useActiveTaskFilters(), { wrapper: strict });
+  mockState.user = { id: 'u1', settings: { maxFilterSelections: 10 } };
+  await hook.rerender({});
+  await toggleCats(hook, [1, 2, 3, 4, 5, 6]);
+  await toggleTags(hook, [1, 2, 3, 4]);
+
+  mockState.user = { id: 'u1', settings: { maxFilterSelections: 8 } };
+  await hook.rerender({});
+
+  expect(hook.result.current.selectedCategoryIds).toHaveLength(6);
+  expect(hook.result.current.selectedTagIds).toEqual([1, 2]);
+});
+
+it('filters by the search query', async () => {
+  setTasksState({
+    activeTasks: [
+      { ...task(1, null), title: 'Buy milk' },
+      { ...task(2, null), title: 'Walk the dog' },
+    ],
+  });
+  mockSearch.query = 'MILK';
+
+  const { result } = await renderHook(() => useActiveTaskFilters());
+
+  await waitFor(() => expect(result.current.filteredTasks.map((t: any) => t.id)).toEqual([1]));
+  expect(result.current.hasSearch).toBe(true);
 });

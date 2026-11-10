@@ -13,7 +13,6 @@ import type { PomoData, PomoRecord } from '@/types';
 import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import { useTasks } from '@/features/tasks/TasksContext';
 import { fetchPomodoros, MAX_HISTORY } from '@/features/pomodoro/lib/queries';
 import {
   deletePomodoroRecord,
@@ -29,27 +28,33 @@ import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
 
 
-interface PomodoroContextValue {
+interface PomodoroState {
   activeTaskId: number | null;
   activePomo: PomoData | null;
   history: PomoRecord[];
   canStart: boolean;
   loading: boolean;
+}
+
+/** Referentially stable for the provider's lifetime — never causes re-renders. */
+interface PomodoroActions {
   refetch: () => Promise<void>;
-  startPomo: (taskId: number) => Promise<void>;
+  /** `task.title` is stored (encrypted) with the session as its name. */
+  startPomo: (task: { id: number; title: string }) => Promise<void>;
   pausePomo: () => Promise<void>;
   resumePomo: () => Promise<void>;
-  endPomo: () => Promise<void>;
+  /** `taskTitle` names the history record; omit it when the task no longer exists. */
+  endPomo: (taskTitle?: string) => Promise<void>;
   deleteHistoryRecord: (id: number) => Promise<void>;
   getElapsedSeconds: (pomo?: PomoData | null) => number;
 }
 
-const PomodoroContext = createContext<PomodoroContextValue | null>(null);
+const PomodoroStateContext = createContext<PomodoroState | null>(null);
+const PomodoroActionsContext = createContext<PomodoroActions | null>(null);
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { dek } = useEncryption();
-  const { tasks } = useTasks();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,9 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const activeTaskId = activePomo?.taskId ?? null;
   const canStart = activePomo === null;
 
+  // Actions read the latest values through this ref so they can stay referentially stable.
+  const latest = useRef({ user, dek, activePomo });
+  latest.current = { user, dek, activePomo };
   const activePomoRef = useRef(activePomo);
   activePomoRef.current = activePomo;
 
@@ -73,7 +81,10 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const refresh = useCallback(async (userId: string, { resumeIfPaused = false } = {}) => {
-    const { active: fetched, history: fetchedHistory } = await fetchPomodoros(userId, dek);
+    const { active: fetched, history: fetchedHistory } = await fetchPomodoros(
+      userId,
+      latest.current.dek
+    );
 
     setHistory(fetchedHistory);
 
@@ -84,8 +95,9 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
     let active = fetched;
 
-    // After login: continue the session that was frozen on logout.
-    if (resumeIfPaused && active.pausedAt && !active.endedAt) {
+    // After login: continue the session that was frozen on logout. Sessions paused by hand
+    // (`pausedOnLogout` false) stay paused, wherever and whenever the app is opened.
+    if (resumeIfPaused && active.pausedOnLogout && active.pausedAt && !active.endedAt) {
       try {
         active = await resumePomodoroAndFetch({
           userId,
@@ -100,7 +112,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     }
 
     setActivePomo(active);
-  }, [dek]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +121,13 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       setActivePomo(null);
       setHistory([]);
       setLoading(false);
+      return;
+    }
+
+    // Titles are encrypted, so nothing can be read before the DEK is available; this effect
+    // re-runs once it is.
+    if (!dek) {
+      setLoading(true);
       return;
     }
 
@@ -124,162 +143,148 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, refresh]);
+  }, [user?.id, dek, refresh]);
 
-  const refetch = useCallback(async () => {
-    if (!user) return;
-    try {
-      await withTimeout(refresh(user.id), POMO_REFRESH_TIMEOUT_MS, 'refetchPomodoro');
-    } catch (err) {
-      logger.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
-    }
-  }, [user, refresh]);
-
-  const getElapsedSeconds = useCallback((pomo?: PomoData | null) => {
-    if (!pomo) return 0;
-    return Math.floor(computeElapsedMs(pomo) / 1000);
-  }, []);
-
-  const requireUserId = () => {
-    if (!user) throw new Error(strings.common.notSignedIn);
-    return user.id;
-  };
-
-  const startPomo = useCallback(
-    async (taskId: number) => {
-      if (activePomo) return;
-      const userId = requireUserId();
-      const activeDek = requireDek(dek);
-
-      const minutes = Number(user?.settings?.pomodoroTime);
-      const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
-      const taskName = tasks.find((t) => t.id === taskId)?.title ?? strings.tasks.fallbackName;
-      const now = new Date().toISOString();
-
-      const pomo = await insertPomodoro({
-        userId,
-        dek: activeDek,
-        taskId,
-        taskName,
-        durationSec,
-        startedAt: now,
-      });
-      setActivePomo(pomo);
-    },
-    [activePomo, tasks, user, dek]
-  );
-
-  const pausePomo = useCallback(async () => {
-    if (!activePomo || activePomo.pausedAt) return;
-    const userId = requireUserId();
-    const elapsed = computeElapsedMs(activePomo);
-    const pausedAt = new Date().toISOString();
-
-    setActivePomo({ ...activePomo, elapsed, pausedAt });
-
-    try {
-      await pausePomodoroRow({ userId, id: activePomo.id, elapsed, pausedAt });
-    } catch (err) {
-      setActivePomo(activePomo);
-      throw err;
-    }
-  }, [activePomo, user]);
-
-  const resumePomo = useCallback(async () => {
-    if (!activePomo || !activePomo.pausedAt) return;
-    const userId = requireUserId();
-    const startedAt = new Date().toISOString();
-    const next = { ...activePomo, pausedAt: null, startedAt };
-
-    setActivePomo(next);
-
-    try {
-      await resumePomodoroRow({ userId, id: activePomo.id, startedAt });
-    } catch (err) {
-      setActivePomo(activePomo);
-      throw err;
-    }
-  }, [activePomo, user]);
-
-  const endPomo = useCallback(async () => {
-    if (!activePomo) return;
-    const userId = requireUserId();
-    const activeDek = requireDek(dek);
-
-    const elapsed = computeElapsedMs(activePomo);
-    const endedAt = new Date().toISOString();
-    const taskName =
-      tasks.find((t) => t.id === activePomo.taskId)?.title ??
-      strings.pomodoro.deletedTask;
-
-    await endPomodoroRow({
-      userId,
-      dek: activeDek,
-      id: activePomo.id,
-      elapsed,
-      endedAt,
-      taskName,
-    });
-
-    const record: PomoRecord = {
-      id: activePomo.id,
-      taskId: activePomo.taskId,
-      taskName,
-      startedAt: activePomo.startedAt,
-      endedAt,
-      elapsed,
-      duration: activePomo.duration,
+  const actions = useMemo<PomodoroActions>(() => {
+    const requireUserId = () => {
+      const { user: currentUser } = latest.current;
+      if (!currentUser) throw new Error(strings.common.notSignedIn);
+      return currentUser.id;
     };
 
-    setHistory((h) => [record, ...h].slice(0, MAX_HISTORY));
-    setActivePomo(null);
-  }, [activePomo, tasks, user, dek]);
+    return {
+      refetch: async () => {
+        const { user: currentUser } = latest.current;
+        if (!currentUser) return;
+        try {
+          await withTimeout(refresh(currentUser.id), POMO_REFRESH_TIMEOUT_MS, 'refetchPomodoro');
+        } catch (err) {
+          logger.warn('Failed to refetch pomodoros:', (err as Error)?.message ?? err);
+        }
+      },
 
-  const deleteHistoryRecord = useCallback(
-    async (id: number) => {
-      const userId = requireUserId();
-      await deletePomodoroRecord(userId, id);
-      setHistory((prev) => prev.filter((p) => p.id !== id));
-    },
-    [user]
+      getElapsedSeconds: (pomo) => {
+        if (!pomo) return 0;
+        return Math.floor(computeElapsedMs(pomo) / 1000);
+      },
+
+      startPomo: async (task) => {
+        if (latest.current.activePomo) return;
+        const userId = requireUserId();
+        const activeDek = requireDek(latest.current.dek);
+
+        const minutes = Number(latest.current.user?.settings?.pomodoroTime);
+        const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
+        const taskName = task.title;
+        const now = new Date().toISOString();
+
+        const pomo = await insertPomodoro({
+          userId,
+          dek: activeDek,
+          taskId: task.id,
+          taskName,
+          durationSec,
+          startedAt: now,
+        });
+        setActivePomo(pomo);
+      },
+
+      pausePomo: async () => {
+        const current = latest.current.activePomo;
+        if (!current || current.pausedAt) return;
+        const userId = requireUserId();
+        const elapsed = computeElapsedMs(current);
+        const pausedAt = new Date().toISOString();
+
+        setActivePomo({ ...current, elapsed, pausedAt });
+
+        try {
+          await pausePomodoroRow({ userId, id: current.id, elapsed, pausedAt });
+        } catch (err) {
+          setActivePomo(current);
+          throw err;
+        }
+      },
+
+      resumePomo: async () => {
+        const current = latest.current.activePomo;
+        if (!current || !current.pausedAt) return;
+        const userId = requireUserId();
+        const startedAt = new Date().toISOString();
+
+        setActivePomo({ ...current, pausedAt: null, startedAt });
+
+        try {
+          await resumePomodoroRow({ userId, id: current.id, startedAt });
+        } catch (err) {
+          setActivePomo(current);
+          throw err;
+        }
+      },
+
+      endPomo: async (taskTitle) => {
+        const current = latest.current.activePomo;
+        if (!current) return;
+        const userId = requireUserId();
+        const activeDek = requireDek(latest.current.dek);
+
+        const elapsed = computeElapsedMs(current);
+        const endedAt = new Date().toISOString();
+        const taskName = taskTitle ?? strings.pomodoro.deletedTask;
+
+        await endPomodoroRow({
+          userId,
+          dek: activeDek,
+          id: current.id,
+          elapsed,
+          endedAt,
+          taskName,
+        });
+
+        const record: PomoRecord = {
+          id: current.id,
+          taskId: current.taskId,
+          taskName,
+          startedAt: current.startedAt,
+          endedAt,
+          elapsed,
+          duration: current.duration,
+        };
+
+        setHistory((h) => [record, ...h].slice(0, MAX_HISTORY));
+        setActivePomo(null);
+      },
+
+      deleteHistoryRecord: async (id) => {
+        const userId = requireUserId();
+        await deletePomodoroRecord(userId, id);
+        setHistory((prev) => prev.filter((p) => p.id !== id));
+      },
+    };
+  }, [refresh]);
+
+  const state = useMemo<PomodoroState>(
+    () => ({ activeTaskId, activePomo, history, canStart, loading }),
+    [activeTaskId, activePomo, history, canStart, loading]
   );
 
-  const value = useMemo(
-    () => ({
-      activeTaskId,
-      activePomo,
-      history,
-      canStart,
-      loading,
-      refetch,
-      startPomo,
-      pausePomo,
-      resumePomo,
-      endPomo,
-      deleteHistoryRecord,
-      getElapsedSeconds,
-    }),
-    [
-      activeTaskId,
-      activePomo,
-      history,
-      canStart,
-      loading,
-      refetch,
-      startPomo,
-      pausePomo,
-      resumePomo,
-      endPomo,
-      deleteHistoryRecord,
-      getElapsedSeconds,
-    ]
+  return (
+    <PomodoroActionsContext.Provider value={actions}>
+      <PomodoroStateContext.Provider value={state}>{children}</PomodoroStateContext.Provider>
+    </PomodoroActionsContext.Provider>
   );
-
-  return <PomodoroContext.Provider value={value}>{children}</PomodoroContext.Provider>;
 }
 
-export function usePomodoro(): PomodoroContextValue {
-  const ctx = useContext(PomodoroContext);
-  if (!ctx) throw new Error('usePomodoro must be used within PomodoroProvider');
+/** Session data only; re-renders whenever the session or history changes. */
+export function usePomodoroState(): PomodoroState {
+  const ctx = useContext(PomodoroStateContext);
+  if (!ctx) throw new Error('usePomodoroState must be used within PomodoroProvider');
+  return ctx;
+}
+
+/** Actions only; components using this do not re-render on session changes. */
+export function usePomodoroActions(): PomodoroActions {
+  const ctx = useContext(PomodoroActionsContext);
+  if (!ctx) throw new Error('usePomodoroActions must be used within PomodoroProvider');
   return ctx;
 }

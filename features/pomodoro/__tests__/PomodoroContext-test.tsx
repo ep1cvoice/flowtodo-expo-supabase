@@ -1,15 +1,18 @@
 // Characterization tests for PomodoroContext: start / pause / resume / end and resumeIfPaused.
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { PomodoroProvider, usePomodoro } from '@/features/pomodoro/PomodoroContext';
+import {
+  PomodoroProvider,
+  usePomodoroActions,
+  usePomodoroState,
+} from '@/features/pomodoro/PomodoroContext';
+
+const usePomodoro = () => ({ ...usePomodoroState(), ...usePomodoroActions() });
 
 const mockAuth: { user: any; dek: Uint8Array | null } = { user: null, dek: null };
 
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuth }));
-jest.mock('@/features/tasks/TasksContext', () => ({
-  useTasks: () => ({ tasks: [{ id: 7, title: 'Write tests' }] }),
-}));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), log: jest.fn(), info: jest.fn(), debug: jest.fn() },
@@ -48,8 +51,11 @@ const pomo = (over: Record<string, unknown> = {}): any => ({
   duration: 1500,
   elapsed: 0,
   pausedAt: null,
+  pausedOnLogout: false,
   ...over,
 });
+
+const TASK = { id: 7, title: 'Write tests' };
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <PomodoroProvider>{children}</PomodoroProvider>
@@ -73,7 +79,7 @@ it('starts a session with the configured duration and task name', async () => {
   const { result } = await renderPomodoro();
   expect(result.current.canStart).toBe(true);
 
-  await act(() => result.current.startPomo(7));
+  await act(() => result.current.startPomo(TASK));
 
   expect(insertPomodoro).toHaveBeenCalledWith(
     expect.objectContaining({ userId: 'u1', taskId: 7, taskName: 'Write tests', durationSec: 1800 })
@@ -86,14 +92,14 @@ it('falls back to 25 minutes when the setting is invalid', async () => {
   mockAuth.user = { id: 'u1', settings: { pomodoroTime: 0 } };
   insertPomodoro.mockResolvedValue(pomo());
   const { result } = await renderPomodoro();
-  await act(() => result.current.startPomo(7));
+  await act(() => result.current.startPomo(TASK));
   expect(insertPomodoro).toHaveBeenCalledWith(expect.objectContaining({ durationSec: 1500 }));
 });
 
 it('does not start a second session while one is active', async () => {
   fetchPomodoros.mockResolvedValue({ active: pomo(), history: [] });
   const { result } = await renderPomodoro();
-  await act(() => result.current.startPomo(7));
+  await act(() => result.current.startPomo(TASK));
   expect(insertPomodoro).not.toHaveBeenCalled();
 });
 
@@ -147,7 +153,7 @@ it('rolls back and rethrows when resuming fails', async () => {
 it('ends a session: adds a history record and clears the active one', async () => {
   fetchPomodoros.mockResolvedValue({ active: pomo(), history: [] });
   const { result } = await renderPomodoro();
-  await act(() => result.current.endPomo());
+  await act(() => result.current.endPomo('Write tests'));
 
   expect(endPomodoroRow).toHaveBeenCalledWith(
     expect.objectContaining({ userId: 'u1', id: 1, taskName: 'Write tests' })
@@ -157,12 +163,19 @@ it('ends a session: adds a history record and clears the active one', async () =
   expect(result.current.history[0]).toMatchObject({ id: 1, taskName: 'Write tests' });
 });
 
+it('names the history record "deleted task" when no title is given', async () => {
+  fetchPomodoros.mockResolvedValue({ active: pomo(), history: [] });
+  const { result } = await renderPomodoro();
+  await act(() => result.current.endPomo());
+  expect(result.current.history[0].taskName).toBe('Deleted task');
+});
+
 it('keeps the active session when ending fails', async () => {
   fetchPomodoros.mockResolvedValue({ active: pomo(), history: [] });
   endPomodoroRow.mockRejectedValue(new Error('boom'));
   const { result } = await renderPomodoro();
   await act(async () => {
-    await expect(result.current.endPomo()).rejects.toThrow('boom');
+    await expect(result.current.endPomo('Write tests')).rejects.toThrow('boom');
   });
   expect(result.current.activePomo).not.toBeNull();
   expect(result.current.history).toHaveLength(0);
@@ -170,7 +183,7 @@ it('keeps the active session when ending fails', async () => {
 
 describe('resumeIfPaused (on load)', () => {
   it('resumes a session that was frozen on logout', async () => {
-    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', elapsed: 5000 });
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', elapsed: 5000, pausedOnLogout: true });
     fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
     resumePomodoroAndFetch.mockResolvedValue({ ...paused, pausedAt: null });
     const { result } = await renderPomodoro();
@@ -181,15 +194,73 @@ describe('resumeIfPaused (on load)', () => {
   });
 
   it('keeps the paused session when resuming fails', async () => {
-    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z' });
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', pausedOnLogout: true });
     fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
     resumePomodoroAndFetch.mockRejectedValue(new Error('boom'));
     const { result } = await renderPomodoro();
     expect(result.current.activePomo?.pausedAt).toBe('2026-01-01T00:00:00Z');
   });
 
+  it('does not resume again when the DEK changes later (e.g. after unlock)', async () => {
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', pausedOnLogout: true });
+    fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
+    resumePomodoroAndFetch.mockResolvedValue({ ...paused, pausedAt: null });
+    const { result, rerender } = await renderPomodoro();
+    expect(resumePomodoroAndFetch).toHaveBeenCalledTimes(1);
+
+    // The user pauses by hand, then the app is locked and unlocked (new DEK instance).
+    resumePomodoroAndFetch.mockClear();
+    fetchPomodoros.mockResolvedValue({ active: { ...paused, pausedOnLogout: false }, history: [] });
+    mockAuth.dek = new Uint8Array(32).fill(2);
+    await rerender({});
+    await waitFor(() => expect(fetchPomodoros).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(resumePomodoroAndFetch).not.toHaveBeenCalled();
+  });
+
+  it('never resumes a session that was paused by hand, on any load', async () => {
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', pausedOnLogout: false });
+    fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
+    const { result } = await renderPomodoro();
+    expect(resumePomodoroAndFetch).not.toHaveBeenCalled();
+    expect(result.current.activePomo?.pausedAt).toBe('2026-01-01T00:00:00Z');
+  });
+
+  it('resumes again for a new sign-in after signing out', async () => {
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', pausedOnLogout: true });
+    fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
+    resumePomodoroAndFetch.mockResolvedValue({ ...paused, pausedAt: null });
+    const { rerender } = await renderPomodoro();
+    expect(resumePomodoroAndFetch).toHaveBeenCalledTimes(1);
+
+    mockAuth.user = null;
+    await rerender({});
+    mockAuth.user = { id: 'u1', settings: { pomodoroTime: 30 } };
+    await rerender({});
+    await waitFor(() => expect(resumePomodoroAndFetch).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not fetch while the DEK is not available', async () => {
+    mockAuth.dek = null;
+    const { result } = await renderHook(() => usePomodoro(), { wrapper });
+    await act(async () => {});
+    expect(fetchPomodoros).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(true);
+  });
+
+  it('keeps action identities stable across state changes', async () => {
+    insertPomodoro.mockResolvedValue(pomo());
+    const { result } = await renderPomodoro();
+    const { startPomo, pausePomo, endPomo } = result.current;
+    await act(() => result.current.startPomo(TASK));
+    expect(result.current.startPomo).toBe(startPomo);
+    expect(result.current.pausePomo).toBe(pausePomo);
+    expect(result.current.endPomo).toBe(endPomo);
+  });
+
   it('does not auto-resume on refetch', async () => {
-    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z' });
+    const paused = pomo({ pausedAt: '2026-01-01T00:00:00Z', pausedOnLogout: true });
     fetchPomodoros.mockResolvedValue({ active: paused, history: [] });
     resumePomodoroAndFetch.mockResolvedValue({ ...paused, pausedAt: null });
     const { result } = await renderPomodoro();

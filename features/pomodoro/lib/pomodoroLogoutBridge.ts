@@ -25,7 +25,7 @@ export async function pausePomodoroBeforeLogout() {
   const pausedAt = new Date().toISOString();
 
   try {
-    await pausePomodoroRow({ userId, id: pomo.id, elapsed, pausedAt, onlyActive: true });
+    await pausePomodoroRow({ userId, id: pomo.id, elapsed, pausedAt, onlyActive: true, onLogout: true });
   } catch (err) {
     logger.warn('Failed to pause pomodoro on logout:', (err as Error)?.message ?? err);
   }

@@ -1,7 +1,9 @@
 // File: __tests__/TasksContext-test.tsx
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { TasksProvider, useTasks } from '@/features/tasks/TasksContext';
+import { TasksProvider, useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
+
+const useTasks = () => ({ ...useTasksState(), ...useTasksActions() });
 
 const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
   user: null,
@@ -9,6 +11,10 @@ const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
   dek: null,
 };
 
+const mockShowToast = jest.fn();
+jest.mock('@/shared/providers/ToastContext', () => ({
+  useToast: () => ({ showToast: mockShowToast }),
+}));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuthState }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuthState }));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
@@ -113,13 +119,30 @@ describe('initial load', () => {
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([9]);
   });
 
-  it('does not seed while the DEK is not available', async () => {
+  it('does not fetch or seed while the DEK is not available', async () => {
     mockAuthState.dek = null;
     fetchSnapshot.mockResolvedValue(snapshotWith([]));
 
-    await renderTasks();
+    const { result } = await renderHook(() => useTasks(), { wrapper });
+    await act(async () => {});
 
+    expect(fetchSnapshot).not.toHaveBeenCalled();
     expect(seed).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(true);
+  });
+
+  it('fetches once, with the DEK, when it becomes available after the user', async () => {
+    mockAuthState.dek = null;
+    const { result, rerender } = await renderHook(() => useTasks(), { wrapper });
+    await act(async () => {});
+    expect(fetchSnapshot).not.toHaveBeenCalled();
+
+    mockAuthState.dek = dek;
+    await rerender({});
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+    expect(fetchSnapshot).toHaveBeenCalledWith('u1', dek);
   });
 
   it('does not query anything when signed out', async () => {
@@ -133,17 +156,98 @@ describe('initial load', () => {
   });
 });
 
+describe('load errors', () => {
+  it('exposes the error (and no data) when the initial load fails', async () => {
+    fetchSnapshot.mockRejectedValue(new Error('network down'));
+
+    const { result } = await renderTasks();
+
+    expect(result.current.error?.message).toBe('network down');
+    expect(result.current.activeTasks).toEqual([]);
+  });
+
+  it('retry reloads, shows loading again and clears the error on success', async () => {
+    fetchSnapshot.mockRejectedValueOnce(new Error('network down'));
+    const { result } = await renderTasks();
+    expect(result.current.error).not.toBeNull();
+
+    await act(async () => {
+      await result.current.retry();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
+  });
+
+  it('keeps the error when retry fails too', async () => {
+    fetchSnapshot.mockRejectedValue(new Error('still down'));
+    const { result } = await renderTasks();
+
+    await act(async () => {
+      await result.current.retry();
+    });
+
+    expect(result.current.error?.message).toBe('still down');
+  });
+
+  it('clears the error when a later refetch (e.g. on reconnect) succeeds', async () => {
+    fetchSnapshot.mockRejectedValueOnce(new Error('offline'));
+    const { result } = await renderTasks();
+    expect(result.current.error).not.toBeNull();
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
+  });
+
+  it('records a failed refetch as error and toasts when a list is already loaded', async () => {
+    const { result } = await renderTasks();
+    fetchSnapshot.mockRejectedValueOnce(new Error('flaky'));
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.error?.message).toBe('flaky');
+    expect(result.current.hasData).toBe(true); // screens keep the list, no error view
+    expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('does not toast a failed refetch when there is nothing to show (error view covers it)', async () => {
+    fetchSnapshot.mockRejectedValue(new Error('offline'));
+    const { result } = await renderTasks();
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.hasData).toBe(false);
+    expect(result.current.error).not.toBeNull();
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  it('has no error after a successful load', async () => {
+    const { result } = await renderTasks();
+    expect(result.current.error).toBeNull();
+  });
+});
+
 describe('addTask', () => {
   it('writes nothing while the app is locked (no DEK)', async () => {
     mockAuthState.dek = null;
-    const { result } = await renderTasks();
+    const { result } = await renderHook(() => useTasks(), { wrapper });
 
     await act(async () => {
       await expect(result.current.addTask(input)).rejects.toThrow();
     });
 
     expect(insertTask).not.toHaveBeenCalled();
-    expect(fetchSnapshot).toHaveBeenCalledTimes(1); // only the initial load
+    expect(fetchSnapshot).not.toHaveBeenCalled();
   });
 
   it('throws "Not signed in" and writes nothing without a user', async () => {
@@ -214,7 +318,7 @@ describe('addTask', () => {
 describe('updateTask', () => {
   it('writes nothing while the app is locked (no DEK)', async () => {
     mockAuthState.dek = null;
-    const { result } = await renderTasks();
+    const { result } = await renderHook(() => useTasks(), { wrapper });
 
     await act(async () => {
       await expect(result.current.updateTask(1, input)).rejects.toThrow();

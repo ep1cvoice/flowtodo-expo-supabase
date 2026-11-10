@@ -5,7 +5,7 @@ import ConfirmModal from '@/shared/ui/ConfirmModal';
 import MobileActionsSheet from '@/features/tasks/components/item/MobileActionsSheet';
 import TaskDetailModal from '@/features/tasks/components/item/TaskDetailModal';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
-import { useTasks } from '@/features/tasks/TasksContext';
+import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useTaskItemActions } from '@/features/tasks/lib/useTaskItemActions';
 import { useTaskScheduleActions } from '@/features/tasks/lib/useTaskScheduleActions';
 import { useMountOnFirstOpen } from '@/shared/lib/useMountOnFirstOpen';
@@ -36,7 +36,7 @@ export default function TaskItemModals({
   onDelete,
 }: TaskItemModalsProps) {
   const { colors, styles } = useTodoItemStyles();
-  const { updateTask } = useTasks();
+  const { updateTask } = useTasksActions();
   const { isPomoActive, canStart, stopPomodoroIfActive, handleStartPomodoro, handleToggleDone } =
     useTaskItemActions(task, onToggle);
   const { handleClearDate, handleConfirmDate } = useTaskScheduleActions(task, () =>
