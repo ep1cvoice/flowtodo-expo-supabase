@@ -28,6 +28,7 @@ jest.mock('@/features/tasks/lib/seedDemoData', () => ({ seedDemoData: jest.fn() 
 jest.mock('@/features/tasks/lib/queries', () => ({
   fetchTasksSnapshot: jest.fn(),
   fetchCompletedPage: jest.fn(),
+  fetchTaskById: jest.fn(),
 }));
 jest.mock('@/features/tasks/lib/mutations', () => ({}));
 

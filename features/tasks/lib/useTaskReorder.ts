@@ -25,9 +25,14 @@ export function useTaskReorder({
 
   const persistOrder = useCallback(
     (orderedActive: Task[]) => {
-      void reorderTasks(
-        orderedActive.map((task, index) => ({ id: task.id, sortOrder: index }))
-      ).catch((err) => {
+      // Only tasks whose position actually changed are sent.
+      const changed = orderedActive
+        .map((task, index) => ({ id: task.id, sortOrder: index, previous: task.sortOrder }))
+        .filter((item) => item.sortOrder !== item.previous)
+        .map(({ id, sortOrder }) => ({ id, sortOrder }));
+      if (changed.length === 0) return;
+
+      void reorderTasks(changed).catch((err) => {
         logger.warn('Failed to reorder tasks:', err?.message ?? err);
         showToast(toastForError(err, strings.tasks.saveOrderFailed), 'error');
       });

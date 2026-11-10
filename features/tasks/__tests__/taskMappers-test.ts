@@ -1,6 +1,7 @@
 import { logger } from '@/shared/lib/logger';
 import { DecryptionError } from '@/core/crypto/decryptColumn';
 import {
+  buildLabelLookup,
   mapCategory,
   mapCategoryOrPlaceholder,
   mapTag,
@@ -61,7 +62,14 @@ describe('task mappers', () => {
     });
   });
 
-  it('maps a task with nested category and tags', () => {
+  it('maps a task resolving category and tags through the label lookup', () => {
+    const labels = buildLabelLookup(
+      [{ id: 1, name: 'Work', color: '#3b82f6', icon: 'Briefcase' }],
+      [
+        { id: 2, name: 'Urgent', color: '#64748b' },
+        { id: 3, name: 'Home', color: '#000000' },
+      ]
+    );
     const task = mapTask(
       {
         id: 10,
@@ -77,31 +85,10 @@ describe('task mappers', () => {
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
         completed_at: null,
-        categories: {
-          id: 1,
-          user_id: 'abc',
-          color: '#3b82f6',
-          icon: 'Briefcase',
-          created_at: '2026-01-01T00:00:00Z',
-          name_enc: 'cat',
-          name_iv: 'iv-c',
-          name_hash: null,
-        },
-        task_tags: [
-          {
-            tags: {
-              id: 2,
-              user_id: 'abc',
-              color: '#64748b',
-              created_at: '2026-01-01T00:00:00Z',
-              name_enc: 'tag',
-              name_iv: 'iv-g',
-              name_hash: null,
-            },
-          },
-        ],
+        task_tags: [{ tag_id: 2 }, { tag_id: 99 }],
       },
-      dek
+      dek,
+      labels
     );
 
     expect(task).toMatchObject({
@@ -112,8 +99,9 @@ describe('task mappers', () => {
       completedAt: null,
       categoryId: 1,
       sortOrder: 1,
-      category: { id: 1, name: 'dec(cat:iv-c)' },
-      tags: [{ id: 2, name: 'dec(tag:iv-g)' }],
+      category: { id: 1, name: 'Work' },
+      // Unknown tag ids are skipped.
+      tags: [{ id: 2, name: 'Urgent' }],
     });
   });
 
@@ -140,9 +128,9 @@ describe('task mappers', () => {
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
       completed_at: null,
-      categories: null,
       task_tags: null,
     };
+    const noLabels = buildLabelLookup([], []);
 
     it('throws when there is no DEK', () => {
       const row = { ...catRow, name_enc: 'work', name_iv: 'iv1' };
@@ -182,20 +170,20 @@ describe('task mappers', () => {
     });
 
     it('throws when a task title cannot be decrypted, instead of returning an empty title', () => {
-      expect(() => mapTask({ ...taskRow, title_enc: 'bad' }, dek)).toThrow(
+      expect(() => mapTask({ ...taskRow, title_enc: 'bad' }, dek, noLabels)).toThrow(
         'Failed to decrypt tasks#4.title'
       );
-      expect(() => mapTask({ ...taskRow, title_enc: null, title_iv: null }, dek)).toThrow(
+      expect(() => mapTask({ ...taskRow, title_enc: null, title_iv: null }, dek, noLabels)).toThrow(
         /tasks#4\.title: ciphertext is missing/
       );
     });
 
     it('treats a NULL description as empty, but a half-stored one as corrupt', () => {
-      expect(mapTask(taskRow, dek).description).toBe('');
-      expect(() => mapTask({ ...taskRow, description_enc: 'desc', description_iv: null }, dek)).toThrow(
+      expect(mapTask(taskRow, dek, noLabels).description).toBe('');
+      expect(() => mapTask({ ...taskRow, description_enc: 'desc', description_iv: null }, dek, noLabels)).toThrow(
         /tasks#4\.description: IV is missing/
       );
-      expect(() => mapTask({ ...taskRow, description_enc: 'bad', description_iv: 'iv-d' }, dek)).toThrow(
+      expect(() => mapTask({ ...taskRow, description_enc: 'bad', description_iv: 'iv-d' }, dek, noLabels)).toThrow(
         'Failed to decrypt tasks#4.description'
       );
     });
@@ -204,6 +192,10 @@ describe('task mappers', () => {
 
 describe('mapTaskOrPlaceholder', () => {
   const dek = new Uint8Array(32);
+  const labels = buildLabelLookup(
+    [{ id: 1, name: 'Work', color: '#111111', icon: 'x' }],
+    [{ id: 8, name: 'Urgent', color: '#222222' }]
+  );
   const row: any = {
     id: 5,
     user_id: 'u1',
@@ -218,29 +210,7 @@ describe('mapTaskOrPlaceholder', () => {
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     completed_at: '2026-02-01T00:00:00Z',
-    categories: {
-      id: 1,
-      user_id: 'u1',
-      color: '#111111',
-      icon: 'x',
-      created_at: '2026-01-01T00:00:00Z',
-      name_enc: 'cat',
-      name_iv: 'iv-c',
-      name_hash: null,
-    },
-    task_tags: [
-      {
-        tags: {
-          id: 8,
-          user_id: 'u1',
-          color: '#222222',
-          created_at: '2026-01-01T00:00:00Z',
-          name_enc: 'tag',
-          name_iv: 'iv-g',
-          name_hash: null,
-        },
-      },
-    ],
+    task_tags: [{ tag_id: 8 }],
   };
 
   beforeEach(() => {
@@ -252,12 +222,12 @@ describe('mapTaskOrPlaceholder', () => {
   });
 
   it('maps a healthy row exactly like mapTask', () => {
-    expect(mapTaskOrPlaceholder(row, dek)).toEqual(mapTask(row, dek));
+    expect(mapTaskOrPlaceholder(row, dek, labels)).toEqual(mapTask(row, dek, labels));
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('returns a placeholder for a row whose title cannot be decrypted and logs a warning', () => {
-    const task = mapTaskOrPlaceholder({ ...row, title_enc: 'bad' }, dek);
+    const task = mapTaskOrPlaceholder({ ...row, title_enc: 'bad' }, dek, labels);
 
     expect(task).toMatchObject({
       id: 5,
@@ -268,22 +238,19 @@ describe('mapTaskOrPlaceholder', () => {
       completedAt: '2026-02-01T00:00:00Z',
       categoryId: 1,
       sortOrder: 4,
-      category: { id: 1, name: 'dec(cat:iv-c)' },
-      tags: [{ id: 8, name: 'dec(tag:iv-g)' }],
+      category: { id: 1, name: 'Work' },
+      tags: [{ id: 8, name: 'Urgent' }],
     });
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('tasks#5.title'));
   });
 
-  it('uses placeholder labels in the placeholder task when labels are corrupt too', () => {
-    const task = mapTaskOrPlaceholder(
-      {
-        ...row,
-        categories: { ...row.categories, name_enc: 'bad' },
-        task_tags: [{ tags: { ...row.task_tags[0].tags, name_enc: 'bad' } }],
-      },
-      dek
+  it('keeps the (possibly placeholder) labels from the lookup in the placeholder task', () => {
+    const placeholderLabels = buildLabelLookup(
+      [{ id: 1, name: 'Unable to decrypt', color: '#111111', icon: 'x' }],
+      [{ id: 8, name: 'Unable to decrypt', color: '#222222' }]
     );
+    const task = mapTaskOrPlaceholder({ ...row, title_enc: 'bad' }, dek, placeholderLabels);
     expect(task.title).toBe('Unable to decrypt');
     expect(task.category).toMatchObject({ id: 1, name: 'Unable to decrypt', color: '#111111' });
     expect(task.categoryId).toBe(1);
@@ -291,7 +258,7 @@ describe('mapTaskOrPlaceholder', () => {
   });
 
   it('still throws when there is no DEK (not a per-row problem)', () => {
-    expect(() => mapTaskOrPlaceholder(row, null)).toThrow(DecryptionError);
+    expect(() => mapTaskOrPlaceholder(row, null, labels)).toThrow(DecryptionError);
     expect(logger.warn).not.toHaveBeenCalled();
   });
 });

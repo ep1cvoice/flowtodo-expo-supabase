@@ -118,6 +118,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          demo_seeded_at: string | null
           dek_iv: string | null
           dek_iv_backup: string | null
           encrypted_dek: string | null
@@ -135,6 +136,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          demo_seeded_at?: string | null
           dek_iv?: string | null
           dek_iv_backup?: string | null
           encrypted_dek?: string | null
@@ -152,6 +154,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          demo_seeded_at?: string | null
           dek_iv?: string | null
           dek_iv_backup?: string | null
           encrypted_dek?: string | null
@@ -259,7 +262,6 @@ export type Database = {
           created_at?: string
           description_enc?: string | null
           description_iv?: string | null
-          done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
@@ -274,7 +276,6 @@ export type Database = {
           created_at?: string
           description_enc?: string | null
           description_iv?: string | null
-          done?: boolean
           id?: number
           scheduled?: string | null
           sort_order?: number
@@ -307,6 +308,10 @@ export type Database = {
     Functions: {
       delete_own_account: { Args: never; Returns: undefined }
       reorder_tasks: { Args: { p_items: Json }; Returns: undefined }
+      seed_demo_data: {
+        Args: { p_categories: Json; p_tags: Json; p_tasks: Json }
+        Returns: boolean
+      }
       update_task_with_tags: {
         Args: {
           p_task_id: number

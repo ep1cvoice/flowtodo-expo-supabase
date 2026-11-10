@@ -57,9 +57,19 @@ export type TasksAction =
   | { type: 'tagInserted'; tag: Tag; index: number }
   /** Moves the task into the active/completed bucket matching `task.done`. */
   | { type: 'taskMoved'; task: Task }
+  /** Replaces the task in place if it is already loaded, otherwise inserts it. */
+  | { type: 'taskUpserted'; task: Task }
   | { type: 'taskRemoved'; id: number }
   | { type: 'allActiveCleared' }
   | { type: 'allCompletedCleared' }
+  /** Inverse of allCompletedCleared: puts the removed completed tasks and paging info back. */
+  | {
+      type: 'completedRestored';
+      tasks: Task[];
+      completedCount: number;
+      completedCursor: CompletedCursor | null;
+      hasMoreCompleted: boolean;
+    }
   | { type: 'sortOrdersApplied'; orders: Record<number, number> };
 
 function patchTasks(tasks: Task[], patches: Record<number, Partial<Task>>): Task[] {
@@ -168,6 +178,20 @@ export function tasksReducer(state: TasksData, action: TasksAction): TasksData {
       };
     }
 
+    case 'taskUpserted': {
+      const { task } = action;
+      const loaded =
+        state.activeTasks.some((t) => t.id === task.id) ||
+        state.completedTasks.some((t) => t.id === task.id);
+      if (!loaded) return tasksReducer(state, { type: 'taskMoved', task });
+      const replace = (list: Task[]) => list.map((t) => (t.id === task.id ? task : t));
+      return {
+        ...state,
+        activeTasks: replace(state.activeTasks),
+        completedTasks: replace(state.completedTasks),
+      };
+    }
+
     case 'taskRemoved': {
       const wasCompleted = state.completedTasks.some((t) => t.id === action.id);
       return {
@@ -190,6 +214,15 @@ export function tasksReducer(state: TasksData, action: TasksAction): TasksData {
         completedCount: 0,
         completedCursor: null,
         hasMoreCompleted: false,
+      };
+
+    case 'completedRestored':
+      return {
+        ...state,
+        completedTasks: mergeCompletedTasks(state.completedTasks, action.tasks),
+        completedCount: action.completedCount,
+        completedCursor: action.completedCursor,
+        hasMoreCompleted: action.hasMoreCompleted,
       };
 
     case 'sortOrdersApplied':

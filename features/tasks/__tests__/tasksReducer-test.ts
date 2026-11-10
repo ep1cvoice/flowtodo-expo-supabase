@@ -122,3 +122,25 @@ describe('tasksReducer', () => {
     });
   });
 });
+
+describe('taskUpserted', () => {
+  const mk = (id: number, extra: object = {}): any => ({
+    id, title: `t${id}`, description: '', done: false, scheduled: null, completedAt: null,
+    created: 'x', categoryId: null, category: null, sortOrder: id, tags: [], ...extra,
+  });
+
+  it('replaces a loaded task in place, in either bucket', () => {
+    const start = { ...initialTasksData, activeTasks: [mk(1), mk(2)], completedTasks: [mk(3, { done: true, completedAt: '2026-01-01T00:00:00Z' })], completedCount: 1 };
+    const a = tasksReducer(start, { type: 'taskUpserted', task: mk(2, { title: 'new' }) });
+    expect(a.activeTasks.map((t) => t.title)).toEqual(['t1', 'new']);
+    const c = tasksReducer(start, { type: 'taskUpserted', task: mk(3, { title: 'new', done: true, completedAt: '2026-01-01T00:00:00Z' }) });
+    expect(c.completedTasks[0].title).toBe('new');
+    expect(c.completedCount).toBe(1);
+  });
+
+  it('inserts an unknown task into the active list by sortOrder', () => {
+    const start = { ...initialTasksData, activeTasks: [mk(1, { sortOrder: 3 }), mk(2, { sortOrder: 5 })] };
+    const next = tasksReducer(start, { type: 'taskUpserted', task: mk(9, { sortOrder: 2 }) });
+    expect(next.activeTasks.map((t) => t.id)).toEqual([9, 1, 2]);
+  });
+});

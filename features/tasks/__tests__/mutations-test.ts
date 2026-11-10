@@ -24,7 +24,7 @@ import {
   deleteTaskForUser,
   insertEncryptedTag,
   insertEncryptedTask,
-  setTaskDoneRow,
+  setTaskCompletedAtRow,
   updateEncryptedTask,
   updateTaskSortOrders,
 } from '@/features/tasks/lib/mutations';
@@ -66,8 +66,9 @@ describe('insertEncryptedTask', () => {
       description_enc: 'desc_ct',
       category_id: 3,
       sort_order: 5,
-      done: false,
     });
+    // `done` is derived from completed_at by the database and must not be written.
+    expect(payload).not.toHaveProperty('done');
     expect(JSON.stringify(payload)).not.toContain('Secret');
   });
 
@@ -171,14 +172,11 @@ describe('simple mutations', () => {
     expect(callsOf(b, 'eq')).toEqual([['id', 5], ['user_id', 'u1']]);
   });
 
-  it('setTaskDoneRow sets done and completed_at', async () => {
+  it('setTaskCompletedAtRow writes only completed_at (done is derived by the database)', async () => {
     const b = createBuilder();
     from.mockReturnValueOnce(b);
-    await setTaskDoneRow('u1', 5, true, '2026-11-03T10:00:00Z');
-    expect(callsOf(b, 'update')[0][0]).toEqual({
-      done: true,
-      completed_at: '2026-11-03T10:00:00Z',
-    });
+    await setTaskCompletedAtRow('u1', 5, '2026-11-03T10:00:00Z');
+    expect(callsOf(b, 'update')[0][0]).toEqual({ completed_at: '2026-11-03T10:00:00Z' });
   });
 
   it('updateTaskSortOrders calls reorder_tasks RPC once', async () => {

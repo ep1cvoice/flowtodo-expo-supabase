@@ -12,10 +12,35 @@ type CategoryRow = Database['public']['Tables']['categories']['Row'];
 type TagRow = Database['public']['Tables']['tags']['Row'];
 type TaskRow = Database['public']['Tables']['tasks']['Row'];
 
+/** A task row as selected by TASK_SELECT: labels are referenced by id only. */
 export type TaskQueryRow = TaskRow & {
-  categories: CategoryRow | null;
-  task_tags: { tags: TagRow | null }[] | null;
+  task_tags: { tag_id: number }[] | null;
 };
+
+/** Already decrypted labels, used to resolve the ids referenced by task rows. */
+export interface LabelLookup {
+  categories: Map<number, Category>;
+  tags: Map<number, Tag>;
+}
+
+export function buildLabelLookup(categories: Category[], tags: Tag[]): LabelLookup {
+  return {
+    categories: new Map(categories.map((c) => [c.id, c])),
+    tags: new Map(tags.map((t) => [t.id, t])),
+  };
+}
+
+function resolveLabels(row: TaskQueryRow, labels: LabelLookup) {
+  const categoryId = row.category_id != null ? Number(row.category_id) : null;
+  const tags = (row.task_tags ?? [])
+    .map((link) => labels.tags.get(Number(link.tag_id)))
+    .filter((t): t is Tag => t != null);
+  return {
+    categoryId,
+    category: categoryId != null ? (labels.categories.get(categoryId) ?? null) : null,
+    tags,
+  };
+}
 
 // All mappers below throw DecryptionError (see core/crypto/decryptColumn) when a value
 // cannot be decrypted: missing DEK, missing ciphertext/IV, or a failed decryption.
@@ -45,12 +70,7 @@ export function mapTag(row: TagRow, dek: Uint8Array | null): Tag {
   };
 }
 
-export function mapTask(row: TaskQueryRow, dek: Uint8Array | null): Task {
-  const category = row.categories ? mapCategory(row.categories, dek) : null;
-  const tags = (row.task_tags ?? [])
-    .map((link) => (link.tags ? mapTag(link.tags, dek) : null))
-    .filter((t): t is Tag => t != null);
-
+export function mapTask(row: TaskQueryRow, dek: Uint8Array | null, labels: LabelLookup): Task {
   return {
     id: Number(row.id),
     title: decryptColumn(dek, row.title_enc, row.title_iv, {
@@ -68,10 +88,8 @@ export function mapTask(row: TaskQueryRow, dek: Uint8Array | null): Task {
     scheduled: row.scheduled,
     completedAt: row.completed_at,
     created: row.created_at,
-    categoryId: row.category_id != null ? Number(row.category_id) : null,
-    category,
+    ...resolveLabels(row, labels),
     sortOrder: row.sort_order,
-    tags,
   };
 }
 
@@ -111,18 +129,22 @@ export function mapTagOrPlaceholder(row: TagRow, dek: Uint8Array | null): Tag {
  * Like mapTask, but a row that cannot be decrypted becomes a placeholder task (so one
  * corrupted row does not break the whole list). A missing DEK still throws.
  */
-export function mapTaskOrPlaceholder(row: TaskQueryRow, dek: Uint8Array | null): Task {
+export function mapTaskOrPlaceholder(
+  row: TaskQueryRow,
+  dek: Uint8Array | null,
+  labels: LabelLookup
+): Task {
   try {
-    return mapTask(row, dek);
+    return mapTask(row, dek, labels);
   } catch (err) {
     if (!isRowProblem(err, dek)) throw err;
     logger.warn(strings.tasks.undecryptableLog, (err as Error).message);
-    return placeholderTask(row, dek);
+    return placeholderTask(row, labels);
   }
 }
 
-function placeholderTask(row: TaskQueryRow, dek: Uint8Array): Task {
-  // Keep whatever is still readable: unencrypted columns, and labels (placeholders if broken).
+function placeholderTask(row: TaskQueryRow, labels: LabelLookup): Task {
+  // Keep whatever is still readable: unencrypted columns and the (already mapped) labels.
   return {
     id: Number(row.id),
     title: strings.tasks.undecryptableTitle,
@@ -131,11 +153,7 @@ function placeholderTask(row: TaskQueryRow, dek: Uint8Array): Task {
     scheduled: row.scheduled,
     completedAt: row.completed_at,
     created: row.created_at,
-    categoryId: row.category_id != null ? Number(row.category_id) : null,
-    category: row.categories ? mapCategoryOrPlaceholder(row.categories, dek) : null,
+    ...resolveLabels(row, labels),
     sortOrder: row.sort_order,
-    tags: (row.task_tags ?? [])
-      .map((link) => (link.tags ? mapTagOrPlaceholder(link.tags, dek) : null))
-      .filter((t): t is Tag => t != null),
   };
 }

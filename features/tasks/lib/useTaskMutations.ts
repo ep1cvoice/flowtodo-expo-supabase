@@ -2,6 +2,8 @@ import { strings } from '@/shared/lib/strings';
 import { useMemo, type Dispatch, type MutableRefObject } from 'react';
 
 import { requireDek } from '@/core/auth/requireDek';
+import { fetchTaskById } from '@/features/tasks/lib/queries';
+import { buildLabelLookup } from '@/features/tasks/lib/taskMappers';
 import {
   deleteCategoryForUser,
   deleteTagForUser,
@@ -10,7 +12,7 @@ import {
   insertEncryptedCategory,
   insertEncryptedTag,
   insertEncryptedTask,
-  setTaskDoneRow,
+  setTaskCompletedAtRow,
   setTaskScheduledRow,
   updateEncryptedTask,
   updateTaskSortOrders,
@@ -34,14 +36,12 @@ export interface TaskMutationsSnapshot {
 export interface TaskMutationsParams {
   latest: MutableRefObject<TaskMutationsSnapshot>;
   dispatch: Dispatch<TasksAction>;
-  refresh: (userId: string) => Promise<unknown>;
 }
 
 /**
- * All returned actions are referentially stable as long as `latest`, `dispatch` and `refresh`
- * are; they read the current user, DEK and task data through `latest`.
+ * All returned actions are referentially stable as long as `latest` and `dispatch` are; they read the current user, DEK and task data through `latest`.
  */
-export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsParams) {
+export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
   return useMemo(() => {
     const requireUserId = () => {
       const { user } = latest.current;
@@ -68,6 +68,18 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
       }
     };
 
+    /** Re-reads one task after a write and puts it into the state (no full refresh). */
+    const syncTask = async (userId: string, id: number) => {
+      const { dek, data } = latest.current;
+      const task = await fetchTaskById(
+        userId,
+        id,
+        dek,
+        buildLabelLookup(data.categories, data.tags)
+      );
+      if (task) dispatch({ type: 'taskUpserted', task });
+    };
+
     const addTask = async ({
       title,
       description,
@@ -82,7 +94,7 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
         ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
         : 0;
 
-      await insertEncryptedTask({
+      const id = await insertEncryptedTask({
         userId,
         dek: activeDek,
         title,
@@ -92,7 +104,7 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
         scheduled: scheduled ?? null,
         sortOrder: minSort,
       });
-      await refresh(userId);
+      await syncTask(userId, id);
     };
 
     const updateTask = async (
@@ -110,7 +122,7 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
         categoryId,
         tagIds,
       });
-      await refresh(userId);
+      await syncTask(userId, id);
     };
 
     const setTaskScheduled = async (id: number, scheduled: string | null) => {
@@ -194,26 +206,52 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
       await runOptimistic(
         [{ type: 'taskMoved', task: nextTask }],
         [{ type: 'taskMoved', task: current }],
-        () => setTaskDoneRow(userId, id, nextDone, nextCompletedAt)
+        () => setTaskCompletedAtRow(userId, id, nextCompletedAt)
       );
     };
 
     const deleteTask = async (id: number) => {
       const userId = requireUserId();
-      await deleteTaskForUser(userId, id);
-      dispatch({ type: 'taskRemoved', id });
+      const { activeTasks, completedTasks } = latest.current.data;
+      const current =
+        activeTasks.find((t) => t.id === id) ?? completedTasks.find((t) => t.id === id);
+
+      await runOptimistic(
+        [{ type: 'taskRemoved', id }],
+        current ? [{ type: 'taskUpserted', task: current }] : [],
+        () => deleteTaskForUser(userId, id)
+      );
     };
 
     const deleteAllActive = async () => {
       const userId = requireUserId();
-      await deleteTasksByDone(userId, false);
-      dispatch({ type: 'allActiveCleared' });
+      const { activeTasks } = latest.current.data;
+
+      await runOptimistic(
+        [{ type: 'allActiveCleared' }],
+        activeTasks.map((task): TasksAction => ({ type: 'taskUpserted', task })),
+        () => deleteTasksByDone(userId, false)
+      );
     };
 
     const deleteAllCompleted = async () => {
       const userId = requireUserId();
-      await deleteTasksByDone(userId, true);
-      dispatch({ type: 'allCompletedCleared' });
+      const { completedTasks, completedCount, completedCursor, hasMoreCompleted } =
+        latest.current.data;
+
+      await runOptimistic(
+        [{ type: 'allCompletedCleared' }],
+        [
+          {
+            type: 'completedRestored',
+            tasks: completedTasks,
+            completedCount,
+            completedCursor,
+            hasMoreCompleted,
+          },
+        ],
+        () => deleteTasksByDone(userId, true)
+      );
     };
 
     const reorderTasks = async (items: { id: number; sortOrder: number }[]) => {
@@ -246,5 +284,5 @@ export function useTaskMutations({ latest, dispatch, refresh }: TaskMutationsPar
       deleteAllCompleted,
       reorderTasks,
     };
-  }, [latest, dispatch, refresh]);
+  }, [latest, dispatch]);
 }

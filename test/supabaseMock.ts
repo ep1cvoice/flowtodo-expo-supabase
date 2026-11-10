@@ -1,4 +1,4 @@
-type Result = { data?: any; error?: any };
+type Result = { data?: any; error?: any; count?: number | null };
 export type Call = { method: string; args: any[] };
 
 export function createBuilder(result: Result = { data: null, error: null }) {
