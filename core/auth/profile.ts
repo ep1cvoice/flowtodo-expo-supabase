@@ -7,14 +7,14 @@ import {
   PROFILE_RETRY_ATTEMPTS,
   PROFILE_RETRY_DELAY_MS,
 } from '@/core/auth/constants';
+import { withRetry } from '@/shared/lib/retry';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
 import { logger } from '@/shared/lib/logger';
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+/** Raised when the profile query resolves with an error or no row, so it is retried like a thrown failure. */
+class ProfileQueryError extends Error {}
 
 export function minimalUserFromSession(userId: string, email: string | undefined): User {
   return {
@@ -27,32 +27,26 @@ export function minimalUserFromSession(userId: string, email: string | undefined
   };
 }
 
-export async function fetchProfile(
-  userId: string,
-  email: string | undefined,
-  attempt = 1
-): Promise<User | null> {
+export async function fetchProfile(userId: string, email: string | undefined): Promise<User | null> {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('profiles')
-        .select(
-          'username, theme, notification_type, pomodoro_time, view, max_filter_selections'
-        )
-        .eq('id', userId)
-        .single(),
-      PROFILE_FETCH_TIMEOUT_MS,
-      'fetchProfile'
+    const data = await withRetry(
+      async () => {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('profiles')
+            .select(
+              'username, theme, notification_type, pomodoro_time, view, max_filter_selections'
+            )
+            .eq('id', userId)
+            .single(),
+          PROFILE_FETCH_TIMEOUT_MS,
+          'fetchProfile'
+        );
+        if (error || !data) throw new ProfileQueryError(error?.message);
+        return data;
+      },
+      { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
-
-    if (error || !data) {
-      if (attempt < PROFILE_RETRY_ATTEMPTS) {
-        await wait(PROFILE_RETRY_DELAY_MS * attempt);
-        return fetchProfile(userId, email, attempt + 1);
-      }
-      logger.warn('fetchProfile failed after retries:', error?.message);
-      return null;
-    }
 
     return {
       id: userId,
@@ -70,11 +64,11 @@ export async function fetchProfile(
       },
     };
   } catch (err) {
-    if (attempt < PROFILE_RETRY_ATTEMPTS) {
-      await wait(PROFILE_RETRY_DELAY_MS * attempt);
-      return fetchProfile(userId, email, attempt + 1);
+    if (err instanceof ProfileQueryError) {
+      logger.warn('fetchProfile failed after retries:', err.message || undefined);
+    } else {
+      logger.warn('fetchProfile threw after retries:', (err as Error)?.message ?? err);
     }
-    logger.warn('fetchProfile threw after retries:', (err as Error)?.message ?? err);
     return null;
   }
 }
