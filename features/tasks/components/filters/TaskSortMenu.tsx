@@ -49,19 +49,19 @@ export function TaskSortToggle({ mode, onPress }: TaskSortToggleProps) {
   );
 }
 
-interface TaskSortSheetProps {
+interface TaskSortMenuProps {
   visible: boolean;
   mode: TaskSortMode;
   onSelect: (mode: TaskSortMode) => void;
   onClose: () => void;
 }
 
-export default function TaskSortSheet({
+export default function TaskSortMenu({
   visible,
   mode,
   onSelect,
   onClose,
-}: TaskSortSheetProps) {
+}: TaskSortMenuProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 

@@ -27,9 +27,6 @@ import { withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 import { logger } from '@/shared/lib/logger';
 
-export type { AddCategoryInput, AddTagInput, AddTaskInput, TaskFormInput, UpdateTaskInput };
-
-
 interface TasksContextValue {
   tasks: Task[];
   activeTasks: Task[];

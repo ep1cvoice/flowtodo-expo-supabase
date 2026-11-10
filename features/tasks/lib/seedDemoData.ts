@@ -3,7 +3,7 @@ import {
   DEMO_TAGS,
   DEMO_TASKS,
   scheduledAtNoon,
-} from '@/features/tasks/demoSeed';
+} from '@/features/tasks/lib/demoSeed';
 import {
   insertEncryptedCategory,
   insertEncryptedTag,

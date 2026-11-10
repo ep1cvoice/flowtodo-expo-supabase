@@ -20,7 +20,7 @@ import { createActiveTasksStyles } from '@/features/tasks/components/activeTasks
 import TaskFilterBar from '@/features/tasks/components/filters/TaskFilterBar';
 import TaskFilterSheet from '@/features/tasks/components/filters/TaskFilterSheet';
 import TaskSearchBar from '@/features/tasks/components/filters/TaskSearchBar';
-import TaskSortSheet from '@/features/tasks/components/filters/TaskSortMenu';
+import TaskSortMenu from '@/features/tasks/components/filters/TaskSortMenu';
 import ActiveDayCalendar from '@/features/tasks/components/calendar/ActiveDayCalendar';
 import EmptyState from '@/shared/ui/EmptyState';
 import { tokens } from '@/shared/constants/theme';
@@ -268,7 +268,7 @@ export default function ActiveTasks() {
         onClose={() => setShowFilterSheet(false)}
       />
 
-      <TaskSortSheet
+      <TaskSortMenu
         visible={showSortSheet}
         mode={sortMode}
         onSelect={handleSelectSort}
