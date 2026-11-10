@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 import type { PomoData, PomoRecord } from '@/types';
+import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
 import { useTasks } from '@/features/tasks/TasksContext';
@@ -44,14 +45,6 @@ interface PomodoroContextValue {
 }
 
 const PomodoroContext = createContext<PomodoroContextValue | null>(null);
-
-function computeElapsedMs(pomo: PomoData, now = Date.now()): number {
-  const base = Number(pomo.elapsed) || 0;
-  if (pomo.pausedAt || pomo.endedAt) return base;
-  const startedAt = new Date(pomo.startedAt).getTime();
-  if (Number.isNaN(startedAt)) return base;
-  return base + Math.max(0, now - startedAt);
-}
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();

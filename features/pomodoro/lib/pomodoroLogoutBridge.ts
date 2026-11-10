@@ -1,6 +1,7 @@
 import type { PomoData } from '@/types';
 import { pausePomodoroRow } from '@/features/pomodoro/lib/mutations';
 import { logger } from '@/shared/lib/logger';
+import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 
 type Snapshot = { userId: string; pomo: PomoData };
 
@@ -11,14 +12,6 @@ export function registerPomodoroLogoutSnapshot(fn: () => Snapshot | null) {
   return () => {
     if (getSnapshot === fn) getSnapshot = null;
   };
-}
-
-function computeElapsedMs(pomo: PomoData, now = Date.now()): number {
-  const base = Number(pomo.elapsed) || 0;
-  if (pomo.pausedAt || pomo.endedAt) return base;
-  const startedAt = new Date(pomo.startedAt).getTime();
-  if (Number.isNaN(startedAt)) return base;
-  return base + Math.max(0, now - startedAt);
 }
 
 /** Freeze a running session before auth tokens are cleared. */
