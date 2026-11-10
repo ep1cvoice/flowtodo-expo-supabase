@@ -3,10 +3,8 @@ import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
+import { env } from '@/shared/config/env';
 import { isWeb } from '@/shared/lib/platform';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 /** Expo web static/SSR runs in Node — no `window`. Native is fine. */
 const isWebSsr = isWeb && typeof window === 'undefined';
@@ -26,7 +24,7 @@ const authStorage: SupportedStorage = {
   },
 };
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(env.supabaseUrl, env.supabaseAnonKey, {
   auth: {
     storage: authStorage,
     autoRefreshToken: !isWebSsr,
