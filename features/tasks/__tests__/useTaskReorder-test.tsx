@@ -36,12 +36,12 @@ function setup(over: Partial<Parameters<typeof useTaskReorder>[0]> = {}) {
   );
 }
 
-it('persists the full order with sequential sortOrder on moveTask (no filter)', async () => {
+it('persists sequential sortOrder for the changed tasks on moveTask (no filter)', async () => {
   const { result } = await setup();
   result.current.moveTask(1, 1);
   expect(mockReorderTasks).toHaveBeenCalledWith([
     { id: 2, sortOrder: 0 },
-    { id: 1, sortOrder: 1 },
+    // Task 1 already has sortOrder 1 in this fixture, so it is not sent.
     { id: 3, sortOrder: 2 },
     { id: 4, sortOrder: 3 },
   ]);
@@ -92,4 +92,24 @@ it('shows an error toast when persisting fails', async () => {
   result.current.moveTask(1, 1);
   await new Promise<void>((r) => setImmediate(r));
   expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+});
+
+describe('only changed positions are sent', () => {
+  const t = (id: number, sortOrder: number): any => ({ id, title: `T${id}`, sortOrder });
+  const w = t(1, 0), x = t(2, 1), y = t(3, 2), z = t(4, 3);
+
+  it('sends just the two swapped tasks', async () => {
+    const { result } = await setup({ activeTasks: [w, x, y, z], filteredTasks: [w, x, y, z] });
+    result.current.moveTask(2, 1);
+    expect(mockReorderTasks).toHaveBeenCalledWith([
+      { id: 3, sortOrder: 1 },
+      { id: 2, sortOrder: 2 },
+    ]);
+  });
+
+  it('sends nothing when the resulting order equals the current one', async () => {
+    const { result } = await setup({ activeTasks: [w, x, y, z], filteredTasks: [w, x, y, z] });
+    result.current.handleDragEnd({ data: [w, x, y, z] });
+    expect(mockReorderTasks).not.toHaveBeenCalled();
+  });
 });

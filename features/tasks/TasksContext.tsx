@@ -17,6 +17,7 @@ import {
   useTaskMutations,
   type TaskMutationsSnapshot,
 } from '@/features/tasks/lib/useTaskMutations';
+import { buildLabelLookup } from '@/features/tasks/lib/taskMappers';
 import { fetchCompletedPage, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
 import type {
   AddCategoryInput,
@@ -144,9 +145,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
         const activeDek = latest.current.dek;
         if (isEmpty && activeDek) {
-          await withTimeout(seedDemoData(userId, activeDek), TASKS_REFRESH_TIMEOUT_MS, 'seedDemo');
+          const seeded = await withTimeout(
+            seedDemoData(userId, activeDek),
+            TASKS_REFRESH_TIMEOUT_MS,
+            'seedDemo'
+          );
           if (!isCurrent()) return;
-          await refresh(userId, 'refreshTasksAfterSeed');
+          // Not seeded = the account was seeded before and the user emptied it on purpose.
+          if (seeded) await refresh(userId, 'refreshTasksAfterSeed');
         }
       } catch (err) {
         logger.warn('Failed to load tasks domain:', (err as Error)?.message ?? err);
@@ -233,7 +239,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       const { page, hasMore, nextCursor } = await fetchCompletedPage(
         currentUser.id,
         current.completedCursor,
-        currentDek
+        currentDek,
+        buildLabelLookup(current.categories, current.tags)
       );
       dispatch({ type: 'completedPageLoaded', page, nextCursor, hasMore });
     } catch (err) {
@@ -258,7 +265,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     deleteAllActive,
     deleteAllCompleted,
     reorderTasks,
-  } = useTaskMutations({ latest, dispatch, refresh });
+  } = useTaskMutations({ latest, dispatch });
 
   const { completedCount, hasMoreCompleted, categories, tags } = data;
 

@@ -6,9 +6,11 @@ import {
   type CompletedCursor,
 } from '@/features/tasks/lib/completedPagination';
 import {
+  buildLabelLookup,
   mapCategoryOrPlaceholder,
   mapTagOrPlaceholder,
   mapTaskOrPlaceholder,
+  type LabelLookup,
   type TaskQueryRow,
 } from '@/features/tasks/lib/taskMappers';
 import { supabase } from '@/core/supabase/client';
@@ -28,22 +30,18 @@ export const TASK_SELECT = `
   category_id,
   created_at,
   updated_at,
-  categories ( id, user_id, name_enc, name_iv, name_hash, color, icon, created_at ),
-  task_tags ( tags ( id, user_id, name_enc, name_iv, name_hash, color, created_at ) )
+  task_tags ( tag_id )
 `;
 
 export function mapTaskRows(
   rows: TaskQueryRow[] | null | undefined,
-  dek: Uint8Array | null
+  dek: Uint8Array | null,
+  labels: LabelLookup
 ): Task[] {
-  return (rows ?? []).map((row) => mapTaskOrPlaceholder(row, dek));
+  return (rows ?? []).map((row) => mapTaskOrPlaceholder(row, dek, labels));
 }
 
-export async function fetchCompletedPage(
-  userId: string,
-  cursor: CompletedCursor | null,
-  dek: Uint8Array | null
-) {
+async function fetchCompletedRows(userId: string, cursor: CompletedCursor | null) {
   let query = supabase
     .from('tasks')
     .select(TASK_SELECT)
@@ -60,8 +58,15 @@ export async function fetchCompletedPage(
 
   const { data, error } = await query;
   if (error) throw error;
+  return data as TaskQueryRow[] | null;
+}
 
-  const rows = mapTaskRows(data as TaskQueryRow[] | null, dek);
+function toCompletedPage(
+  data: TaskQueryRow[] | null,
+  dek: Uint8Array | null,
+  labels: LabelLookup
+) {
+  const rows = mapTaskRows(data, dek, labels);
   const hasMore = rows.length > COMPLETED_PAGE_SIZE;
   const page = hasMore ? rows.slice(0, COMPLETED_PAGE_SIZE) : rows;
   const nextCursor = page.length > 0 ? getCompletedCursor(page[page.length - 1]) : null;
@@ -69,8 +74,35 @@ export async function fetchCompletedPage(
   return { page, hasMore, nextCursor };
 }
 
+/** `labels` must hold the user's already decrypted categories and tags. */
+export async function fetchCompletedPage(
+  userId: string,
+  cursor: CompletedCursor | null,
+  dek: Uint8Array | null,
+  labels: LabelLookup
+) {
+  return toCompletedPage(await fetchCompletedRows(userId, cursor), dek, labels);
+}
+
+/** Fetches a single task; null when it does not exist (e.g. deleted in the meantime). */
+export async function fetchTaskById(
+  userId: string,
+  id: number,
+  dek: Uint8Array | null,
+  labels: LabelLookup
+): Promise<Task | null> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(TASK_SELECT)
+    .eq('user_id', userId)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapTaskOrPlaceholder(data as TaskQueryRow, dek, labels) : null;
+}
+
 export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null) {
-  const [categoriesRes, tagsRes, activeRes, countRes, completedPage] = await Promise.all([
+  const [categoriesRes, tagsRes, activeRes, countRes, completedRes] = await Promise.all([
     supabase.from('categories').select('*').eq('user_id', userId),
     supabase.from('tags').select('*').eq('user_id', userId),
     supabase
@@ -84,7 +116,7 @@ export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null)
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('done', true),
-    fetchCompletedPage(userId, null, dek),
+    fetchCompletedRows(userId, null),
   ]);
 
   if (categoriesRes.error) throw categoriesRes.error;
@@ -98,7 +130,9 @@ export async function fetchTasksSnapshot(userId: string, dek: Uint8Array | null)
     .map((row) => mapCategoryOrPlaceholder(row, dek))
     .sort(byName);
   const tags: Tag[] = (tagsRes.data ?? []).map((row) => mapTagOrPlaceholder(row, dek)).sort(byName);
-  const activeTasks = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek);
+  const labels = buildLabelLookup(categories, tags);
+  const activeTasks = mapTaskRows(activeRes.data as TaskQueryRow[] | null, dek, labels);
+  const completedPage = toCompletedPage(completedRes, dek, labels);
   const completedTasks = sortCompletedTasks(completedPage.page);
 
   return {

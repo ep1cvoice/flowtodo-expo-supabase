@@ -22,6 +22,7 @@ jest.mock('@/features/tasks/lib/seedDemoData', () => ({ seedDemoData: jest.fn() 
 jest.mock('@/features/tasks/lib/queries', () => ({
   fetchTasksSnapshot: jest.fn(),
   fetchCompletedPage: jest.fn(),
+  fetchTaskById: jest.fn(),
 }));
 jest.mock('@/features/tasks/lib/mutations', () => ({
   deleteCategoryForUser: jest.fn(),
@@ -31,17 +32,18 @@ jest.mock('@/features/tasks/lib/mutations', () => ({
   insertEncryptedCategory: jest.fn(),
   insertEncryptedTag: jest.fn(),
   insertEncryptedTask: jest.fn(),
-  setTaskDoneRow: jest.fn(),
+  setTaskCompletedAtRow: jest.fn(),
   setTaskScheduledRow: jest.fn(),
   updateEncryptedTask: jest.fn(),
   updateTaskSortOrders: jest.fn(),
 }));
 
 import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
-import { fetchTasksSnapshot } from '@/features/tasks/lib/queries';
+import { fetchTaskById, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
 import { insertEncryptedTask, updateEncryptedTask } from '@/features/tasks/lib/mutations';
 
 const fetchSnapshot = fetchTasksSnapshot as jest.Mock;
+const fetchTask = fetchTaskById as jest.Mock;
 const insertTask = insertEncryptedTask as jest.Mock;
 const updateTask = updateEncryptedTask as jest.Mock;
 const seed = seedDemoData as jest.Mock;
@@ -95,9 +97,10 @@ beforeEach(() => {
   mockAuthState.loading = false;
   mockAuthState.dek = dek;
   fetchSnapshot.mockResolvedValue(snapshotWith([task(1, 3), task(2, 5)]));
-  insertTask.mockResolvedValue(undefined);
+  insertTask.mockResolvedValue(100);
+  fetchTask.mockImplementation(async (_u: string, id: number) => task(id, id === 100 ? 2 : 0));
   updateTask.mockResolvedValue(undefined);
-  seed.mockResolvedValue(undefined);
+  seed.mockResolvedValue(true);
 });
 
 describe('initial load', () => {
@@ -117,6 +120,17 @@ describe('initial load', () => {
     expect(seed).toHaveBeenCalledWith('u1', dek);
     expect(fetchSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([9]);
+  });
+
+  it('does not reload when the account was already seeded (user emptied it on purpose)', async () => {
+    fetchSnapshot.mockResolvedValue(snapshotWith([]));
+    seed.mockResolvedValue(false);
+
+    const { result } = await renderTasks();
+
+    expect(seed).toHaveBeenCalledWith('u1', dek);
+    expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+    expect(result.current.activeTasks).toEqual([]);
   });
 
   it('does not fetch or seed while the DEK is not available', async () => {
@@ -261,7 +275,7 @@ describe('addTask', () => {
     expect(insertTask).not.toHaveBeenCalled();
   });
 
-  it('encrypts with the session DEK, puts the new task first and refreshes the list', async () => {
+  it('encrypts with the session DEK and puts the new task first without a full refresh', async () => {
     const { result } = await renderTasks();
 
     await act(async () => {
@@ -278,7 +292,9 @@ describe('addTask', () => {
       scheduled: null,
       sortOrder: 2, // lowest existing sortOrder (3) minus 1
     });
-    expect(fetchSnapshot).toHaveBeenCalledTimes(2);
+    expect(fetchTask).toHaveBeenCalledWith('u1', 100, dek, expect.anything());
+    expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+    expect(result.current.activeTasks.map((t) => t.id)).toEqual([100, 1, 2]);
   });
 
   it('uses sortOrder 0 when the list is empty', async () => {
@@ -302,7 +318,7 @@ describe('addTask', () => {
     expect(insertTask).toHaveBeenCalledWith(expect.objectContaining({ scheduled: '2026-11-10' }));
   });
 
-  it('propagates a write error and does not refresh the list', async () => {
+  it('propagates a write error and does not fetch the task', async () => {
     const err = new Error('db down');
     insertTask.mockRejectedValue(err);
     const { result } = await renderTasks();
@@ -312,6 +328,7 @@ describe('addTask', () => {
     });
 
     expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+    expect(fetchTask).not.toHaveBeenCalled();
   });
 });
 
@@ -327,7 +344,7 @@ describe('updateTask', () => {
     expect(updateTask).not.toHaveBeenCalled();
   });
 
-  it('encrypts with the session DEK and refreshes the list', async () => {
+  it('encrypts with the session DEK and replaces only that task in the list', async () => {
     const { result } = await renderTasks();
 
     await act(async () => {
@@ -343,6 +360,11 @@ describe('updateTask', () => {
       categoryId: 2,
       tagIds: [1],
     });
-    expect(fetchSnapshot).toHaveBeenCalledTimes(2);
+    expect(fetchTask).toHaveBeenCalledWith('u1', 1, dek, expect.anything());
+    expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+    expect(result.current.activeTasks.map((t) => [t.id, t.sortOrder])).toEqual([
+      [1, 0],
+      [2, 5],
+    ]);
   });
 });

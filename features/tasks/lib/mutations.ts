@@ -23,7 +23,6 @@ export async function insertEncryptedTask(options: {
       user_id: options.userId,
       category_id: options.categoryId,
       sort_order: options.sortOrder,
-      done: false,
       scheduled: options.scheduled,
       ...enc,
     })
@@ -129,15 +128,15 @@ export async function setTaskScheduledRow(
   if (error) throw error;
 }
 
-export async function setTaskDoneRow(
+/** `done` is derived from `completed_at` by the database, so only that column is written. */
+export async function setTaskCompletedAtRow(
   userId: string,
   id: number,
-  done: boolean,
   completedAt: string | null
 ) {
   const { error } = await supabase
     .from('tasks')
-    .update({ done, completed_at: completedAt })
+    .update({ completed_at: completedAt })
     .eq('id', id)
     .eq('user_id', userId);
   if (error) throw error;

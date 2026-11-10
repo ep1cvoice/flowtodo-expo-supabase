@@ -1,5 +1,5 @@
 // Characterization tests for the optimistic-update / rollback behavior of useTaskMutations.
-import { useCallback, useReducer, useRef } from 'react';
+import { useReducer, useRef } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
 import { initialTasksData, tasksReducer } from '@/features/tasks/lib/tasksReducer';
 import { useTaskMutations, type TaskMutationsSnapshot } from '@/features/tasks/lib/useTaskMutations';
@@ -12,14 +12,19 @@ jest.mock('@/features/tasks/lib/mutations', () => ({
   insertEncryptedCategory: jest.fn(),
   insertEncryptedTag: jest.fn(),
   insertEncryptedTask: jest.fn(),
-  setTaskDoneRow: jest.fn(),
+  setTaskCompletedAtRow: jest.fn(),
   setTaskScheduledRow: jest.fn(),
   updateEncryptedTask: jest.fn(),
   updateTaskSortOrders: jest.fn(),
 }));
 
+jest.mock('@/features/tasks/lib/queries', () => ({ fetchTaskById: jest.fn() }));
+
 import * as m from '@/features/tasks/lib/mutations';
 
+import { fetchTaskById } from '@/features/tasks/lib/queries';
+
+const fetchTask = fetchTaskById as jest.Mock;
 const mocked = m as unknown as Record<string, jest.Mock>;
 
 const task = (id: number, sortOrder: number, extra: Record<string, unknown> = {}): any => ({
@@ -52,8 +57,7 @@ function setup(initial?: { active?: any[]; completed?: any[]; categories?: any[]
     });
     const latest = useRef<TaskMutationsSnapshot>({ user: null, dek: null, data });
     latest.current = { user: { id: 'u1', email: 'a@b.c' } as any, dek: new Uint8Array(32), data };
-    const refresh = useCallback(async () => {}, []);
-    const actions = useTaskMutations({ latest, dispatch, refresh });
+    const actions = useTaskMutations({ latest, dispatch });
     return {
       actions,
       activeTasks: data.activeTasks,
@@ -77,11 +81,11 @@ describe('toggleTask', () => {
     expect(result.current.completedTasks.map((t) => t.id)).toEqual([1]);
     expect(result.current.completedTasks[0].done).toBe(true);
     expect(result.current.completedCount).toBe(1);
-    expect(mocked.setTaskDoneRow).toHaveBeenCalledWith('u1', 1, true, expect.any(String));
+    expect(mocked.setTaskCompletedAtRow).toHaveBeenCalledWith('u1', 1, expect.any(String));
   });
 
   it('rolls back and rethrows when persisting fails', async () => {
-    mocked.setTaskDoneRow.mockRejectedValue(new Error('boom'));
+    mocked.setTaskCompletedAtRow.mockRejectedValue(new Error('boom'));
     const { result } = await setup({ active: [task(1, 0), task(2, 1)] });
     await act(async () => {
       await expect(result.current.actions.toggleTask(1)).rejects.toThrow('boom');
@@ -92,7 +96,7 @@ describe('toggleTask', () => {
   });
 
   it('rolls back un-completing a task when persisting fails', async () => {
-    mocked.setTaskDoneRow.mockRejectedValue(new Error('boom'));
+    mocked.setTaskCompletedAtRow.mockRejectedValue(new Error('boom'));
     const done = task(1, 0, { done: true, completedAt: '2026-01-02T00:00:00Z' });
     const { result } = await setup({ completed: [done] });
     await act(async () => {
@@ -106,7 +110,7 @@ describe('toggleTask', () => {
   it('ignores unknown ids', async () => {
     const { result } = await setup({ active: [task(1, 0)] });
     await act(() => result.current.actions.toggleTask(99));
-    expect(mocked.setTaskDoneRow).not.toHaveBeenCalled();
+    expect(mocked.setTaskCompletedAtRow).not.toHaveBeenCalled();
   });
 });
 
@@ -206,7 +210,7 @@ describe('stable actions', () => {
 describe('rollback does not clobber concurrent changes', () => {
   it('failed toggle leaves a concurrent reorder of another task intact', async () => {
     let rejectToggle: (e: Error) => void = () => {};
-    mocked.setTaskDoneRow.mockReturnValue(new Promise((_, rej) => (rejectToggle = rej)));
+    mocked.setTaskCompletedAtRow.mockReturnValue(new Promise((_, rej) => (rejectToggle = rej)));
     const { result } = await setup({ active: [task(1, 0), task(2, 1), task(3, 2)] });
 
     let toggle!: Promise<void>;
@@ -253,5 +257,109 @@ describe('rollback does not clobber concurrent changes', () => {
       [2, 1],
     ]);
     expect(result.current.categories.map((c) => c.id)).toEqual([9]);
+  });
+});
+
+describe('addTask / updateTask', () => {
+  it('addTask inserts only the fetched task into the state', async () => {
+    mocked.insertEncryptedTask.mockResolvedValue(9);
+    fetchTask.mockResolvedValue(task(9, 0));
+    const { result } = await setup({ active: [task(1, 3)] });
+
+    await act(async () => {
+      await result.current.actions.addTask({ title: 't', description: '', categoryId: null, tagIds: [] });
+    });
+
+    expect(mocked.insertEncryptedTask).toHaveBeenCalledWith(expect.objectContaining({ sortOrder: 2 }));
+    expect(fetchTask.mock.calls[0].slice(0, 2)).toEqual(['u1', 9]);
+    expect(result.current.activeTasks.map((t: any) => t.id)).toEqual([9, 1]);
+  });
+
+  it('updateTask replaces the task with the re-fetched one', async () => {
+    fetchTask.mockResolvedValue(task(1, 3, { title: 'edited' }));
+    const { result } = await setup({ active: [task(1, 3), task(2, 4)] });
+
+    await act(async () => {
+      await result.current.actions.updateTask(1, { title: 'edited', description: '', categoryId: null, tagIds: [] });
+    });
+
+    expect(result.current.activeTasks.map((t: any) => t.title)).toEqual(['edited', 'Task 2']);
+  });
+
+  it('does not touch the state when the write fails', async () => {
+    mocked.updateEncryptedTask.mockRejectedValue(new Error('boom'));
+    const { result } = await setup({ active: [task(1, 3)] });
+
+    await act(async () => {
+      await expect(
+        result.current.actions.updateTask(1, { title: 'x', description: '', categoryId: null, tagIds: [] })
+      ).rejects.toThrow('boom');
+    });
+
+    expect(fetchTask).not.toHaveBeenCalled();
+    expect(result.current.activeTasks[0].title).toBe('Task 1');
+  });
+});
+
+describe('delete actions are optimistic with rollback', () => {
+  const done = (id: number): any =>
+    task(id, 0, { done: true, completedAt: `2026-01-0${id}T00:00:00Z` });
+
+  it('deleteTask removes immediately and restores the task on failure', async () => {
+    let reject!: (e: Error) => void;
+    mocked.deleteTaskForUser.mockReturnValue(new Promise((_, rej) => (reject = rej)));
+    const { result } = await setup({ active: [task(1, 0), task(2, 1)] });
+
+    let promise!: Promise<void>;
+    await act(async () => {
+      promise = result.current.actions.deleteTask(1);
+    });
+    expect(result.current.activeTasks.map((t: any) => t.id)).toEqual([2]);
+
+    await act(async () => {
+      reject(new Error('boom'));
+      await expect(promise).rejects.toThrow('boom');
+    });
+    expect(result.current.activeTasks.map((t: any) => t.id)).toEqual([1, 2]);
+  });
+
+  it('deleteTask of a completed task restores the completed count too', async () => {
+    mocked.deleteTaskForUser.mockRejectedValue(new Error('boom'));
+    const { result } = await setup({ completed: [done(1), done(2)] });
+
+    await act(async () => {
+      await expect(result.current.actions.deleteTask(1)).rejects.toThrow();
+    });
+    expect(result.current.completedTasks).toHaveLength(2);
+    expect(result.current.completedCount).toBe(2);
+  });
+
+  it('deleteAllActive clears and rolls back on failure', async () => {
+    mocked.deleteTasksByDone.mockRejectedValue(new Error('boom'));
+    const { result } = await setup({ active: [task(1, 0), task(2, 1)] });
+
+    await act(async () => {
+      await expect(result.current.actions.deleteAllActive()).rejects.toThrow();
+    });
+    expect(mocked.deleteTasksByDone).toHaveBeenCalledWith('u1', false);
+    expect(result.current.activeTasks.map((t: any) => t.id)).toEqual([1, 2]);
+  });
+
+  it('deleteAllCompleted clears on success and rolls back on failure', async () => {
+    mocked.deleteTasksByDone.mockResolvedValueOnce(undefined);
+    const { result } = await setup({ completed: [done(1), done(2)] });
+    await act(async () => {
+      await result.current.actions.deleteAllCompleted();
+    });
+    expect(result.current.completedTasks).toEqual([]);
+    expect(result.current.completedCount).toBe(0);
+
+    mocked.deleteTasksByDone.mockRejectedValueOnce(new Error('boom'));
+    const second = await setup({ completed: [done(1), done(2)] });
+    await act(async () => {
+      await expect(second.result.current.actions.deleteAllCompleted()).rejects.toThrow();
+    });
+    expect(second.result.current.completedTasks).toHaveLength(2);
+    expect(second.result.current.completedCount).toBe(2);
   });
 });
