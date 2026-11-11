@@ -18,3 +18,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
       - run: bun run test -- --ci
+      - run: bun run lint
+      # Advisory for now: currently reports SDK patch drift and icon-package warnings.
+      - run: bunx expo-doctor
+        continue-on-error: true
+      # Smoke build of the web bundle; the env vars are dummy values (never real keys).
+      - run: bunx expo export -p web
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key

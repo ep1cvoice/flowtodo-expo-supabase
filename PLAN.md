@@ -79,3 +79,17 @@ Ok. 4–6 tygodni dla dwóch osób w spokojnym tempie.
 - Dokładność timera Pomodoro przy zminimalizowanej aplikacji
   (obliczanie od `startedAt`/`now()` już to rozwiązuje)
 - Nauka polityk RLS, jeśli nie było wcześniej doświadczenia
+
+## Refaktoryzacja po migracji (status)
+
+Zasady: bez zmian zachowania, jeden krok = jedna jednostka pracy, po każdym kroku
+`bunx tsc --noEmit` i `bun run test -- --ci`.
+
+- [x] Faza 0 — siatka bezpieczeństwa (testy charakteryzujące)
+- [x] Faza 1 — zmiany mechaniczne i martwy kod
+- [x] Faza 2 — DRY w UI
+- [x] Faza 3 — stan i renderowanie
+- [x] Faza 4 — warstwa danych
+- [x] Faza 5 — auth i crypto
+- [x] Faza 6 — SQL
+- [x] Faza 7 — CI i dokumentacja (lint, expo-doctor, smoke `expo export -p web`; konwencje w `AGENTS.md`; README.*)
