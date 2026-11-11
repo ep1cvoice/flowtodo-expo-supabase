@@ -59,6 +59,20 @@ Kolejność w `supabase/migrations/`:
 5. `20260810120000_pomodoros.sql`: sesje i historia Pomodoro
 6. `20260812120000_tasks_completed_at.sql`: `completed_at` w zadaniach
 7. `20260812120100_filter_limits.sql`: wspólny limit filtrów (`max_filter_selections`, 5–30)
+8. `20260818211218_e2ee_new.sql`: konfiguracja szyfrowania end-to-end
+9. `20260819080404_add_encryption_backup_fields_to_profiles.sql`: pola kopii zapasowej szyfrowania w `profiles`
+10. `20260819081549_add_encrypted_content_columns.sql`: kolumny z zaszyfrowaną treścią
+11. `20260820214848_add_kdf_iterations_to_profiles.sql`: liczba iteracji KDF w `profiles`
+12. `20261104180500_drop_plaintext_columns.sql`: usunięcie kolumn z jawną treścią
+13. `20261109120000_reorder_tasks.sql`: RPC `reorder_tasks`
+14. `20261109130000_update_task_with_tags.sql`: RPC `update_task_with_tags`
+15. `20261110120000_pomodoro_paused_on_logout.sql`: pauza Pomodoro przy wylogowaniu
+16. `20261111120000_profiles_demo_seeded.sql`: flaga `demo_seeded` w `profiles`
+17. `20261111120100_seed_demo_data.sql`: dane demo dla nowych użytkowników
+18. `20261111120200_tasks_done_generated.sql`: kolumna generowana `done` w zadaniach
+19. `20261112120000_rls_select_auth_uid.sql`: RLS: `(select auth.uid())` dla lepszych planów
+20. `20261112120100_tasks_indexes.sql`: indeksy zadań
+21. `20261112120200_reorder_tasks_skip_unchanged.sql`: `reorder_tasks` pomija niezmienione wiersze
 
 Na świeżej bazie uruchom migracje w tej kolejności (SQL Editor albo CLI).
 
@@ -108,3 +122,13 @@ Używaj `bun run test`, nie `bun test`: to drugie to własny runner Buna, nie Je
 
 Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
 Obowiązkowe pokrycie na teraz: walidacja auth (+ smoke test logowania), błędy sieci, mapery zadań i Pomodoro, zmiana kolejności przy filtrach, baner offline.
+
+## Sprawdzenia i CI
+
+Przed otwarciem PR uruchom te same sprawdzenia co CI:
+
+`bun run lint` · `bunx tsc --noEmit` · `bun run test -- --ci`
+
+`.github/workflows/ci.yml` uruchamia też `bunx expo-doctor` (informacyjnie) oraz smoke build `bunx expo export -p web` (z atrapami zmiennych środowiskowych).
+
+Konwencje projektu (teksty, logger, migracje SQL, komentarze po angielsku) opisano w `AGENTS.md`.

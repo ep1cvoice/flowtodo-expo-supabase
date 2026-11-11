@@ -59,6 +59,20 @@
 5. `20260810120000_pomodoros.sql`: сесії та історія Pomodoro
 6. `20260812120000_tasks_completed_at.sql`: `completed_at` у завданнях
 7. `20260812120100_filter_limits.sql`: спільний ліміт фільтрів (`max_filter_selections`, 5–30)
+8. `20260818211218_e2ee_new.sql`: налаштування наскрізного шифрування
+9. `20260819080404_add_encryption_backup_fields_to_profiles.sql`: поля резервної копії шифрування в `profiles`
+10. `20260819081549_add_encrypted_content_columns.sql`: колонки із зашифрованим вмістом
+11. `20260820214848_add_kdf_iterations_to_profiles.sql`: кількість ітерацій KDF у `profiles`
+12. `20261104180500_drop_plaintext_columns.sql`: видалення колонок із відкритим текстом
+13. `20261109120000_reorder_tasks.sql`: RPC `reorder_tasks`
+14. `20261109130000_update_task_with_tags.sql`: RPC `update_task_with_tags`
+15. `20261110120000_pomodoro_paused_on_logout.sql`: пауза Pomodoro при виході
+16. `20261111120000_profiles_demo_seeded.sql`: прапорець `demo_seeded` у `profiles`
+17. `20261111120100_seed_demo_data.sql`: демо-дані для нових користувачів
+18. `20261111120200_tasks_done_generated.sql`: генерована колонка `done` у завданнях
+19. `20261112120000_rls_select_auth_uid.sql`: RLS: `(select auth.uid())` для кращих планів
+20. `20261112120100_tasks_indexes.sql`: індекси завдань
+21. `20261112120200_reorder_tasks_skip_unchanged.sql`: `reorder_tasks` пропускає незмінені рядки
 
 На новій базі запускайте міграції в цьому порядку (SQL Editor або CLI).
 
@@ -108,3 +122,13 @@ bun run test
 
 Стек: **Jest** + **jest-expo** + **@testing-library/react-native**.  
 Обов'язкове покриття зараз: валідація автентифікації (+ smoke-тест входу), мережеві помилки, мапери завдань і Pomodoro, зміна порядку з фільтрами, банер офлайн.
+
+## Перевірки та CI
+
+Перед відкриттям PR запускайте ті самі перевірки, що й CI:
+
+`bun run lint` · `bunx tsc --noEmit` · `bun run test -- --ci`
+
+`.github/workflows/ci.yml` також запускає `bunx expo-doctor` (інформаційно) і smoke-збірку `bunx expo export -p web` (з фіктивними змінними середовища).
+
+Конвенції проєкту (тексти, logger, SQL-міграції, коментарі англійською) описано в `AGENTS.md`.

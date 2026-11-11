@@ -59,6 +59,20 @@ Order in `supabase/migrations/`:
 5. `20260810120000_pomodoros.sql`: Pomodoro sessions and history
 6. `20260812120000_tasks_completed_at.sql`: `completed_at` on tasks
 7. `20260812120100_filter_limits.sql`: shared filter limit (`max_filter_selections`, 5–30)
+8. `20260818211218_e2ee_new.sql`: end-to-end encryption setup
+9. `20260819080404_add_encryption_backup_fields_to_profiles.sql`: encryption backup fields in `profiles`
+10. `20260819081549_add_encrypted_content_columns.sql`: encrypted content columns
+11. `20260820214848_add_kdf_iterations_to_profiles.sql`: KDF iterations in `profiles`
+12. `20261104180500_drop_plaintext_columns.sql`: drop plaintext columns
+13. `20261109120000_reorder_tasks.sql`: `reorder_tasks` RPC
+14. `20261109130000_update_task_with_tags.sql`: `update_task_with_tags` RPC
+15. `20261110120000_pomodoro_paused_on_logout.sql`: Pomodoro paused on logout
+16. `20261111120000_profiles_demo_seeded.sql`: `demo_seeded` flag in `profiles`
+17. `20261111120100_seed_demo_data.sql`: demo data seed
+18. `20261111120200_tasks_done_generated.sql`: generated `done` column on tasks
+19. `20261112120000_rls_select_auth_uid.sql`: RLS: `(select auth.uid())` for better plans
+20. `20261112120100_tasks_indexes.sql`: task indexes
+21. `20261112120200_reorder_tasks_skip_unchanged.sql`: `reorder_tasks` skips unchanged rows
 
 On a fresh database, run the migrations in this order (SQL Editor or CLI).
 
@@ -108,3 +122,13 @@ Use `bun run test`, not `bun test`: that one is Bun's own runner, not Jest.
 
 Stack: **Jest** + **jest-expo** + **@testing-library/react-native**.  
 Current must-have coverage: auth validation (+ login smoke test), network errors, task/Pomodoro mappers, filtered reorder, offline banner.
+
+## Checks and CI
+
+Run the same checks as CI before opening a PR:
+
+`bun run lint` · `bunx tsc --noEmit` · `bun run test -- --ci`
+
+`.github/workflows/ci.yml` also runs `bunx expo-doctor` (advisory) and a smoke `bunx expo export -p web` build (with dummy env vars).
+
+Project conventions (strings, logger, SQL migrations, English comments) are listed in `AGENTS.md`.
