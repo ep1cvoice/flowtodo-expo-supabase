@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import { strings } from '@/shared/lib/strings';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
 import TaskCheckbox from '@/features/tasks/components/item/TaskCheckbox';
 import TaskDesktopActions from '@/features/tasks/components/item/TaskDesktopActions';
@@ -61,11 +62,16 @@ function ToDoItem({
     [task.scheduled]
   );
 
-  const categoryWash = category
-    ? categoryCardWash(category.color, isDark ? 0.42 : 0.2)
+  // Category cards keep the neutral base and border; the category colour fades in from the
+  // left edge towards the right as a gradient.
+  const categoryGradient = category
+    ? ([
+        categoryCardWash(category.color, 0),
+        categoryCardWash(category.color, isDark ? 0.42 : 0.3),
+      ] as const)
     : null;
-  const completedWash = task.done && !isDark && !categoryWash ? colors.chrome : null;
-  const cardWash = categoryWash ?? completedWash;
+  const completedWash = task.done && !isDark && !category ? colors.chrome : null;
+  const cardWash = completedWash;
 
   const openDetail = () => open('detail', task);
   const openActions = () => open('actions', task);
@@ -82,11 +88,21 @@ function ToDoItem({
         {...(isWeb ? { tabIndex: -1 } : null)}
         style={({ pressed, hovered }) => [
           styles.todoItem,
-          cardWash ? { backgroundColor: cardWash, borderColor: categoryWash ?? colors.borderColor } : null,
+          cardWash ? { backgroundColor: cardWash } : null,
           hovered && !cardWash ? styles.itemHovered : null,
           hovered && cardWash ? styles.itemHoveredTinted : null,
           pressed ? styles.pressed : null,
         ]}>
+        {categoryGradient ? (
+          <LinearGradient
+            colors={categoryGradient}
+            locations={[0.25, 1]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
         <View style={styles.todoMainRow}>
           {showReorderButtons ? (
             <TaskReorderButtons
