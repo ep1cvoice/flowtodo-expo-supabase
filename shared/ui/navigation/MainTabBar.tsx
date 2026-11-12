@@ -14,30 +14,8 @@ import { isWeb } from '@/shared/lib/platform';
 const PLUS_SIZE = 66;
 const PLUS_SLOT_WIDTH = 76;
 
-// While the pomodoro strip is pinned above the tab row, the upper half of the + button
-// (the part overlapping the strip) turns into a translucent red shadow, a shade darker than the strip, and the
-// lower half stays solid.
-function PlusHalves({ color, shadow }: { color: string; shadow: string }) {
-  const circle = {
-    width: PLUS_SIZE,
-    height: PLUS_SIZE,
-    borderRadius: PLUS_SIZE / 2,
-    backgroundColor: color,
-  };
-  return (
-    <>
-      <View style={[styles.plusHalf, styles.plusHalfTop]} pointerEvents="none">
-        <View style={[circle, { backgroundColor: shadow }]} />
-      </View>
-      <View style={[styles.plusHalf, styles.plusHalfBottom]} pointerEvents="none">
-        <View style={[circle, { marginTop: -PLUS_SIZE / 2 }]} />
-      </View>
-    </>
-  );
-}
-
 export default function MainTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const chromeColor = colors.chrome;
   const { openCreate } = useCreateTask();
   const { width, height } = useWindowDimensions();
@@ -46,8 +24,10 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
   const contentHeight = isDesktop || isCompact ? 56 : 64;
   const focusedRoute = state.routes[state.index]?.name ?? 'active';
   const { activePomo } = usePomodoroState();
-  // The + button overlaps the top edge of the tab bar, i.e. the pinned pomodoro strip.
+  // While the pomodoro strip is pinned, the + button sits inside the tab row instead of overlapping the strip.
   const pomoBarVisible = !!activePomo && focusedRoute !== 'pomodoro';
+
+  const pomoPlusSize = contentHeight - 8;
 
   const bar = (
     <View
@@ -127,21 +107,16 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
                   accessibilityLabel={strings.nav.createTask}
                   style={({ pressed, hovered }) => [
                     styles.plus,
-                    pomoBarVisible
-                      ? styles.plusOverPomo
-                      : { backgroundColor: pressed || hovered ? colors.primaryHover : colors.primary },
+                    { backgroundColor: pressed || hovered ? colors.primaryHover : colors.primary },
+                    pomoBarVisible && {
+                      top: (contentHeight - pomoPlusSize) / 2,
+                      left: (PLUS_SLOT_WIDTH - pomoPlusSize) / 2,
+                      width: pomoPlusSize,
+                      height: pomoPlusSize,
+                      borderRadius: pomoPlusSize / 2,
+                    },
                   ]}>
-                  {({ pressed, hovered }) => (
-                    <>
-                      {pomoBarVisible ? (
-                        <PlusHalves
-                          color={pressed || hovered ? colors.primaryHover : colors.primary}
-                          shadow={isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.2)'}
-                        />
-                      ) : null}
-                      <Plus size={28} color="#fff" strokeWidth={2.4} />
-                    </>
-                  )}
+                  <Plus size={28} color="#fff" strokeWidth={2.4} />
                 </Pressable>
               </View>
             </View>
@@ -252,18 +227,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     ...webInteractive,
   },
-  plusOverPomo: {
-    backgroundColor: 'transparent',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  plusHalf: {
-    position: 'absolute',
-    left: 0,
-    width: PLUS_SIZE,
-    height: PLUS_SIZE / 2,
-    overflow: 'hidden',
-  },
-  plusHalfTop: { top: 0 },
-  plusHalfBottom: { top: PLUS_SIZE / 2 },
 });
