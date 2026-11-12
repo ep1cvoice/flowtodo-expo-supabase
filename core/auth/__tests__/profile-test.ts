@@ -21,6 +21,7 @@ const row = {
   theme: 'dark',
   notification_type: 'sound',
   pomodoro_time: '25',
+  pomodoro_mode: 'countup',
   view: 'list',
   max_filter_selections: 99,
 };
@@ -39,7 +40,7 @@ describe('fetchProfile', () => {
       id: 'u1',
       email: 'a@b.c',
       username: 'ann',
-      settings: { theme: 'dark', notificationType: 'sound', pomodoroTime: 25, view: 'list' },
+      settings: { theme: 'dark', notificationType: 'sound', pomodoroTime: 25, pomodoroMode: 'countup', view: 'list' },
     });
   });
 

@@ -24,7 +24,6 @@ jest.mock('@/features/tasks/components/item/TaskDesktopActions', () => ({ __esMo
 jest.mock('@/features/tasks/components/item/TaskMobileTrailing', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/features/tasks/components/item/TaskReorderButtons', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/features/tasks/components/item/TaskTagLabels', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/features/pomodoro/components/PomodoroTimer', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/features/tasks/components/item/TaskItemModalsContext', () => ({
   useTaskItemModals: () => ({ open: mockOpen }),
 }));

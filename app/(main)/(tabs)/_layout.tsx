@@ -1,7 +1,7 @@
 import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { ListTodo, CheckCircle2, Settings, Calendar, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Calendar, Timer, type LucideIcon } from 'lucide-react-native';
 import { Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MainTabBar from '@/shared/ui/navigation/MainTabBar';
@@ -16,6 +16,7 @@ const HEADER_ICONS: Record<string, LucideIcon> = {
   completed: CheckCircle2,
   settings: Settings,
   calendar: Calendar,
+  pomodoro: Timer,
 };
 
 function DesktopConstrainedHeader({
@@ -73,6 +74,9 @@ export default function MainTabsLayout() {
   return (
     <CreateTaskProvider>
     <Tabs
+      // Back returns to the previously visited tab (e.g. Pomodoro -> Settings),
+      // not to the first tab.
+      backBehavior="history"
       tabBar={(props) => <MainTabBar {...props} />}
       screenOptions={{
         header: ({ options, route }) => (
@@ -141,6 +145,8 @@ export default function MainTabsLayout() {
           tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} strokeWidth={2} />,
         }}
       />
+      {/* Reachable from Settings only; keeps the bottom bar symmetric around the + button. */}
+      <Tabs.Screen name="pomodoro" options={{ title: strings.nav.pomodoro, href: null }} />
       <Tabs.Screen
         name="completed"
         options={{

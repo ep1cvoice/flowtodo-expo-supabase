@@ -7,6 +7,7 @@ import { tokens } from '@/shared/constants/theme';
 import { useCreateTask } from '@/features/tasks/CreateTaskContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import PomodoroMiniBar from '@/features/pomodoro/components/PomodoroMiniBar';
 import { isWeb } from '@/shared/lib/platform';
 
 const PLUS_SIZE = 66;
@@ -33,9 +34,15 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
           borderTopWidth: isDesktop ? 0 : StyleSheet.hairlineWidth,
         },
       ]}>
+      <PomodoroMiniBar
+        hidden={focusedRoute === 'pomodoro'}
+        onOpen={() => navigation.navigate('pomodoro')}
+      />
       <View style={[styles.row, { height: contentHeight }]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
+          // Routes declared with `href: null` are reachable but not shown in the bar.
+          if (StyleSheet.flatten(options.tabBarItemStyle)?.display === 'none') return null;
           const focused = state.index === index;
           const color = focused ? options.tabBarActiveTintColor : options.tabBarInactiveTintColor;
           const label =

@@ -28,13 +28,14 @@ export function minimalUserFromSession(userId: string, email: string | undefined
 }
 
 const PROFILE_COLUMNS =
-  'username, theme, notification_type, pomodoro_time, view, max_filter_selections, salt, encrypted_dek, dek_iv, kdf_iterations';
+  'username, theme, notification_type, pomodoro_time, pomodoro_mode, view, max_filter_selections, salt, encrypted_dek, dek_iv, kdf_iterations';
 
 type ProfileRow = {
   username: string | null;
   theme: string | null;
   notification_type: string | null;
   pomodoro_time: number | string | null;
+  pomodoro_mode: string | null;
   view: string | null;
   max_filter_selections: number | null;
   salt: string | null;
@@ -86,6 +87,7 @@ export async function fetchProfile(userId: string, email: string | undefined): P
         theme: data.theme ?? undefined,
         notificationType: data.notification_type ?? undefined,
         pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
+        pomodoroMode: data.pomodoro_mode === 'countup' ? 'countup' : 'countdown',
         view: data.view ?? undefined,
         maxFilterSelections:
           data.max_filter_selections != null
@@ -108,6 +110,7 @@ export function toProfileRow(updates: ProfileUpdates) {
     theme?: string;
     notification_type?: string;
     pomodoro_time?: number;
+    pomodoro_mode?: string;
     view?: string;
     max_filter_selections?: number;
   } = {};
@@ -115,6 +118,7 @@ export function toProfileRow(updates: ProfileUpdates) {
   if (updates.theme !== undefined) row.theme = updates.theme;
   if (updates.notificationType !== undefined) row.notification_type = updates.notificationType;
   if (updates.pomodoroTime !== undefined) row.pomodoro_time = updates.pomodoroTime;
+  if (updates.pomodoroMode !== undefined) row.pomodoro_mode = updates.pomodoroMode;
   if (updates.view !== undefined) row.view = updates.view;
   if (updates.maxFilterSelections !== undefined) {
     row.max_filter_selections = clampFilterLimit(updates.maxFilterSelections);
