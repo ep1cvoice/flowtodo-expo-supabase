@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Switch, Text, View } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
 import SettingsSection from '@/features/settings/components/SettingsSection';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
@@ -20,7 +20,7 @@ interface PreferencesSectionProps {
 }
 
 export default function PreferencesSection({ open, onToggle }: PreferencesSectionProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, compact, setCompact, colors } = useTheme();
   const { showToast } = useToast();
   const { styles } = useSettingsStyles();
 
@@ -60,6 +60,18 @@ export default function PreferencesSection({ open, onToggle }: PreferencesSectio
                 </Pressable>
               );
             })}
+          </View>
+          <View style={styles.switchRow}>
+            <View style={styles.switchRowText}>
+              <Text style={styles.label}>{strings.settings.preferences.compact}</Text>
+              <Text style={styles.description}>{strings.settings.preferences.compactHint}</Text>
+            </View>
+            <Switch
+              value={compact}
+              onValueChange={setCompact}
+              trackColor={{ true: colors.primary }}
+              accessibilityLabel={strings.settings.preferences.compact}
+            />
           </View>
         </>
       ) : null}
