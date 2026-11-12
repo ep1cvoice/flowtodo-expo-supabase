@@ -5,7 +5,7 @@ import { memoizeStyles } from '@/shared/lib/memoizeStyles';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 import { platformSelect } from '@/shared/lib/platform';
 
-export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
+export function createTodoItemStyles(colors: AppColors, isDark: boolean, compact = false) {
   return StyleSheet.create({
     todoItem: {
       position: 'relative',
@@ -15,8 +15,8 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
       borderWidth: 1,
       borderColor: colors.borderColor,
       paddingHorizontal: 14,
-      paddingVertical: 12,
-      marginBottom: 10,
+      paddingVertical: compact ? 6 : 12,
+      marginBottom: compact ? 4 : 10,
       ...webInteractive,
       ...platformSelect({
         web: { boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' } as object,
@@ -51,7 +51,7 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
     todoContent: {
       flex: 1,
       minWidth: 0,
-      gap: 8,
+      gap: compact ? 2 : 8,
     },
     todoTitleRow: {
       flexDirection: 'row',
@@ -148,7 +148,7 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: 6,
+      gap: compact ? 4 : 6,
       marginLeft: 36,
     },
     metaControls: {
@@ -255,11 +255,14 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean) {
 
 export type TodoItemStyles = ReturnType<typeof createTodoItemStyles>;
 
-// One StyleSheet per theme, shared by every component instance.
-const getTodoItemStyles = memoizeStyles(createTodoItemStyles);
+// One StyleSheet per theme (and density), shared by every component instance.
+const getTodoItemStyles = memoizeStyles((colors, isDark) => createTodoItemStyles(colors, isDark, false));
+const getCompactTodoItemStyles = memoizeStyles((colors, isDark) =>
+  createTodoItemStyles(colors, isDark, true)
+);
 
 export function useTodoItemStyles() {
-  const { colors, isDark } = useTheme();
-  const styles = getTodoItemStyles(colors, isDark);
+  const { colors, isDark, compact } = useTheme();
+  const styles = compact ? getCompactTodoItemStyles(colors, isDark) : getTodoItemStyles(colors, isDark);
   return { colors, styles };
 }

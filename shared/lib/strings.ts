@@ -155,6 +155,8 @@ export const strings = {
       themeLight: 'Light',
       themeDark: 'Dark',
       themeSaved: 'Theme saved.',
+      compact: 'Compact view',
+      compactHint: 'Reduces element spacing for a denser task view',
     },
     labels: {
       title: 'Categories & Tags',

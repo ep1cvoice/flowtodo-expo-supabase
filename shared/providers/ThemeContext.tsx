@@ -10,6 +10,7 @@ import {
 import { logger } from '@/shared/lib/logger';
 
 const STORAGE_KEY = 'flowtodo.theme';
+const COMPACT_STORAGE_KEY = 'flowtodo.compact';
 
 function isThemeMode(value: string | undefined): value is ThemeMode {
   return value === 'light' || value === 'dark' || value === 'auto';
@@ -21,6 +22,8 @@ interface ThemeContextValue {
   colors: AppColors;
   isDark: boolean;
   ready: boolean;
+  compact: boolean;
+  setCompact: (compact: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -30,6 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [theme, setThemeState] = useState<ThemeMode>('auto');
   const [ready, setReady] = useState(false);
+  const [compact, setCompactState] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -39,6 +43,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .finally(() => setReady(true));
+  }, []);
+
+  // Compact view is a per-device display preference, so it is stored locally only.
+  useEffect(() => {
+    AsyncStorage.getItem(COMPACT_STORAGE_KEY)
+      .then((stored) => setCompactState(stored === 'true'))
+      .catch(() => {});
+  }, []);
+
+  const setCompact = useCallback((next: boolean) => {
+    setCompactState(next);
+    AsyncStorage.setItem(COMPACT_STORAGE_KEY, String(next)).catch(() => {});
   }, []);
 
   // Prefer profile theme once auth loads (keeps devices in sync).
@@ -74,8 +90,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Always mount children — returning null remounted AuthProvider and wiped the session.
   const value = useMemo(
-    () => ({ theme, setTheme, colors, isDark, ready }),
-    [theme, setTheme, colors, isDark, ready]
+    () => ({ theme, setTheme, colors, isDark, ready, compact, setCompact }),
+    [theme, setTheme, colors, isDark, ready, compact, setCompact]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
