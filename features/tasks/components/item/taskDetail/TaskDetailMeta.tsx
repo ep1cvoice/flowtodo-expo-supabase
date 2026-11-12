@@ -3,7 +3,6 @@ import { Pressable, Text, View } from 'react-native';
 import { AlarmClock, Calendar } from 'lucide-react-native';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
-import PomodoroTimer from '@/features/pomodoro/components/PomodoroTimer';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import type { Task } from '@/types';
 import type { TaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
@@ -14,7 +13,6 @@ interface Props {
   dueDate: Date | null;
   showCalendarIcon: boolean;
   showAlarmIcon: boolean;
-  isPomoActive: boolean;
   styles: TaskDetailStyles;
   onCommitFromOutside: () => void;
   onOpenCalendar: () => void;
@@ -26,7 +24,6 @@ export default function TaskDetailMeta({
   dueDate,
   showCalendarIcon,
   showAlarmIcon,
-  isPomoActive,
   styles,
   onCommitFromOutside,
   onOpenCalendar,
@@ -101,11 +98,6 @@ export default function TaskDetailMeta({
           </View>
         ) : null}
       </View>
-      {isPomoActive ? (
-        <View style={styles.timerRow}>
-          <PomodoroTimer taskId={task.id} taskTitle={task.title} />
-        </View>
-      ) : null}
     </View>
   );
 }

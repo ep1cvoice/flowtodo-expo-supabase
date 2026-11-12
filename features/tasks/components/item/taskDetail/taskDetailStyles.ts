@@ -63,9 +63,6 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       alignItems: 'center',
       gap: 8,
     },
-    timerRow: {
-      alignItems: 'flex-start',
-    },
     iconGroup: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -140,7 +140,6 @@ export default function TaskDetailModal({
             dueDate={dueDate}
             showCalendarIcon={showCalendarIcon}
             showAlarmIcon={showAlarmIcon}
-            isPomoActive={isPomoActive}
             styles={styles}
             onCommitFromOutside={commitFromOutside}
             onOpenCalendar={openDetailCalendar}

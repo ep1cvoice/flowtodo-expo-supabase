@@ -127,6 +127,7 @@ export type Database = {
           kdf_iterations: number
           max_filter_selections: number
           notification_type: string | null
+          pomodoro_mode: string
           pomodoro_time: number | null
           salt: string | null
           salt_backup: string | null
@@ -145,6 +146,7 @@ export type Database = {
           kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
+          pomodoro_mode?: string
           pomodoro_time?: number | null
           salt?: string | null
           salt_backup?: string | null
@@ -163,6 +165,7 @@ export type Database = {
           kdf_iterations?: number
           max_filter_selections?: number
           notification_type?: string | null
+          pomodoro_mode?: string
           pomodoro_time?: number | null
           salt?: string | null
           salt_backup?: string | null

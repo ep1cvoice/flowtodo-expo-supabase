@@ -255,19 +255,6 @@ export function createSettingsStyles(colors: AppColors, isDark: boolean) {
       fontWeight: '600',
       fontSize: 14,
     },
-    pomodoroRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      marginTop: 4,
-    },
-    historyBlock: {
-      marginTop: 12,
-      gap: 8,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderColor,
-    },
     pomodoroInput: {
       width: 64,
       height: 40,

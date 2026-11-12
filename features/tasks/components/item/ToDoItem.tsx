@@ -8,7 +8,6 @@ import TaskDesktopActions from '@/features/tasks/components/item/TaskDesktopActi
 import TaskMobileTrailing from '@/features/tasks/components/item/TaskMobileTrailing';
 import TaskReorderButtons from '@/features/tasks/components/item/TaskReorderButtons';
 import TaskTagLabels from '@/features/tasks/components/item/TaskTagLabels';
-import PomodoroTimer from '@/features/pomodoro/components/PomodoroTimer';
 import { useTaskItemModals } from '@/features/tasks/components/item/TaskItemModalsContext';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
 import { getCategoryIcon } from '@/shared/constants/categoryIcons';
@@ -162,14 +161,11 @@ function ToDoItem({
                 )}
               </View>
             </View>
-            {dueDate || isPomoActive || tags.length > 0 ? (
+            {dueDate || tags.length > 0 ? (
               <View style={styles.metaRow}>
-                {dueDate || isPomoActive ? (
+                {dueDate ? (
                   <View style={styles.metaControls}>
-                    {dueDate ? (
-                      <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
-                    ) : null}
-                    {isPomoActive ? <PomodoroTimer taskId={task.id} taskTitle={task.title} /> : null}
+                    <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
                   </View>
                 ) : null}
                 <TaskTagLabels tags={tags} styles={styles} />

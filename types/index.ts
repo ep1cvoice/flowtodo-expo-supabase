@@ -2,6 +2,8 @@ export interface UserSettings {
   theme?: string;
   notificationType?: string;
   pomodoroTime?: number;
+  /** `countdown` runs from the set time to 0; `countup` runs from 0 with no alarm. */
+  pomodoroMode?: 'countdown' | 'countup';
   view?: string;
   /** Max categories + tags selectable together in Active filters (5–30). */
   maxFilterSelections?: number;

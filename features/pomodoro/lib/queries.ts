@@ -1,6 +1,7 @@
 import { supabase } from '@/core/supabase/client';
 import { mapActivePomo, mapPomoRecord } from '@/features/pomodoro/lib/pomoMappers';
 import type { PomoData, PomoRecord } from '@/types';
+import type { PomoStatsRow } from '@/features/pomodoro/lib/stats';
 
 export const MAX_HISTORY = 5;
 
@@ -31,4 +32,23 @@ export async function fetchPomodoros(
     active: activeRes.data ? mapActivePomo(activeRes.data) : null,
     history: (historyRes.data ?? []).map((row) => mapPomoRecord(row, dek)),
   };
+}
+
+/** Finished sessions since `sinceIso`; only unencrypted columns, so no DEK is needed. */
+export async function fetchPomodoroStatsRows(
+  userId: string,
+  sinceIso: string
+): Promise<PomoStatsRow[]> {
+  const { data, error } = await supabase
+    .from('pomodoros')
+    .select('ended_at, elapsed, duration')
+    .eq('user_id', userId)
+    .not('ended_at', 'is', null)
+    .gte('ended_at', sinceIso);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    endedAt: row.ended_at as string,
+    elapsed: Number(row.elapsed),
+    duration: Number(row.duration),
+  }));
 }
