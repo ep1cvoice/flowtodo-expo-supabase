@@ -87,6 +87,7 @@
     ],
     "moduleNameMapper": {
       "^@/features/tasks/lib/store$": "<rootDir>/features/tasks/lib/store/index.remote.ts",
+      "^@/features/pomodoro/lib/store$": "<rootDir>/features/pomodoro/lib/store/index.remote.ts",
       "^@/(.*)$": "<rootDir>/$1"
     }
   },

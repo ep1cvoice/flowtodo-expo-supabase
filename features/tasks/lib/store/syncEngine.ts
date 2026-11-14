@@ -1,5 +1,11 @@
 import type { LocalDb } from '@/core/localdb/openUserDb';
 import { supabase } from '@/core/supabase/client';
+import {
+  applyRemotePomodoros,
+  fetchRemotePomodoros,
+  pushPomodoroDeletes,
+  pushPomodoros,
+} from '@/features/pomodoro/lib/store/pomodoroSync';
 import { newLocalId } from '@/features/tasks/lib/store/localId';
 import { errorMessage } from '@/shared/lib/errorMessage';
 import { logger } from '@/shared/lib/logger';
@@ -240,6 +246,9 @@ export async function pushPending(db: LocalDb, userId: string): Promise<void> {
   await pushLabels(db, userId, 'categories');
   await pushLabels(db, userId, 'tags');
   await pushTasks(db, userId);
+  // After the tasks they reference; before label/task deletes are irrelevant to them.
+  await pushPomodoros(db, userId);
+  await pushPomodoroDeletes(db, userId);
   await pushDeletes(db, userId, 'categories');
   await pushDeletes(db, userId, 'tags');
 }
@@ -267,7 +276,7 @@ async function removeMissing(db: LocalDb, table: string, remoteIds: Set<number>)
 
 /** Fetches the remote state and applies it. Returns true when local data may have changed. */
 export async function pullAll(db: LocalDb, userId: string): Promise<boolean> {
-  const [categories, tags, tasks] = await Promise.all([
+  const [categories, tags, tasks, pomodoros] = await Promise.all([
     fetchAll((from, to) =>
       supabase.from('categories').select('*').eq('user_id', userId).order('id').range(from, to)
     ),
@@ -282,6 +291,7 @@ export async function pullAll(db: LocalDb, userId: string): Promise<boolean> {
         .order('id')
         .range(from, to)
     ),
+    fetchRemotePomodoros(userId),
   ]);
 
   await db.withTransactionAsync(async () => {
@@ -360,6 +370,8 @@ export async function pullAll(db: LocalDb, userId: string): Promise<boolean> {
     }
     await removeMissing(db, 'tasks', new Set(tasks.map((t) => Number(t.id))));
 
+    await applyRemotePomodoros(db, pomodoros);
+
     // Labels deleted remotely must not leave dangling references on pending local tasks.
     await db.runAsync(
       `UPDATE tasks SET category_id = NULL
@@ -421,7 +433,7 @@ export async function syncOnce(db: LocalDb, userId: string): Promise<Error | nul
 /** Number of local changes that have not reached the server yet. */
 export async function countPending(db: LocalDb): Promise<number> {
   let total = 0;
-  for (const table of ['tasks', 'categories', 'tags']) {
+  for (const table of ['tasks', 'categories', 'tags', 'pomodoros']) {
     const row = await db.getFirstAsync<{ n: number }>(
       `SELECT COUNT(*) AS n FROM ${table} WHERE sync_state != 'synced'`
     );

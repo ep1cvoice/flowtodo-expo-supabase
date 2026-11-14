@@ -6,13 +6,14 @@ import {
   usePomodoroActions,
   usePomodoroState,
 } from '@/features/pomodoro/PomodoroContext';
+import { pomodoroStore } from '@/features/pomodoro/lib/store';
 
 const usePomodoro = () => ({ ...usePomodoroState(), ...usePomodoroActions() });
 
 const mockAuth: { user: any; dek: Uint8Array | null } = { user: null, dek: null };
 
 jest.mock('@/features/tasks/lib/store', () => ({
-  taskStore: { flush: jest.fn().mockResolvedValue(undefined) },
+  taskStore: { subscribe: jest.fn(() => () => {}) },
 }));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuth }));
@@ -23,28 +24,26 @@ jest.mock('@/shared/lib/logger', () => ({
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   registerPomodoroLogoutSnapshot: jest.fn(() => () => {}),
 }));
-jest.mock('@/features/pomodoro/lib/queries', () => ({
-  MAX_HISTORY: 5,
-  fetchPomodoros: jest.fn(),
-}));
-jest.mock('@/features/pomodoro/lib/mutations', () => ({
-  deletePomodoroRecord: jest.fn(),
-  endPomodoroRow: jest.fn(),
-  insertPomodoro: jest.fn(),
-  pausePomodoroRow: jest.fn(),
-  resumePomodoroAndFetch: jest.fn(),
-  resumePomodoroRow: jest.fn(),
+jest.mock('@/features/pomodoro/lib/queries', () => ({ MAX_HISTORY: 5 }));
+jest.mock('@/features/pomodoro/lib/store', () => ({
+  pomodoroStore: {
+    fetchPomodoros: jest.fn(),
+    deletePomodoroRecord: jest.fn(),
+    endPomodoroRow: jest.fn(),
+    insertPomodoro: jest.fn(),
+    pausePomodoroRow: jest.fn(),
+    resumePomodoroAndFetch: jest.fn(),
+    resumePomodoroRow: jest.fn(),
+  },
 }));
 
-import * as queries from '@/features/pomodoro/lib/queries';
-import * as mut from '@/features/pomodoro/lib/mutations';
-
-const fetchPomodoros = queries.fetchPomodoros as jest.Mock;
-const insertPomodoro = mut.insertPomodoro as jest.Mock;
-const pausePomodoroRow = mut.pausePomodoroRow as jest.Mock;
-const resumePomodoroRow = mut.resumePomodoroRow as jest.Mock;
-const endPomodoroRow = mut.endPomodoroRow as jest.Mock;
-const resumePomodoroAndFetch = mut.resumePomodoroAndFetch as jest.Mock;
+const store = pomodoroStore as unknown as Record<string, jest.Mock>;
+const fetchPomodoros = store.fetchPomodoros;
+const insertPomodoro = store.insertPomodoro;
+const pausePomodoroRow = store.pausePomodoroRow;
+const resumePomodoroRow = store.resumePomodoroRow;
+const endPomodoroRow = store.endPomodoroRow;
+const resumePomodoroAndFetch = store.resumePomodoroAndFetch;
 
 const pomo = (over: Record<string, unknown> = {}): any => ({
   id: 1,
