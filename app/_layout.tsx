@@ -1,10 +1,4 @@
 import { Buffer } from 'buffer';
-
-const root = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
-if (typeof root.Buffer === 'undefined') {
-	root.Buffer = Buffer;
-}
-
 import ReconnectRefresh from '@/features/sync/ReconnectRefresh';
 import { Pbkdf2WebView } from '@/core/auth/Pbkdf2WebView';
 import AppSplash from '@/shared/ui/AppSplash';
@@ -29,9 +23,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+const root = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
+if (typeof root.Buffer === 'undefined') {
+	root.Buffer = Buffer;
+}
 
 export { ErrorBoundary } from 'expo-router';
 
