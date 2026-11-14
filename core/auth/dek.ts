@@ -11,6 +11,7 @@ import {
   generateEncryptionMaterial,
 } from '@/core/crypto';
 import { withRetry } from '@/shared/lib/retry';
+import { loadCachedProfileRow } from '@/core/auth/offlineCache';
 import { fetchProfileRow } from '@/core/auth/profile';
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
@@ -61,6 +62,8 @@ async function upgradeKdfIterationsInBackground(
 
     if (error) {
       logger.warn('KDF iterations upgrade failed:', error.message);
+    } else {
+      void fetchProfileRow(userId).catch(() => {}); // refresh the cached material
     }
   } catch (err) {
     logger.warn('KDF iterations upgrade threw:', err);
@@ -108,8 +111,29 @@ async function backfillDekMaterial(
   };
 }
 
+/** Unwraps the DEK; throws when the password is wrong or the material is corrupted. */
+async function unwrapDek(
+  password: string,
+  material: Pick<DekMaterial, 'salt' | 'encrypted_dek' | 'dek_iv'> & {
+    kdf_iterations: number | null;
+  }
+) {
+  const iterations = Number(material.kdf_iterations) || LEGACY_KDF_ITERATIONS;
+  const dek = await decryptDek(
+    password,
+    material.salt,
+    material.encrypted_dek,
+    material.dek_iv,
+    iterations
+  );
+  return { dek, iterations };
+}
+
 /**
  * Fetches (or backfills) DEK material and unwraps the key.
+ * The material cached by the last online visit is tried first, so unlocking never waits for
+ * the network; the server copy is only consulted when that fails (e.g. the password was
+ * changed on another device, or nothing is cached yet).
  * `verifyEmail` — only when the profile has no DEK yet: prove the password via Auth before generating one.
  */
 export async function resolveDekFromPassword(options: {
@@ -119,6 +143,30 @@ export async function resolveDekFromPassword(options: {
   decryptFailLog: string;
   decryptFailError: string;
 }): Promise<{ ok: true; dek: Uint8Array } | { ok: false; error: string }> {
+  const cached = await loadCachedProfileRow<{
+    salt: string | null;
+    encrypted_dek: string | null;
+    dek_iv: string | null;
+    kdf_iterations: number | null;
+  }>(options.userId);
+  if (cached?.salt && cached.encrypted_dek && cached.dek_iv) {
+    try {
+      const { dek, iterations } = await unwrapDek(options.password, {
+        salt: cached.salt,
+        encrypted_dek: cached.encrypted_dek,
+        dek_iv: cached.dek_iv,
+        kdf_iterations: cached.kdf_iterations,
+      });
+      void upgradeKdfIterationsInBackground(options.userId, dek, options.password, iterations);
+      // Refresh the cached copy in the background (also picks up a password change made on
+      // another device, after which the old password stops working here).
+      void fetchProfileRow(options.userId).catch(() => {});
+      return { ok: true, dek };
+    } catch {
+      // Stale or wrong: fall through to the server copy.
+    }
+  }
+
   let profileData;
   try {
     profileData = await fetchProfileRow(options.userId);
@@ -149,14 +197,12 @@ export async function resolveDekFromPassword(options: {
   }
 
   try {
-    const iterations = Number(kdf_iterations) || LEGACY_KDF_ITERATIONS;
-    const decryptedDek = await decryptDek(
-      options.password,
+    const { dek: decryptedDek, iterations } = await unwrapDek(options.password, {
       salt,
       encrypted_dek,
       dek_iv,
-      iterations
-    );
+      kdf_iterations,
+    });
 
     void upgradeKdfIterationsInBackground(
       options.userId,

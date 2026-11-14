@@ -6,11 +6,15 @@ import {
   usePomodoroActions,
   usePomodoroState,
 } from '@/features/pomodoro/PomodoroContext';
+import { pomodoroStore } from '@/features/pomodoro/lib/store';
 
 const usePomodoro = () => ({ ...usePomodoroState(), ...usePomodoroActions() });
 
 const mockAuth: { user: any; dek: Uint8Array | null } = { user: null, dek: null };
 
+jest.mock('@/features/tasks/lib/store', () => ({
+  taskStore: { subscribe: jest.fn(() => () => {}) },
+}));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuth }));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
@@ -20,28 +24,26 @@ jest.mock('@/shared/lib/logger', () => ({
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   registerPomodoroLogoutSnapshot: jest.fn(() => () => {}),
 }));
-jest.mock('@/features/pomodoro/lib/queries', () => ({
-  MAX_HISTORY: 5,
-  fetchPomodoros: jest.fn(),
-}));
-jest.mock('@/features/pomodoro/lib/mutations', () => ({
-  deletePomodoroRecord: jest.fn(),
-  endPomodoroRow: jest.fn(),
-  insertPomodoro: jest.fn(),
-  pausePomodoroRow: jest.fn(),
-  resumePomodoroAndFetch: jest.fn(),
-  resumePomodoroRow: jest.fn(),
+jest.mock('@/features/pomodoro/lib/queries', () => ({ MAX_HISTORY: 5 }));
+jest.mock('@/features/pomodoro/lib/store', () => ({
+  pomodoroStore: {
+    fetchPomodoros: jest.fn(),
+    deletePomodoroRecord: jest.fn(),
+    endPomodoroRow: jest.fn(),
+    insertPomodoro: jest.fn(),
+    pausePomodoroRow: jest.fn(),
+    resumePomodoroAndFetch: jest.fn(),
+    resumePomodoroRow: jest.fn(),
+  },
 }));
 
-import * as queries from '@/features/pomodoro/lib/queries';
-import * as mut from '@/features/pomodoro/lib/mutations';
-
-const fetchPomodoros = queries.fetchPomodoros as jest.Mock;
-const insertPomodoro = mut.insertPomodoro as jest.Mock;
-const pausePomodoroRow = mut.pausePomodoroRow as jest.Mock;
-const resumePomodoroRow = mut.resumePomodoroRow as jest.Mock;
-const endPomodoroRow = mut.endPomodoroRow as jest.Mock;
-const resumePomodoroAndFetch = mut.resumePomodoroAndFetch as jest.Mock;
+const store = pomodoroStore as unknown as Record<string, jest.Mock>;
+const fetchPomodoros = store.fetchPomodoros;
+const insertPomodoro = store.insertPomodoro;
+const pausePomodoroRow = store.pausePomodoroRow;
+const resumePomodoroRow = store.resumePomodoroRow;
+const endPomodoroRow = store.endPomodoroRow;
+const resumePomodoroAndFetch = store.resumePomodoroAndFetch;
 
 const pomo = (over: Record<string, unknown> = {}): any => ({
   id: 1,
@@ -276,4 +278,86 @@ it('clears state when there is no user', async () => {
   expect(result.current.activePomo).toBeNull();
   expect(result.current.history).toEqual([]);
   expect(fetchPomodoros).not.toHaveBeenCalled();
+});
+
+describe('optimistic start', () => {
+  it('shows the session before the write finishes', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      (o: any) => new Promise((res) => (finish = () => res(pomo({ id: o.id }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    expect(result.current.activeTaskId).toBe(7);
+    expect(insertPomodoro).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.any(Number) })
+    );
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    expect(result.current.activeTaskId).toBe(7);
+  });
+
+  it('adopts the server id and pauses with it', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      () => new Promise((res) => (finish = () => res(pomo({ id: 99 }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    let paused!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    await act(async () => {
+      paused = result.current.pausePomo();
+    });
+    expect(pausePomodoroRow).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    await paused;
+    expect(pausePomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ id: 99 }));
+    expect(result.current.activePomo?.id).toBe(99);
+  });
+
+  it('keeps the new session when a refresh returns a snapshot without it', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      (o: any) => new Promise((res) => (finish = () => res(pomo({ id: o.id }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    // e.g. a sync round finishing before the insert is visible in the store
+    await act(() => result.current.refetch());
+    expect(result.current.activeTaskId).toBe(7);
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    expect(result.current.activeTaskId).toBe(7);
+  });
+
+  it('rolls back and rethrows when the write fails', async () => {
+    insertPomodoro.mockRejectedValue(new Error('boom'));
+    const { result } = await renderPomodoro();
+    await act(async () => {
+      await expect(result.current.startPomo(TASK)).rejects.toThrow('boom');
+    });
+    expect(result.current.activePomo).toBeNull();
+  });
 });

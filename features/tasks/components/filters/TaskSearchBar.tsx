@@ -34,7 +34,7 @@ export default function TaskSearchBar({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const hasValue = value.trim().length > 0;
   const inputRef = useRef<TextInputType>(null);
-  const progress = useRef(new Animated.Value(0)).current;
+  const [progress] = useState(() => new Animated.Value(0));
   const prevVisibleRef = useRef(false);
   const [inputMounted, setInputMounted] = useState(false);
 

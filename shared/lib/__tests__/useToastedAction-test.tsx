@@ -25,7 +25,7 @@ describe('useToastedAction', () => {
     await expect(
       result.current(async () => {
         throw err;
-      }, 'fallback'),
+      }, 'fallback')
     ).resolves.toEqual({ ok: false, error: err });
     expect(mockShowToast).toHaveBeenCalledWith(toastForError(err, 'fallback'), 'error');
     expect(toastForError(err, 'fallback')).toBe('fallback');

@@ -1,24 +1,5 @@
 // Round-trip encryption tests against the real implementation (@noble), no native modules.
 // PBKDF2 is swapped for node:crypto (same algorithm, much faster than pure JS).
-jest.mock('react-native-quick-crypto', () => {
-  throw new Error('native module unavailable in Jest');
-});
-jest.mock('expo-crypto', () => ({
-  getRandomBytesAsync: async (n: number) => new Uint8Array(require('crypto').randomBytes(n)),
-}));
-jest.mock('@noble/hashes/pbkdf2.js', () => ({
-  pbkdf2: (_hash: unknown, password: Uint8Array, salt: Uint8Array, opts: { c: number; dkLen: number }) =>
-    new Uint8Array(
-      require('crypto').pbkdf2Sync(
-        require('buffer').Buffer.from(password),
-        require('buffer').Buffer.from(salt),
-        opts.c,
-        opts.dkLen,
-        'sha256'
-      )
-    ),
-}));
-
 import { Buffer } from 'buffer';
 import {
   CURRENT_PBKDF2_ITERATIONS,
@@ -29,6 +10,25 @@ import {
   generateEncryptionMaterial,
   hashForUniqueness,
 } from '@/core/crypto/index.native';
+
+jest.mock('react-native-quick-crypto', () => {
+  throw new Error('native module unavailable in Jest');
+});
+jest.mock('expo-crypto', () => ({
+  getRandomBytesAsync: async (n: number) => new Uint8Array(jest.requireActual('crypto').randomBytes(n)),
+}));
+jest.mock('@noble/hashes/pbkdf2.js', () => ({
+  pbkdf2: (_hash: unknown, password: Uint8Array, salt: Uint8Array, opts: { c: number; dkLen: number }) =>
+    new Uint8Array(
+      jest.requireActual('crypto').pbkdf2Sync(
+        jest.requireActual<typeof import('buffer')>('buffer').Buffer.from(password),
+        jest.requireActual<typeof import('buffer')>('buffer').Buffer.from(salt),
+        opts.c,
+        opts.dkLen,
+        'sha256'
+      )
+    ),
+}));
 
 const dek = new Uint8Array(32).fill(7);
 const otherDek = new Uint8Array(32).fill(8);

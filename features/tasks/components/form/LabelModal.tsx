@@ -1,12 +1,6 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useMemo, useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-} from 'react-native';
+import { useMemo, useState, useRef } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { Check } from 'lucide-react-native';
 import type { Category, CategoryIcon, Tag } from '@/types';
 import { CATEGORY_ICON_MAP, CATEGORY_ICONS } from '@/shared/constants/categoryIcons';
@@ -95,16 +89,29 @@ export default function LabelModal(props: LabelModalProps) {
   const nameRef = useRef<TextInput>(null);
   useAutoFocus(nameRef, visible);
 
-  useEffect(() => {
-    if (!visible) return;
-    setName(item?.name ?? '');
-    setSelectedColor(item?.color ?? cfg.defaultColor);
-    if (kind === 'category') {
-      setSelectedIcon(((item as Category | null)?.icon as CategoryIcon) || CATEGORY_ICONS[0]);
+  // Load the edited item while rendering whenever the modal opens or the item/kind changes
+  // (also when mounted open).
+  const [prevInputs, setPrevInputs] = useState<{
+    visible: boolean;
+    item: typeof item;
+    kind: typeof kind;
+  } | null>(null);
+  if (
+    !prevInputs ||
+    prevInputs.visible !== visible ||
+    prevInputs.item !== item ||
+    prevInputs.kind !== kind
+  ) {
+    setPrevInputs({ visible, item, kind });
+    if (visible) {
+      setName(item?.name ?? '');
+      setSelectedColor(item?.color ?? cfg.defaultColor);
+      if (kind === 'category') {
+        setSelectedIcon(((item as Category | null)?.icon as CategoryIcon) || CATEGORY_ICONS[0]);
+      }
+      setNameError('');
     }
-    setNameError('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, item, kind]);
+  }
 
   const handleSave = async () => {
     const error = cfg.validate(name);
@@ -131,11 +138,13 @@ export default function LabelModal(props: LabelModalProps) {
       onClose={onClose}
       title={`${item ? 'Edit' : 'Add'} ${cfg.noun}`}
       keyboardAvoiding
-      cardStyle={styles.card}>
+      cardStyle={styles.card}
+    >
       <ScrollView
         contentContainerStyle={styles.form}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{strings.common.name}</Text>
           <TextInput
@@ -167,7 +176,8 @@ export default function LabelModal(props: LabelModalProps) {
                     styles.colorOption,
                     { backgroundColor: color },
                     selected && styles.colorSelected,
-                  ]}>
+                  ]}
+                >
                   {selected ? <Check size={14} color="#fff" strokeWidth={3} /> : null}
                 </Pressable>
               );
@@ -192,7 +202,8 @@ export default function LabelModal(props: LabelModalProps) {
                         borderColor: selectedColor,
                         backgroundColor: `${selectedColor}22`,
                       },
-                    ]}>
+                    ]}
+                  >
                     <Icon
                       size={20}
                       color={selected ? selectedColor : colors.textSecondary}
@@ -212,7 +223,8 @@ export default function LabelModal(props: LabelModalProps) {
               styles.btn,
               styles.cancel,
               (hovered || pressed) && styles.cancelPressed,
-            ]}>
+            ]}
+          >
             <Text style={styles.cancelText}>{strings.common.cancel}</Text>
           </Pressable>
           <Pressable
@@ -221,7 +233,8 @@ export default function LabelModal(props: LabelModalProps) {
               styles.btn,
               styles.save,
               (hovered || pressed) && styles.savePressed,
-            ]}>
+            ]}
+          >
             <Text style={styles.saveText}>{strings.common.save}</Text>
           </Pressable>
         </View>

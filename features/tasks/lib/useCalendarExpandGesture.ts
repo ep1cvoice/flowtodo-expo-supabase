@@ -48,44 +48,46 @@ export function useCalendarExpandGesture(pageWidth: number, weekCount: number) {
   const weekCountSv = useSharedValue(weekCount);
 
   useLayoutEffect(() => {
-    rowHeightSv.value = pageWidth > 0 ? pageWidth / 7 : 0;
-    weekCountSv.value = weekCount;
+    rowHeightSv.set(pageWidth > 0 ? pageWidth / 7 : 0);
+    weekCountSv.set(weekCount);
   }, [weekCount, pageWidth, rowHeightSv, weekCountSv]);
 
   const frameStyle = useAnimatedStyle(() => ({
-    height: monthFrameHeight(rowHeightSv.value, weekCountSv.value, expandedSv.value),
+    height: monthFrameHeight(rowHeightSv.get(), weekCountSv.get(), expandedSv.get()),
   }));
 
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        // Only hands the ref object to the gesture handler; `.current` is not read here.
+        // eslint-disable-next-line react-hooks/refs
         .withRef(panRef)
         .activeOffsetY([-10, 10])
         .failOffsetX([-16, 16])
         .onBegin(() => {
-          dragOrigin.value = expandedSv.value;
-          panActivated.value = false;
+          dragOrigin.set(expandedSv.get());
+          panActivated.set(false);
         })
         .onStart(() => {
-          panActivated.value = true;
+          panActivated.set(true);
         })
         .onUpdate((event) => {
-          const range = Math.max(rowHeightSv.value * (weekCountSv.value - 1), 1);
-          expandedSv.value = clamp01(dragOrigin.value + event.translationY / range);
+          const range = Math.max(rowHeightSv.get() * (weekCountSv.get() - 1), 1);
+          expandedSv.set(clamp01(dragOrigin.get() + event.translationY / range));
         })
         .onEnd((event, success) => {
           if (!success) return;
-          const range = Math.max(rowHeightSv.value * (weekCountSv.value - 1), 1);
-          const open = expandedSv.value + (event.velocityY / range) * 0.12 > 0.5;
-          expandedTarget.value = open ? 1 : 0;
-          expandedSv.value = withSpring(open ? 1 : 0, expandSpring(event.velocityY / range));
+          const range = Math.max(rowHeightSv.get() * (weekCountSv.get() - 1), 1);
+          const open = expandedSv.get() + (event.velocityY / range) * 0.12 > 0.5;
+          expandedTarget.set(open ? 1 : 0);
+          expandedSv.set(withSpring(open ? 1 : 0, expandSpring(event.velocityY / range)));
           runOnJS(setExpanded)(open);
         })
         .onFinalize((_event, success) => {
-          if (success || !panActivated.value) return;
-          panActivated.value = false;
-          const open = expandedTarget.value > 0.5;
-          expandedSv.value = withSpring(open ? 1 : 0, expandSpring());
+          if (success || !panActivated.get()) return;
+          panActivated.set(false);
+          const open = expandedTarget.get() > 0.5;
+          expandedSv.set(withSpring(open ? 1 : 0, expandSpring()));
           runOnJS(setExpanded)(open);
         }),
     [dragOrigin, expandedSv, expandedTarget, panActivated, rowHeightSv, weekCountSv]
@@ -94,11 +96,11 @@ export function useCalendarExpandGesture(pageWidth: number, weekCount: number) {
   const toggleExpanded = useCallback(() => {
     setExpanded((open) => {
       const next = !open;
-      expandedTarget.value = next ? 1 : 0;
-      expandedSv.value = withSpring(next ? 1 : 0, expandSpring());
+      expandedTarget.set(next ? 1 : 0);
+      expandedSv.set(withSpring(next ? 1 : 0, expandSpring()));
       return next;
     });
-  }, [expandedSv, expandedTarget]);
+  }, [expandedSv, expandedTarget, setExpanded]);
 
   return { pan, panRef, expanded, expandedSv, rowHeightSv, frameStyle, toggleExpanded };
 }

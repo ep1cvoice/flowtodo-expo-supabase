@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Keyboard, useWindowDimensions } from 'react-native';
 import { isAndroid } from '@/shared/lib/platform';
 
@@ -36,18 +36,20 @@ export function useKeyboardHeight() {
 export function useKeyboardBottomInset() {
   const keyboardHeight = useAndroidKeyboardHeight();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const maxHeight = useRef(windowHeight);
-  const lastWidth = useRef(windowWidth);
-
-  if (windowWidth !== lastWidth.current) {
-    lastWidth.current = windowWidth;
-    maxHeight.current = windowHeight;
-  } else if (windowHeight > maxHeight.current) {
-    maxHeight.current = windowHeight;
+  // Tallest window height seen at the current width (a rotation resets it). Updated while
+  // rendering; the local value is used right away, the state keeps it for later renders.
+  const [seen, setSeen] = useState({ width: windowWidth, maxHeight: windowHeight });
+  let maxHeight = seen.maxHeight;
+  if (windowWidth !== seen.width) {
+    maxHeight = windowHeight;
+    setSeen({ width: windowWidth, maxHeight });
+  } else if (windowHeight > seen.maxHeight) {
+    maxHeight = windowHeight;
+    setSeen({ width: windowWidth, maxHeight });
   }
 
   if (keyboardHeight === 0) return 0;
 
-  const alreadyResized = Math.max(0, maxHeight.current - windowHeight);
+  const alreadyResized = Math.max(0, maxHeight - windowHeight);
   return Math.max(0, keyboardHeight - alreadyResized);
 }

@@ -1,15 +1,12 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import Field from '@/shared/ui/Field';
 import SheetFrame from '@/shared/ui/SheetFrame';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import type { AppColors } from '@/shared/constants/theme';
-import {
-  confirmPasswordError,
-  validatePassword,
-} from '@/core/auth/authValidation';
+import { confirmPasswordError, validatePassword } from '@/core/auth/authValidation';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
 interface ChangePasswordModalProps {
@@ -34,20 +31,25 @@ export default function ChangePasswordModal({
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!visible) return;
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setErrors({});
-    setFormError('');
-    setSuccess('');
-    setSaving(false);
-  }, [visible]);
+  // Reset the form while rendering whenever the modal opens (also when mounted open).
+  const [prevVisible, setPrevVisible] = useState(false);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrors({});
+      setFormError('');
+      setSuccess('');
+      setSaving(false);
+    }
+  }
 
   const handleSave = async () => {
     const nextErrors: Record<string, string> = {};
-    if (!currentPassword) nextErrors.currentPassword = strings.settings.changePassword.currentRequired;
+    if (!currentPassword)
+      nextErrors.currentPassword = strings.settings.changePassword.currentRequired;
 
     const newErr = validatePassword(newPassword, strings.settings.changePassword.newRequired);
     if (newErr) nextErrors.newPassword = newErr;
@@ -87,12 +89,14 @@ export default function ChangePasswordModal({
       keyboardAvoiding
       maxWidth={440}
       cardStyle={styles.card}
-      mobileCardStyle={styles.cardMobile}>
+      mobileCardStyle={styles.cardMobile}
+    >
       <ScrollView
         style={styles.scrollView}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}>
+        contentContainerStyle={styles.scroll}
+      >
         <Text style={styles.title}>{strings.settings.changePassword.title}</Text>
         <Text style={styles.subtitle}>{strings.settings.changePassword.subtitle}</Text>
 
@@ -143,7 +147,8 @@ export default function ChangePasswordModal({
               (hovered || pressed) && styles.secondaryBtnPressed,
             ]}
             onPress={onClose}
-            disabled={saving}>
+            disabled={saving}
+          >
             <Text style={styles.secondaryBtnText}>{strings.common.close}</Text>
           </Pressable>
           <Pressable
@@ -153,8 +158,11 @@ export default function ChangePasswordModal({
               saving && styles.btnDisabled,
             ]}
             onPress={handleSave}
-            disabled={saving}>
-            <Text style={styles.primaryBtnText}>{saving ? strings.common.saving : strings.settings.changePassword.submit}</Text>
+            disabled={saving}
+          >
+            <Text style={styles.primaryBtnText}>
+              {saving ? strings.common.saving : strings.settings.changePassword.submit}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>

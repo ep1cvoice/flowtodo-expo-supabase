@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { TasksProvider, useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 
+import { fetchTasksSnapshot } from '@/features/tasks/lib/queries';
+
 const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
   user: null,
   loading: false,
@@ -31,8 +33,6 @@ jest.mock('@/features/tasks/lib/queries', () => ({
   fetchTaskById: jest.fn(),
 }));
 jest.mock('@/features/tasks/lib/mutations', () => ({}));
-
-import { fetchTasksSnapshot } from '@/features/tasks/lib/queries';
 
 const fetchSnapshot = fetchTasksSnapshot as jest.Mock;
 const dek = new Uint8Array(32).fill(1);

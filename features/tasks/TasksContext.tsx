@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -11,19 +12,17 @@ import {
 } from 'react';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
 import { initialTasksData, tasksReducer, type TasksData } from '@/features/tasks/lib/tasksReducer';
 import {
   useTaskMutations,
   type TaskMutationsSnapshot,
 } from '@/features/tasks/lib/useTaskMutations';
 import { buildLabelLookup } from '@/features/tasks/lib/taskMappers';
-import { fetchCompletedPage, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
+import { taskStore } from '@/features/tasks/lib/store';
 import type {
   AddCategoryInput,
   AddTagInput,
   AddTaskInput,
-  TaskFormInput,
   UpdateTaskInput,
 } from '@/features/tasks/lib/types';
 import { withTimeout } from '@/shared/lib/withTimeout';
@@ -90,17 +89,17 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   const { activeTasks, completedTasks } = data;
-  const tasks = useMemo(
-    () => [...activeTasks, ...completedTasks],
-    [activeTasks, completedTasks]
-  );
+  const tasks = useMemo(() => [...activeTasks, ...completedTasks], [activeTasks, completedTasks]);
 
   // Actions read the latest user/DEK/data through this ref so they can stay referentially stable.
   const latest = useRef<TaskMutationsSnapshot>({ user, dek, data });
-  latest.current = { user, dek, data };
   const loadingMoreRef = useRef(false);
   const showToastRef = useRef(showToast);
-  showToastRef.current = showToast;
+  // Synced after render, before any effect or event handler can read them.
+  useLayoutEffect(() => {
+    latest.current = { user, dek, data };
+    showToastRef.current = showToast;
+  });
 
   // Only the response of the newest refresh may touch state; see `refresh`.
   const requestIdRef = useRef(0);
@@ -112,7 +111,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
    */
   const refresh = useCallback(async (userId: string, timeoutLabel?: string) => {
     const requestId = ++requestIdRef.current;
-    const request = fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
+    const request = taskStore.fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
       if (requestId === requestIdRef.current && latest.current.user?.id === userId) {
         dispatch({ type: 'snapshotLoaded', snapshot });
       }
@@ -128,11 +127,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  /** Loads the snapshot (seeding demo data into an empty account) and tracks loading/error. */
+  /**
+   * Loads the snapshot (seeding demo data into an empty account) and tracks loading/error.
+   * Callers set `loading` (and clear `error`) before calling it.
+   */
   const loadTasks = useCallback(
     async (userId: string, isCurrent: () => boolean) => {
-      setLoading(true);
-      setError(null);
       try {
         const snapshot = await refresh(userId, 'refreshTasks');
         if (!isCurrent()) return;
@@ -146,7 +146,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const activeDek = latest.current.dek;
         if (isEmpty && activeDek) {
           const seeded = await withTimeout(
-            seedDemoData(userId, activeDek),
+            taskStore.seedDemoData(userId, activeDek),
             TASKS_REFRESH_TIMEOUT_MS,
             'seedDemo'
           );
@@ -164,42 +164,61 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     [refresh]
   );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (authLoading) {
-      setLoading(true);
-      return;
-    }
-
-    if (!user) {
-      requestIdRef.current++;
+  // Adjust state while rendering when the session changes (instead of in the effect below,
+  // which would render the stale state first).
+  const sessionUserId = user?.id ?? null;
+  const sessionKey = { authLoading, userId: sessionUserId, dek };
+  const [prevSession, setPrevSession] = useState<typeof sessionKey | null>(null);
+  if (
+    !prevSession ||
+    prevSession.authLoading !== sessionKey.authLoading ||
+    prevSession.userId !== sessionKey.userId ||
+    prevSession.dek !== sessionKey.dek
+  ) {
+    setPrevSession(sessionKey);
+    if (!authLoading && !user) {
       dispatch({ type: 'reset' });
       setError(null);
       setLoading(false);
-      return;
-    }
-
-    // Rows cannot be decrypted without the DEK (on login `user` is set before it, and a
-    // locked session has none), so wait for it; this effect re-runs once it is available.
-    if (!dek) {
+    } else {
+      // Waiting for auth or for the DEK (rows cannot be decrypted without it: on login
+      // `user` is set before it, and a locked session has none), or about to load.
       setLoading(true);
+      if (!authLoading && dek) setError(null);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (authLoading) return;
+
+    if (!sessionUserId) {
+      // Responses still in flight for the previous user must not touch state.
+      requestIdRef.current++;
       return;
     }
 
-    void loadTasks(user.id, () => !cancelled);
+    // This effect re-runs once the DEK is available.
+    if (!dek) return;
+
+    // loadTasks only sets state after its first await, so nothing renders synchronously here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTasks(sessionUserId, () => !cancelled);
 
     return () => {
       cancelled = true;
     };
     // `dek` is a dependency on purpose: refresh reads it through a ref, and the list
     // is fetched (and decrypted) once the DEK becomes available.
-  }, [user?.id, authLoading, dek, loadTasks]);
+  }, [sessionUserId, authLoading, dek, loadTasks]);
 
   const retry = useCallback(async () => {
     const { user: currentUser, dek: currentDek } = latest.current;
     if (!currentUser || !currentDek) return;
     const userId = currentUser.id;
+    setLoading(true);
+    setError(null);
     await loadTasks(userId, () => latest.current.user?.id === userId);
   }, [loadTasks]);
 
@@ -222,6 +241,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refresh]);
 
+  // Local-first stores sync in the background: kick one off whenever data is loaded, and
+  // re-read the local replica whenever a sync changed it. No-ops for the online-only store.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId || !dek || !taskStore.localFirst) return;
+    taskStore.requestSync(userId);
+    return taskStore.subscribe(() => {
+      if (latest.current.user?.id !== userId) return;
+      void refresh(userId).catch((err) =>
+        logger.warn('Failed to re-read after sync:', (err as Error)?.message ?? err)
+      );
+    });
+  }, [userId, dek, refresh]);
+
   const loadMoreCompleted = useCallback(async () => {
     const { user: currentUser, dek: currentDek, data: current } = latest.current;
     if (
@@ -236,7 +269,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     loadingMoreRef.current = true;
     setLoadingMoreCompleted(true);
     try {
-      const { page, hasMore, nextCursor } = await fetchCompletedPage(
+      const { page, hasMore, nextCursor } = await taskStore.fetchCompletedPage(
         currentUser.id,
         current.completedCursor,
         currentDek,

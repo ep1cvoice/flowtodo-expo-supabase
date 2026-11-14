@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,20 +14,14 @@ import type { PomoData, PomoRecord } from '@/types';
 import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import { fetchPomodoros, MAX_HISTORY } from '@/features/pomodoro/lib/queries';
-import {
-  deletePomodoroRecord,
-  endPomodoroRow,
-  insertPomodoro,
-  pausePomodoroRow,
-  resumePomodoroAndFetch,
-  resumePomodoroRow,
-} from '@/features/pomodoro/lib/mutations';
+import { taskStore } from '@/features/tasks/lib/store';
+import { newLocalId } from '@/features/tasks/lib/store/localId';
+import { MAX_HISTORY } from '@/features/pomodoro/lib/queries';
+import { pomodoroStore } from '@/features/pomodoro/lib/store';
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
-
 
 interface PomodoroState {
   activeTaskId: number | null;
@@ -57,36 +52,60 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const { dek } = useEncryption();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  // The (user, dek) pair the last initial load finished for; loading is derived from it.
+  const [loadedFor, setLoadedFor] = useState<{ userId: string; dek: Uint8Array } | null>(null);
+  const userId = user?.id ?? null;
+
+  // Another account must never see the previous one's session: reset while rendering.
+  const [ownerId, setOwnerId] = useState(userId);
+  if (ownerId !== userId) {
+    setOwnerId(userId);
+    setActivePomo(null);
+    setHistory([]);
+  }
+  // Titles are encrypted, so nothing can be read before the DEK is available.
+  const loading =
+    userId !== null && (!dek || loadedFor?.userId !== userId || loadedFor.dek !== dek);
 
   const activeTaskId = activePomo?.taskId ?? null;
   const canStart = activePomo === null;
 
   // Actions read the latest values through this ref so they can stay referentially stable.
   const latest = useRef({ user, dek, activePomo });
-  latest.current = { user, dek, activePomo };
   const activePomoRef = useRef(activePomo);
-  activePomoRef.current = activePomo;
+  // Resolves once the insert of a just-started session has finished (success or failure).
+  const pendingStart = useRef<Promise<void> | null>(null);
+  // Bumped on every start, so a refresh can tell its snapshot is stale.
+  const startCount = useRef(0);
+  // Refs are synced after render (before any effect or event handler can read them).
+  useLayoutEffect(() => {
+    latest.current = { user, dek, activePomo };
+    activePomoRef.current = activePomo;
+  });
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       return registerPomodoroLogoutSnapshot(() => null);
     }
-    const userId = user.id;
     return registerPomodoroLogoutSnapshot(() => {
       const pomo = activePomoRef.current;
       if (!pomo) return null;
       return { userId, pomo };
     });
-  }, [user?.id]);
+  }, [userId]);
 
   const refresh = useCallback(async (userId: string, { resumeIfPaused = false } = {}) => {
-    const { active: fetched, history: fetchedHistory } = await fetchPomodoros(
+    const startsBefore = startCount.current;
+    const { active: fetched, history: fetchedHistory } = await pomodoroStore.fetchPomodoros(
       userId,
       latest.current.dek
     );
 
     setHistory(fetchedHistory);
+
+    // A session started while this fetch was running (or is still being written) is newer
+    // than the snapshot; applying it would make the running timer vanish until the next sync.
+    if (startCount.current !== startsBefore || pendingStart.current) return;
 
     if (!fetched) {
       setActivePomo(null);
@@ -99,7 +118,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     // (`pausedOnLogout` false) stay paused, wherever and whenever the app is opened.
     if (resumeIfPaused && active.pausedOnLogout && active.pausedAt && !active.endedAt) {
       try {
-        active = await resumePomodoroAndFetch({
+        active = await pomodoroStore.resumePomodoroAndFetch({
           userId,
           id: active.id,
           startedAt: new Date().toISOString(),
@@ -115,35 +134,37 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Nothing to load without a user, or before the DEK is available (this effect re-runs
+    // once it is).
+    if (!userId || !dek) return;
+
     let cancelled = false;
-
-    if (!user) {
-      setActivePomo(null);
-      setHistory([]);
-      setLoading(false);
-      return;
-    }
-
-    // Titles are encrypted, so nothing can be read before the DEK is available; this effect
-    // re-runs once it is.
-    if (!dek) {
-      setLoading(true);
-      return;
-    }
-
-    setLoading(true);
-    withTimeout(refresh(user.id, { resumeIfPaused: true }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
+    withTimeout(
+      refresh(userId, { resumeIfPaused: true }),
+      POMO_REFRESH_TIMEOUT_MS,
+      'refreshPomodoro'
+    )
       .catch((err) => {
         logger.warn('Failed to load pomodoros:', err?.message ?? err);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedFor({ userId, dek });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [user?.id, dek, refresh]);
+  }, [userId, dek, refresh]);
+
+  // A sync round may bring sessions from other devices (or this one's first pull).
+  useEffect(() => {
+    if (!userId || !dek) return;
+    return taskStore.subscribe(() => {
+      withTimeout(refresh(userId), POMO_REFRESH_TIMEOUT_MS, 'syncRefreshPomodoro').catch((err) => {
+        logger.warn('Failed to refresh pomodoros after sync:', err?.message ?? err);
+      });
+    });
+  }, [userId, dek, refresh]);
 
   const actions = useMemo<PomodoroActions>(() => {
     const requireUserId = () => {
@@ -178,7 +199,23 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const taskName = task.title;
         const now = new Date().toISOString();
 
-        const pomo = await insertPomodoro({
+        // Show the session right away; the write may queue behind a running sync or wait for
+        // the network. Pause/resume/end await `pendingStart` so they never use the temporary id.
+        const tempId = newLocalId();
+        startCount.current += 1;
+        setActivePomo({
+          id: tempId,
+          taskId: task.id,
+          startedAt: now,
+          endedAt: null,
+          duration: durationSec,
+          elapsed: 0,
+          pausedAt: null,
+          pausedOnLogout: false,
+        });
+
+        const insert = pomodoroStore.insertPomodoro({
+          id: tempId,
           userId,
           dek: activeDek,
           taskId: task.id,
@@ -186,10 +223,36 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
           durationSec,
           startedAt: now,
         });
-        setActivePomo(pomo);
+        const settled = insert.then(
+          (pomo) => {
+            // The online-only store assigns its own id; keep any pause made in the meantime.
+            if (pomo.id !== tempId) {
+              // Actions awaiting this insert read `latest` before React re-renders.
+              const running = latest.current.activePomo;
+              if (running?.id === tempId) {
+                latest.current = { ...latest.current, activePomo: { ...running, id: pomo.id } };
+              }
+              setActivePomo((current) =>
+                current?.id === tempId ? { ...current, id: pomo.id } : current
+              );
+            }
+          },
+          () => {}
+        );
+        pendingStart.current = settled;
+        try {
+          await insert;
+        } catch (err) {
+          setActivePomo((current) => (current?.id === tempId ? null : current));
+          throw err;
+        } finally {
+          await settled;
+          if (pendingStart.current === settled) pendingStart.current = null;
+        }
       },
 
       pausePomo: async () => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current || current.pausedAt) return;
         const userId = requireUserId();
@@ -199,7 +262,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         setActivePomo({ ...current, elapsed, pausedAt });
 
         try {
-          await pausePomodoroRow({ userId, id: current.id, elapsed, pausedAt });
+          await pomodoroStore.pausePomodoroRow({ userId, id: current.id, elapsed, pausedAt });
         } catch (err) {
           setActivePomo(current);
           throw err;
@@ -207,6 +270,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       },
 
       resumePomo: async () => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current || !current.pausedAt) return;
         const userId = requireUserId();
@@ -215,7 +279,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         setActivePomo({ ...current, pausedAt: null, startedAt });
 
         try {
-          await resumePomodoroRow({ userId, id: current.id, startedAt });
+          await pomodoroStore.resumePomodoroRow({ userId, id: current.id, startedAt });
         } catch (err) {
           setActivePomo(current);
           throw err;
@@ -223,6 +287,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       },
 
       endPomo: async (taskTitle) => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current) return;
         const userId = requireUserId();
@@ -232,7 +297,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const endedAt = new Date().toISOString();
         const taskName = taskTitle ?? strings.pomodoro.deletedTask;
 
-        await endPomodoroRow({
+        await pomodoroStore.endPomodoroRow({
           userId,
           dek: activeDek,
           id: current.id,
@@ -257,7 +322,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
       deleteHistoryRecord: async (id) => {
         const userId = requireUserId();
-        await deletePomodoroRecord(userId, id);
+        await pomodoroStore.deletePomodoroRecord(userId, id);
         setHistory((prev) => prev.filter((p) => p.id !== id));
       },
     };

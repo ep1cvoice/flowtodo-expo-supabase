@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { usePomodoroActions, usePomodoroState } from '@/features/pomodoro/PomodoroContext';
@@ -19,7 +19,9 @@ export function useTaskListActions(onToggle: (id: number) => void) {
 
   // Read at call time so the handlers don't change identity with the pomodoro state.
   const latest = useRef({ activeTaskId, canStart });
-  latest.current = { activeTaskId, canStart };
+  useLayoutEffect(() => {
+    latest.current = { activeTaskId, canStart };
+  });
 
   const stopPomodoroIfActive = useCallback(
     async (task: Task) => {

@@ -3,6 +3,10 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { TasksProvider, useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 
+import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
+import { fetchTaskById, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
+import { insertEncryptedTask, updateEncryptedTask } from '@/features/tasks/lib/mutations';
+
 const useTasks = () => ({ ...useTasksState(), ...useTasksActions() });
 
 const mockAuthState: { user: any; loading: boolean; dek: Uint8Array | null } = {
@@ -37,10 +41,6 @@ jest.mock('@/features/tasks/lib/mutations', () => ({
   updateEncryptedTask: jest.fn(),
   updateTaskSortOrders: jest.fn(),
 }));
-
-import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
-import { fetchTaskById, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
-import { insertEncryptedTask, updateEncryptedTask } from '@/features/tasks/lib/mutations';
 
 const fetchSnapshot = fetchTasksSnapshot as jest.Mock;
 const fetchTask = fetchTaskById as jest.Mock;

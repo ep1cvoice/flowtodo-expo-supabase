@@ -19,6 +19,6 @@ export function useToastedAction() {
         return { ok: false, error: err };
       }
     },
-    [showToast],
+    [showToast]
   );
 }

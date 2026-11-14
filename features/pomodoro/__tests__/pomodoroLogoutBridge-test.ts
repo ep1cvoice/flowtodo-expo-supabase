@@ -2,13 +2,17 @@ import {
   pausePomodoroBeforeLogout,
   registerPomodoroLogoutSnapshot,
 } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
+import { pomodoroStore } from '@/features/pomodoro/lib/store';
 
-jest.mock('@/features/pomodoro/lib/mutations', () => ({ pausePomodoroRow: jest.fn() }));
+jest.mock('@/features/pomodoro/lib/store', () => ({
+  pomodoroStore: { pausePomodoroRow: jest.fn() },
+}));
+jest.mock('@/features/tasks/lib/store', () => ({
+  taskStore: { flush: jest.fn().mockResolvedValue(undefined) },
+}));
 jest.mock('@/shared/lib/logger', () => ({ logger: { warn: jest.fn() } }));
 
-import { pausePomodoroRow } from '@/features/pomodoro/lib/mutations';
-
-const pause = pausePomodoroRow as jest.Mock;
+const pause = pomodoroStore.pausePomodoroRow as jest.Mock;
 const pomo = (over: Record<string, unknown> = {}): any => ({
   id: 3,
   taskId: 1,

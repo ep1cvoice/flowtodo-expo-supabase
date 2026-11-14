@@ -2,11 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/core/auth/AuthContext';
-import {
-  resolveColors,
-  type AppColors,
-  type ThemeMode,
-} from '@/shared/constants/theme';
+import { resolveColors, type AppColors, type ThemeMode } from '@/shared/constants/theme';
 import { logger } from '@/shared/lib/logger';
 
 const STORAGE_KEY = 'flowtodo.theme';
@@ -57,18 +53,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(COMPACT_STORAGE_KEY, String(next)).catch(() => {});
   }, []);
 
-  // Prefer profile theme once auth loads (keeps devices in sync).
-  useEffect(() => {
-    if (!ready) return;
-    const profileTheme = user?.settings?.theme;
-    if (!isThemeMode(profileTheme)) return;
+  // Prefer profile theme once auth loads (keeps devices in sync). Applied while rendering,
+  // so there is no frame with the stale theme; persisted to the device below.
+  const profileTheme = user?.settings?.theme;
+  const userId = user?.id;
+  const [prevProfile, setPrevProfile] = useState<{
+    ready: boolean;
+    userId: string | undefined;
+    profileTheme: string | undefined;
+  } | null>(null);
+  if (
+    !prevProfile ||
+    prevProfile.ready !== ready ||
+    prevProfile.userId !== userId ||
+    prevProfile.profileTheme !== profileTheme
+  ) {
+    setPrevProfile({ ready, userId, profileTheme });
+    if (ready && isThemeMode(profileTheme) && theme !== profileTheme) setThemeState(profileTheme);
+  }
 
-    setThemeState((current) => {
-      if (current === profileTheme) return current;
-      AsyncStorage.setItem(STORAGE_KEY, profileTheme).catch(() => {});
-      return profileTheme;
-    });
-  }, [ready, user?.id, user?.settings?.theme]);
+  useEffect(() => {
+    if (!ready || !isThemeMode(profileTheme)) return;
+    AsyncStorage.setItem(STORAGE_KEY, profileTheme).catch(() => {});
+  }, [ready, userId, profileTheme]);
 
   const setTheme = useCallback(
     async (next: ThemeMode) => {

@@ -10,7 +10,7 @@ import TaskReorderButtons from '@/features/tasks/components/item/TaskReorderButt
 import TaskTagLabels from '@/features/tasks/components/item/TaskTagLabels';
 import { useTaskItemModals } from '@/features/tasks/components/item/TaskItemModalsContext';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
-import { getCategoryIcon } from '@/shared/constants/categoryIcons';
+import CategoryIconGlyph from '@/shared/ui/CategoryIconGlyph';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { categoryCardWash } from '@/shared/lib/color';
 import type { Task } from '@/types';
@@ -54,7 +54,6 @@ function ToDoItem({
 
   const category = task.category;
   const tags = task.tags ?? [];
-  const CategoryIconComp = category ? getCategoryIcon(category.icon) : null;
 
   const dueDate = useMemo(
     () => (task.scheduled ? new Date(task.scheduled) : null),
@@ -79,101 +78,109 @@ function ToDoItem({
   const openCalendar = () => open('calendar', task);
 
   return (
-      <Pressable
-        onPress={openDetail}
-        accessibilityRole="none"
-        accessibilityLabel={task.title}
-        accessibilityHint={strings.tasks.showDetails}
-        {...(isWeb ? { tabIndex: -1 } : null)}
-        style={({ pressed, hovered }) => [
-          styles.todoItem,
-          cardWash ? { backgroundColor: cardWash } : null,
-          hovered && !cardWash ? styles.itemHovered : null,
-          hovered && cardWash ? styles.itemHoveredTinted : null,
-          pressed ? styles.pressed : null,
-        ]}>
-        {categoryGradient ? (
-          <LinearGradient
-            colors={categoryGradient}
-            locations={[0.25, 1]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
+    <Pressable
+      onPress={openDetail}
+      accessibilityRole="none"
+      accessibilityLabel={task.title}
+      accessibilityHint={strings.tasks.showDetails}
+      {...(isWeb ? { tabIndex: -1 } : null)}
+      style={({ pressed, hovered }) => [
+        styles.todoItem,
+        cardWash ? { backgroundColor: cardWash } : null,
+        hovered && !cardWash ? styles.itemHovered : null,
+        hovered && cardWash ? styles.itemHoveredTinted : null,
+        pressed ? styles.pressed : null,
+      ]}
+    >
+      {categoryGradient ? (
+        <LinearGradient
+          colors={categoryGradient}
+          locations={[0.25, 1]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      <View style={styles.todoMainRow}>
+        {showReorderButtons ? (
+          <TaskReorderButtons
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+            colors={colors}
+            styles={styles}
+            onMoveUp={onMove ? () => onMove(task.id, -1) : undefined}
+            onMoveDown={onMove ? () => onMove(task.id, 1) : undefined}
           />
         ) : null}
-        <View style={styles.todoMainRow}>
-          {showReorderButtons ? (
-            <TaskReorderButtons
-              canMoveUp={canMoveUp}
-              canMoveDown={canMoveDown}
-              colors={colors}
-              styles={styles}
-              onMoveUp={onMove ? () => onMove(task.id, -1) : undefined}
-              onMoveDown={onMove ? () => onMove(task.id, 1) : undefined}
-            />
-          ) : null}
 
-          <View style={styles.todoContent}>
-            <View style={styles.todoTitleRow}>
-              <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
+        <View style={styles.todoContent}>
+          <View style={styles.todoTitleRow}>
+            <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
 
-              <View style={styles.todoBody}>
-                <Text
-                  style={[styles.titleText, task.done && styles.done]}
-                  numberOfLines={2}
-                  ellipsizeMode="tail">
-                  {task.title}
-                </Text>
-              </View>
-
-              <View style={styles.sideColumn}>
-                {CategoryIconComp && category ? (
-                  <View
-                    style={styles.categoryMark}
-                    pointerEvents="none"
-                    accessible={false}
-                    importantForAccessibility="no-hide-descendants">
-                    <CategoryIconComp size={22} strokeWidth={2} color={category.color} />
-                  </View>
-                ) : null}
-                {!isMobile ? (
-                  <TaskDesktopActions
-                    taskId={task.id}
-                    done={task.done}
-                    isPomoActive={isPomoActive}
-                    canStart={canStart}
-                    colors={colors}
-                    styles={styles}
-                    onStartPomodoro={handleStartPomodoro}
-                    onOpenCalendar={openCalendar}
-                    onEdit={handleEdit}
-                    onDelete={requestDelete}
-                  />
-                ) : (
-                  <TaskMobileTrailing
-                    done={task.done}
-                    colors={colors}
-                    styles={styles}
-                    onOpenActions={openActions}
-                    onDelete={requestDelete}
-                  />
-                )}
-              </View>
+            <View style={styles.todoBody}>
+              <Text
+                style={[styles.titleText, task.done && styles.done]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {task.title}
+              </Text>
             </View>
-            {dueDate || tags.length > 0 ? (
-              <View style={styles.metaRow}>
-                {dueDate ? (
-                  <View style={styles.metaControls}>
-                    <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
-                  </View>
-                ) : null}
-                <TaskTagLabels tags={tags} styles={styles} />
-              </View>
-            ) : null}
+
+            <View style={styles.sideColumn}>
+              {category ? (
+                <View
+                  style={styles.categoryMark}
+                  pointerEvents="none"
+                  accessible={false}
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <CategoryIconGlyph
+                    icon={category.icon}
+                    size={22}
+                    strokeWidth={2}
+                    color={category.color}
+                  />
+                </View>
+              ) : null}
+              {!isMobile ? (
+                <TaskDesktopActions
+                  taskId={task.id}
+                  done={task.done}
+                  isPomoActive={isPomoActive}
+                  canStart={canStart}
+                  colors={colors}
+                  styles={styles}
+                  onStartPomodoro={handleStartPomodoro}
+                  onOpenCalendar={openCalendar}
+                  onEdit={handleEdit}
+                  onDelete={requestDelete}
+                />
+              ) : (
+                <TaskMobileTrailing
+                  done={task.done}
+                  colors={colors}
+                  styles={styles}
+                  onOpenActions={openActions}
+                  onDelete={requestDelete}
+                />
+              )}
+            </View>
           </View>
+          {dueDate || tags.length > 0 ? (
+            <View style={styles.metaRow}>
+              {dueDate ? (
+                <View style={styles.metaControls}>
+                  <DueDateBadge date={dueDate} styles={styles} onPress={openCalendar} />
+                </View>
+              ) : null}
+              <TaskTagLabels tags={tags} styles={styles} />
+            </View>
+          ) : null}
         </View>
-      </Pressable>
+      </View>
+    </Pressable>
   );
 }
 

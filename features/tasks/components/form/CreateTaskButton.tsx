@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import type { AppColors } from '@/shared/constants/theme';
-import { tokens } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 

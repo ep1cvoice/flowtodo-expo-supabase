@@ -1,5 +1,9 @@
 import { callsOf, createBuilder } from '@/test/supabaseMock';
 
+import { supabase } from '@/core/supabase/client';
+import { DEMO_CATEGORIES, DEMO_TAGS, DEMO_TASKS } from '@/features/tasks/lib/demoSeed';
+import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
+
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
 jest.mock('@/core/crypto', () => ({
   encryptField: jest.fn(async (_dek: Uint8Array, text: string) => ({
@@ -8,10 +12,6 @@ jest.mock('@/core/crypto', () => ({
   })),
   hashForUniqueness: jest.fn((_dek: Uint8Array, text: string) => `h(${text})`),
 }));
-
-import { supabase } from '@/core/supabase/client';
-import { DEMO_CATEGORIES, DEMO_TAGS, DEMO_TASKS } from '@/features/tasks/lib/demoSeed';
-import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
 
 const from = supabase.from as jest.Mock;
 const rpc = supabase.rpc as jest.Mock;

@@ -55,10 +55,13 @@
         "expo-build-properties",
         {
           "android": {
-            "buildArchs": ["arm64-v8a"]
+            "buildArchs": [
+              "arm64-v8a"
+            ]
           }
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

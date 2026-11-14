@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
@@ -11,7 +11,7 @@ import type { Task } from '@/types';
 export function useDescriptionAutosave(task: Task) {
   const { updateTask } = useTasksActions();
   const runToasted = useToastedAction();
-  const [draft, setDraft] = useState(task.description ?? '');
+  const [draft, setDraftState] = useState(task.description ?? '');
   const inputRef = useRef<TextInput>(null);
   const draftRef = useRef(draft);
   const focusedRef = useRef(false);
@@ -19,7 +19,11 @@ export function useDescriptionAutosave(task: Task) {
   // Set when a tap should dismiss the keyboard without saving (e.g. the delete button).
   const skipSaveRef = useRef(false);
   const lastSavedRef = useRef((task.description ?? '').trim());
-  draftRef.current = draft;
+  // Keeps `draftRef` in step with the state, so a save right after typing sees the new text.
+  const setDraft = useCallback((next: string) => {
+    draftRef.current = next;
+    setDraftState(next);
+  }, []);
 
   // Follow external description changes unless the user is typing.
   useEffect(() => {
@@ -27,7 +31,7 @@ export function useDescriptionAutosave(task: Task) {
     const next = task.description ?? '';
     setDraft(next);
     lastSavedRef.current = next.trim();
-  }, [task.id, task.description]);
+  }, [task.id, task.description, setDraft]);
 
   const saveDescription = async () => {
     const next = draftRef.current.trim();

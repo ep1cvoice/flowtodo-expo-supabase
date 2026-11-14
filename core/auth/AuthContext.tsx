@@ -1,14 +1,33 @@
 import { strings } from '@/shared/lib/strings';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AUTH_BOOTSTRAP_TIMEOUT_MS } from '@/core/auth/constants';
 import { resolveDekFromPassword } from '@/core/auth/dek';
 import { useEncryptionActions } from '@/core/auth/EncryptionContext';
 import {
   fetchProfile,
+  loadCachedUser,
   minimalUserFromSession,
   updateProfileSettings,
 } from '@/core/auth/profile';
-import { toastForError } from '@/shared/lib/networkError';
+import {
+  clearLastUser,
+  forgetAccount,
+  loadLastUser,
+  rememberAccount,
+  rememberLastUser,
+  userIdForEmail,
+} from '@/core/auth/offlineCache';
+import { isNetworkError, toastForError } from '@/shared/lib/networkError';
+import { isOnlineNow } from '@/shared/lib/netState';
+import { useOnReconnect } from '@/shared/providers/NetworkContext';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
@@ -42,20 +61,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Only true during signIn/signUp. Unlock must NOT set this — UnlockGate
   // shows the app when this is true so the login screen can stay mounted.
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  // Set while the app runs on a cached account without a Supabase session (session expired or
+  // signed in offline). Cleared once the session is restored. See `restoreSession`.
+  const offlineRestoredRef = useRef(false);
+  // Only for an offline sign-in: kept in memory (never persisted) so the Supabase session can
+  // be created silently as soon as the connection returns.
+  const pendingCredentialsRef = useRef<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
+    // Local-first startup: when an account was signed in before, open on it immediately from
+    // the cache and verify the session in the background. The network (which may hang for
+    // tens of seconds on a dead connection) is never on the critical path.
+    const verifySessionInBackground = async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_BOOTSTRAP_TIMEOUT_MS,
+          'getSession'
+        );
+        if (!isMounted) return;
+        const sessionUser = data.session?.user;
+        if (sessionUser) {
+          offlineRestoredRef.current = false;
+          const fresh = await fetchProfile(sessionUser.id, sessionUser.email);
+          if (isMounted && fresh) setUserState(fresh);
+        } else if (!error) {
+          // Really signed out (e.g. the session was revoked): leave the cached account.
+          offlineRestoredRef.current = false;
+          setUserState(null);
+          clearDek();
+        }
+        // A network error keeps the cached account; supabase-js refreshes the token later.
+      } catch (err) {
+        logger.warn('Background session check failed:', (err as Error)?.message ?? err);
+      }
+    };
+
     (async () => {
       try {
+        const last = await loadLastUser();
+        if (last) {
+          offlineRestoredRef.current = true;
+          const cached =
+            (await loadCachedUser(last.id, last.email)) ??
+            minimalUserFromSession(last.id, last.email);
+          if (isMounted) {
+            setUserState(cached);
+            setLoading(false);
+          }
+          void verifySessionInBackground();
+          return;
+        }
+
         const { data } = await withTimeout(
           supabase.auth.getSession(),
           AUTH_BOOTSTRAP_TIMEOUT_MS,
           'getSession'
         );
-
         const session = data.session;
         if (session?.user) {
+          void rememberLastUser({ id: session.user.id, email: session.user.email ?? '' });
           const profile =
             (await fetchProfile(session.user.id, session.user.email)) ??
             minimalUserFromSession(session.user.id, session.user.email);
@@ -73,7 +140,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' && !session && offlineRestoredRef.current) return;
       if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        offlineRestoredRef.current = false;
+        pendingCredentialsRef.current = null;
         if (isMounted) {
           setUserState(null);
           clearDek();
@@ -84,6 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!HANDLED_AUTH_EVENTS.has(event) || !session?.user) return;
 
       const { id, email } = session.user;
+      offlineRestoredRef.current = false;
+      void rememberLastUser({ id, email: email ?? '' });
       setTimeout(() => {
         void (async () => {
           try {
@@ -103,20 +175,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [clearDek]);
 
+  /**
+   * No connection: verify the password against the DEK material cached by an earlier online
+   * sign-in (unwrapping the DEK fails on a wrong password) and open the app on the cached
+   * account. The Supabase session is created once the connection returns.
+   */
+  const signInOffline = useCallback(
+    async (email: string, password: string): Promise<{ error: string | null }> => {
+      const cachedUserId = await userIdForEmail(email);
+      if (!cachedUserId) return { error: strings.auth.login.offlineNoAccount };
+
+      const resolved = await resolveDekFromPassword({
+        userId: cachedUserId,
+        password,
+        decryptFailLog: strings.auth.errors.decryptDekLog,
+        decryptFailError: strings.auth.errors.invalidPasswordOrCorrupted,
+      });
+      if (!resolved.ok) return { error: resolved.error };
+
+      offlineRestoredRef.current = true;
+      pendingCredentialsRef.current = { email, password };
+      setDek(resolved.dek);
+      setUserState(
+        (await loadCachedUser(cachedUserId, email)) ?? minimalUserFromSession(cachedUserId, email)
+      );
+      return { error: null };
+    },
+    [setDek]
+  );
+
   const signIn = useCallback(
     async (email: string, password: string) => {
       setIsAuthenticating(true);
       try {
+        if (!(await isOnlineNow())) return await signInOffline(email, password);
+
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({ email, password }),
           AUTH_BOOTSTRAP_TIMEOUT_MS,
           'signIn'
         );
 
+        if (error && isNetworkError(error)) return await signInOffline(email, password);
         if (error || !data.user) {
           return { error: error?.message ?? strings.auth.login.signInFailed };
         }
 
+        void rememberAccount(email, data.user.id);
+        void rememberLastUser({ id: data.user.id, email });
         const resolved = await resolveDekFromPassword({
           userId: data.user.id,
           password,
@@ -136,12 +242,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: null };
       } catch (err) {
         logger.warn('signIn failed:', (err as Error)?.message ?? err);
+        if (isNetworkError(err)) return await signInOffline(email, password);
         return { error: toastForError(err, strings.auth.login.signInFailed) };
       } finally {
         setIsAuthenticating(false);
       }
     },
-    [setDek]
+    [setDek, signInOffline]
   );
 
   const signUp = useCallback(async (email: string, password: string, username: string) => {
@@ -168,12 +275,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await pausePomodoroBeforeLogout();
+    await clearLastUser();
+    pendingCredentialsRef.current = null;
+    offlineRestoredRef.current = false;
     try {
       await supabase.auth.signOut();
     } finally {
       await resetEncryption();
     }
   }, [resetEncryption]);
+
+  // Back online after an offline sign-in: create the real Supabase session in the background.
+  useOnReconnect(() => {
+    const credentials = pendingCredentialsRef.current;
+    if (!credentials) return;
+    void (async () => {
+      try {
+        const { error } = await supabase.auth.signInWithPassword(credentials);
+        if (!error) {
+          pendingCredentialsRef.current = null;
+        } else if (!isNetworkError(error)) {
+          // The password changed elsewhere: the cached account is no longer valid.
+          pendingCredentialsRef.current = null;
+          void logout();
+        }
+      } catch (err) {
+        logger.warn('Background sign-in failed:', (err as Error)?.message ?? err);
+      }
+    })();
+  });
 
   const userId = user?.id ?? null;
 
@@ -211,9 +341,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await supabase.auth.signOut();
     await resetEncryption();
+    await forgetAccount(userId, user?.email ?? '');
     setUserState(null);
     return { error: null };
-  }, [userId, resetEncryption]);
+  }, [userId, user?.email, resetEncryption]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

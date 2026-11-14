@@ -35,10 +35,14 @@ export default function ConfirmModal({
   const pendingRef = useRef(false);
   const locked = busy || pending;
 
+  // Reset while rendering when the modal closes (no extra render with stale state).
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (!visible) setPending(false);
+  }
   useEffect(() => {
-    if (visible) return;
-    pendingRef.current = false;
-    setPending(false);
+    if (!visible) pendingRef.current = false;
   }, [visible]);
 
   const handleClose = () => {
@@ -70,7 +74,8 @@ export default function ConfirmModal({
       maxWidth={360}
       closeDisabled={locked}
       overlayStyle={embedded ? styles.embeddedScrim : undefined}
-      cardStyle={styles.card}>
+      cardStyle={styles.card}
+    >
       <View accessibilityRole="alert" style={styles.body}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.message}>{message}</Text>
@@ -85,7 +90,8 @@ export default function ConfirmModal({
             onPress={handleClose}
             disabled={locked}
             accessibilityRole="button"
-            accessibilityLabel={cancelLabel}>
+            accessibilityLabel={cancelLabel}
+          >
             <Text style={styles.cancelText}>{cancelLabel}</Text>
           </Pressable>
           <Pressable
@@ -100,7 +106,8 @@ export default function ConfirmModal({
             }}
             disabled={locked}
             accessibilityRole="button"
-            accessibilityLabel={confirmLabel}>
+            accessibilityLabel={confirmLabel}
+          >
             <Text style={styles.confirmText}>{locked ? `${confirmLabel}…` : confirmLabel}</Text>
           </Pressable>
         </View>

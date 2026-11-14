@@ -22,6 +22,10 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
+        {/* Offline support: caches the app shell and assets (production builds only). */}
+        {process.env.NODE_ENV === 'production' ? (
+          <script dangerouslySetInnerHTML={{ __html: registerServiceWorker }} />
+        ) : null}
         {/* Add any additional <head> elements that you want globally available on web... */}
       </head>
       <body>{children}</body>
@@ -37,4 +41,11 @@ body {
   body {
     background-color: #021c1b;
   }
+}`;
+
+const registerServiceWorker = `
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
 }`;

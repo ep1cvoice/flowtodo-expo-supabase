@@ -1,8 +1,4 @@
-import {
-  NETWORK_TOAST,
-  isNetworkError,
-  toastForError,
-} from '@/shared/lib/networkError';
+import { NETWORK_TOAST, isNetworkError, toastForError } from '@/shared/lib/networkError';
 
 describe('isNetworkError', () => {
   it('detects common fetch / TypeError failures', () => {
@@ -15,7 +11,9 @@ describe('isNetworkError', () => {
   it('detects TypeErrors with a fetch-failure message across browsers', () => {
     expect(isNetworkError(new TypeError('Network request failed'))).toBe(true);
     expect(isNetworkError(new TypeError('Load failed'))).toBe(true);
-    expect(isNetworkError(new TypeError('NetworkError when attempting to fetch resource.'))).toBe(true);
+    expect(isNetworkError(new TypeError('NetworkError when attempting to fetch resource.'))).toBe(
+      true
+    );
   });
 
   it('detects timeouts', () => {
@@ -27,11 +25,15 @@ describe('isNetworkError', () => {
   });
 
   it('detects a network cause nested in another error', () => {
-    expect(isNetworkError(new Error('wrapper', { cause: new TypeError('Failed to fetch') }))).toBe(true);
+    expect(isNetworkError(new Error('wrapper', { cause: new TypeError('Failed to fetch') }))).toBe(
+      true
+    );
   });
 
   it('does not hide programming errors as network errors', () => {
-    expect(isNetworkError(new TypeError("Cannot read properties of undefined (reading 'id')"))).toBe(false);
+    expect(
+      isNetworkError(new TypeError("Cannot read properties of undefined (reading 'id')"))
+    ).toBe(false);
     expect(isNetworkError(new TypeError('undefined is not a function'))).toBe(false);
     expect(isNetworkError(new Error('timeout must be a positive number'))).toBe(false);
     expect(isNetworkError(new Error('Invalid timeout option'))).toBe(false);
@@ -46,9 +48,7 @@ describe('isNetworkError', () => {
 
 describe('toastForError', () => {
   it('returns network copy for network errors', () => {
-    expect(toastForError(new TypeError('Failed to fetch'), 'Could not save.')).toBe(
-      NETWORK_TOAST
-    );
+    expect(toastForError(new TypeError('Failed to fetch'), 'Could not save.')).toBe(NETWORK_TOAST);
   });
 
   it('keeps fallback for other errors', () => {

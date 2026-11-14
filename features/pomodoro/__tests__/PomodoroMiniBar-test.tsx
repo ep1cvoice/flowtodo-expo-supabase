@@ -8,7 +8,12 @@ jest.mock('lucide-react-native', () => ({
   Play: () => null,
   X: () => null,
 }));
-jest.mock('react-native-svg', () => ({ __esModule: true, default: () => null, G: () => null, Path: () => null }));
+jest.mock('react-native-svg', () => ({
+  __esModule: true,
+  default: () => null,
+  G: () => null,
+  Path: () => null,
+}));
 jest.mock('@/features/pomodoro/pomodoroAlarm', () => ({
   playPomodoroAlarm: jest.fn().mockResolvedValue(undefined),
   stopPomodoroAlarm: jest.fn().mockResolvedValue(undefined),
@@ -41,7 +46,9 @@ jest.mock('@/features/tasks/TasksContext', () => ({
   useTasksState: () => ({ activeTasks: [{ id: 7, title: 'Write report' }] }),
 }));
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>(
+    '@/shared/constants/theme'
+  );
   return { useTheme: () => ({ colors: lightColors, isDark: false }) };
 });
 
@@ -99,9 +106,28 @@ describe('PomodoroMiniBar', () => {
   it('pauses and raises the alarm when time is up, even while hidden', async () => {
     mockActive = pomo();
     mockElapsed = 1500;
-    const { getByText, queryByLabelText } = await render(<PomodoroMiniBar onOpen={jest.fn()} hidden />);
+    const { getByText, queryByLabelText } = await render(
+      <PomodoroMiniBar onOpen={jest.fn()} hidden />
+    );
     expect(queryByLabelText(strings.pomodoro.openFullscreen)).toBeNull();
     expect(mockPause).toHaveBeenCalled();
     expect(getByText(strings.pomodoro.finished)).toBeTruthy();
+  });
+
+  it('closes the alarm and ends the session on OK, ringing only once', async () => {
+    mockActive = pomo();
+    mockElapsed = 1500;
+    const { getByText, queryByText, rerender } = await render(
+      <PomodoroMiniBar onOpen={jest.fn()} />
+    );
+    await fireEvent.press(getByText(strings.common.ok));
+    expect(mockEnd).toHaveBeenCalledWith('Write report');
+    expect(queryByText(strings.pomodoro.finished)).toBeNull();
+
+    await rerender(<PomodoroMiniBar onOpen={jest.fn()} />);
+    const { playPomodoroAlarm } = jest.requireMock<
+      typeof import('@/features/pomodoro/pomodoroAlarm')
+    >('@/features/pomodoro/pomodoroAlarm');
+    expect(playPomodoroAlarm).toHaveBeenCalledTimes(1);
   });
 });

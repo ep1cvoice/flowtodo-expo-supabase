@@ -1,5 +1,6 @@
 // Characterization tests for rewrapDekAndUpdatePassword, including the rollback path.
 import { rewrapDekAndUpdatePassword } from '@/core/auth/updatePassword';
+import { supabase } from '@/core/supabase/client';
 
 type Res = { error: any; data?: any };
 
@@ -63,7 +64,7 @@ const options = {
 };
 
 beforeEach(() => {
-  require('@/core/supabase/client').supabase.auth.updateUser.mockClear();
+  (supabase.auth.updateUser as jest.Mock).mockClear();
   mockState.signIn = { error: null };
   mockState.profile = { data: profile, error: null };
   mockState.updateResults = [];
@@ -107,7 +108,6 @@ it('happy path: writes new wrap with backup, updates auth password, then clears 
 });
 
 it('does not change the password when the profile update fails', async () => {
-  const { supabase } = require('@/core/supabase/client');
   mockState.updateResults = [{ error: new Error('db down') }];
   const { error } = await rewrapDekAndUpdatePassword(options);
   expect(error).toContain('Password was not changed');
@@ -115,7 +115,6 @@ it('does not change the password when the profile update fails', async () => {
 });
 
 it('treats an update that matches no row as a failure', async () => {
-  const { supabase } = require('@/core/supabase/client');
   mockState.updateResults = [{ error: null, data: [] }];
   const { error } = await rewrapDekAndUpdatePassword(options);
   expect(error).toContain('Password was not changed');

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -24,13 +24,13 @@ export default function AppSplash() {
   const { colors, isDark } = useTheme();
   const { width, height } = useWindowDimensions();
   const [visible, setVisible] = useState(() => !splashShownThisSession);
-  const logoScale = useRef(new Animated.Value(0.5)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(14)).current;
-  const overlayOpacity = useRef(new Animated.Value(1)).current;
-  const glowScale = useRef(new Animated.Value(0.85)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const [logoScale] = useState(() => new Animated.Value(0.5));
+  const [logoOpacity] = useState(() => new Animated.Value(0));
+  const [titleOpacity] = useState(() => new Animated.Value(0));
+  const [titleTranslateY] = useState(() => new Animated.Value(14));
+  const [overlayOpacity] = useState(() => new Animated.Value(1));
+  const [glowScale] = useState(() => new Animated.Value(0.85));
+  const [glowOpacity] = useState(() => new Animated.Value(0));
 
   const gradientColors = useMemo(
     () =>

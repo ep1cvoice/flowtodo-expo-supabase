@@ -6,12 +6,11 @@
 // GitHub API for it (the repo is public, no token needed). A PR whose title
 // contains the standalone word "WIP" is not built.
 
-const {
-  VERCEL_GIT_PULL_REQUEST_ID: pr,
-  VERCEL_GIT_REPO_OWNER: owner,
-  VERCEL_GIT_REPO_SLUG: repo,
-  GITHUB_TOKEN, // optional: only raises the API rate limit (60/h per IP otherwise)
-} = process.env;
+const pr = process.env.VERCEL_GIT_PULL_REQUEST_ID;
+const owner = process.env.VERCEL_GIT_REPO_OWNER;
+const repo = process.env.VERCEL_GIT_REPO_SLUG;
+// Optional: only raises the API rate limit (60/h per IP otherwise).
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 // No PR yet (e.g. first push of a branch) or a production deploy: build as usual.
 if (!pr || !owner || !repo) process.exit(1);

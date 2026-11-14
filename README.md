@@ -132,3 +132,44 @@ Run the same checks as CI before opening a PR:
 `.github/workflows/ci.yml` also runs `bunx expo-doctor` (advisory) and a smoke `bunx expo export -p web` build (with dummy env vars).
 
 Project conventions (strings, logger, SQL migrations, English comments) are listed in `AGENTS.md`.
+
+## Local-first data (native) and web
+
+- **Native (iOS/Android):** tasks, categories and tags live in a per-user SQLite database
+  (`core/localdb`, `features/tasks/lib/store/localStore.ts`). Reads and writes never wait for
+  the network. Changes are marked `dirty`/`deleted` and pushed to Supabase in the background
+  (`syncEngine.ts`), then the remote state is pulled. Sync runs after every write, on
+  reconnect, and when the app returns to the foreground. Only ciphertext is stored locally.
+  Conflict policy: last write wins; a pending local change beats a remote change or delete.
+- **Web:** the same local-first store, running on expo-sqlite's web build (wa-sqlite, persisted
+  in the browser's OPFS; alpha upstream). It needs a cross-origin isolated page
+  (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: credentialless`),
+  set in `metro.config.js` (dev) and `vercel.json` (production); any other host must send the
+  same headers. If the page is not isolated, OPFS is missing, or the database cannot be opened
+  (e.g. another tab holds its exclusive lock), the web build transparently stays online-only
+  (`features/tasks/lib/store/fallbackStore.ts`).
+- **Web offline:** a service worker (`public/sw.js`, registered in production builds from
+  `app/+html.tsx`) caches pages (network first, 3 s timeout when a copy exists) and the
+  content-hashed `/_expo` and `/assets` files, so the app opens without a connection after one
+  online visit. Offline sign-in uses the same cache as native (`core/auth/offlineCache.ts`, in
+  localStorage).
+- **Sync status:** a cloud button in the header of the main (Active) screen opens a sheet with
+  syncing / pending changes / last error / last sync time and a "Sync now" button. A dot on the
+  button flags pending changes or errors. Shown whenever the local database is in use (native, and web when isolated).
+- **Pomodoro:** starting a session first flushes pending changes (`taskStore.flush`), so the
+  `task_id` foreign key always exists on the server. Pomodoro itself stays online-only.
+- **Id collisions:** ids are client-generated; if the server reports an id owned by another
+  user, the sync engine re-ids the row and retries.
+- **Offline sign-in (native and web):** after one online sign-in the profile row (settings + the
+  password-wrapped DEK material, i.e. what the server already stores) is cached in
+  AsyncStorage (`core/auth/offlineCache.ts`). Offline, the password is verified by unwrapping
+  the DEK; the app opens on the cached account and the local database. Back online, the
+  Supabase session is created silently (the password is held in memory only until then) and a
+  sync runs. An access token that expired while offline is handled the same way: the app opens
+  on the cached account and supabase-js refreshes the token on reconnect. Logout keeps the
+  cache (so offline sign-in still works); account deletion wipes it.
+- **Needs a connection:** the first sign-in on a device (there is no cached account or data
+  yet) and the one-time demo seed (a server-side atomic RPC).
+- **Native build:** `expo-sqlite` is a native module, so a new dev client / prebuild is required.
+- Jest maps `@/features/tasks/lib/store` to the online-only store (`index.remote.ts`), so context tests keep
+  mocking `queries` / `mutations`; the local store is covered in `store/__tests__`.

@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
@@ -57,9 +57,12 @@ export default function TaskDetailModal({
   const showCalendarIcon = !task.done && !dueDate;
   const showAlarmIcon = showPomodoro && !isPomoActive;
 
-  useEffect(() => {
+  // Reset while rendering when the sheet closes (no extra render with stale state).
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (!visible) setConfirmDelete(false);
-  }, [visible]);
+  }
 
   const handleClose = () => {
     void saveDescription();
@@ -71,7 +74,7 @@ export default function TaskDetailModal({
   };
 
   const { handleClearDate, handleConfirmDate } = useTaskScheduleActions(task, () =>
-    setShowCalendar(false),
+    setShowCalendar(false)
   );
 
   return (
@@ -111,7 +114,8 @@ export default function TaskDetailModal({
             }}
           />
         </>
-      }>
+      }
+    >
       <View
         style={styles.sheetBody}
         onPointerDownCapture={(event) => {
@@ -127,7 +131,8 @@ export default function TaskDetailModal({
             return;
           }
           if (marker === 'outside') commitFromOutside();
-        }}>
+        }}
+      >
         <TaskDetailHeader
           task={task}
           styles={styles}

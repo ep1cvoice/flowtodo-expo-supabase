@@ -14,7 +14,7 @@ jest.mock('@/shared/providers/ToastContext', () => ({
 }));
 
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme');
   return {
     useTheme: () => ({
       colors: lightColors,
@@ -38,7 +38,7 @@ jest.mock('@/features/tasks/components/form/LabelModal', () => ({ __esModule: tr
 jest.mock('@/features/tasks/components/form/TagChipPicker', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('react-native-safe-area-context', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     SafeAreaView: ({ children, ...props }: { children?: React.ReactNode }) => (
       <View {...props}>{children}</View>
@@ -48,7 +48,7 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 jest.mock('lucide-react-native', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   const Icon = () => <View />;
   return new Proxy({}, { get: () => Icon });
 });

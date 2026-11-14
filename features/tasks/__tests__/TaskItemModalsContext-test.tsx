@@ -34,7 +34,7 @@ jest.mock('@/features/tasks/components/item/todoItemStyles', () => ({
 // Stub modals: render the task title while visible and expose the callbacks as buttons.
 const mockStubModalMounts = jest.fn();
 jest.mock('@/features/tasks/components/item/TaskDetailModal', () => {
-  const { Text, Pressable } = require('react-native');
+  const { Text, Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     __esModule: true,
     default: (p: any) => {
@@ -63,7 +63,7 @@ jest.mock('@/features/tasks/components/calendar/CalendarModal', () => ({
   default: () => null,
 }));
 jest.mock('@/shared/ui/ConfirmModal', () => {
-  const { Text, Pressable } = require('react-native');
+  const { Text, Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     __esModule: true,
     default: (p: any) =>
