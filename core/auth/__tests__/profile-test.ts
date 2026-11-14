@@ -12,7 +12,8 @@ jest.mock('@/shared/lib/logger', () => ({
 
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
-import { fetchProfile } from '@/core/auth/profile';
+import { fetchProfile, fetchProfileRow } from '@/core/auth/profile';
+import { cacheProfileRow } from '@/core/auth/offlineCache';
 
 const from = supabase.from as jest.Mock;
 
@@ -85,5 +86,40 @@ describe('fetchProfileRow sharing', () => {
 
     await fetchProfileRow('u1');
     expect(from).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+describe('offline fallback', () => {
+  const offline = { message: 'TypeError: Network request failed' };
+
+  it('does not retry when the request never reached the server, and uses the cached row', async () => {
+    await cacheProfileRow('u9', { ...row, salt: 'cached-salt' });
+    from.mockImplementation(() => createBuilder({ error: offline }));
+
+    const result = await fetchProfileRow('u9');
+
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ salt: 'cached-salt' });
+  });
+
+  it('fails when offline and nothing is cached', async () => {
+    from.mockImplementation(() => createBuilder({ error: offline }));
+    await expect(fetchProfileRow('nobody')).rejects.toThrow();
+  });
+
+  it('caches the row after a successful fetch', async () => {
+    from.mockReturnValueOnce(createBuilder({ data: { ...row, salt: 'fresh' } }));
+    await fetchProfileRow('u10');
+    await new Promise<void>((r) => setImmediate(r));
+    from.mockImplementation(() => createBuilder({ error: offline }));
+    expect(await fetchProfileRow('u10')).toMatchObject({ salt: 'fresh' });
+  });
+
+  it('does not use the cache for server-side errors', async () => {
+    await cacheProfileRow('u11', row);
+    from.mockImplementation(() => createBuilder({ error: { message: 'permission denied' } }));
+    await expect(fetchProfileRow('u11')).rejects.toThrow();
+    expect(from).toHaveBeenCalledTimes(3);
   });
 });

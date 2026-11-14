@@ -23,6 +23,7 @@ jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>
 jest.mock('@/core/auth/dek', () => ({ resolveDekFromPassword: jest.fn() }));
 jest.mock('@/core/auth/profile', () => ({
   fetchProfile: jest.fn(),
+  loadCachedUser: jest.fn(),
   minimalUserFromSession: jest.fn(),
   updateProfileSettings: jest.fn(),
 }));
@@ -33,19 +34,36 @@ jest.mock('@/core/auth/secureStorage', () => ({
   saveDekToSecureStore: jest.fn(),
   clearDekFromSecureStore: jest.fn(),
 }));
+let mockReconnect: (() => void) | null = null;
+jest.mock('@/shared/providers/NetworkContext', () => ({
+  useOnReconnect: (cb: () => void) => {
+    mockReconnect = cb;
+  },
+}));
+let mockOnlineNow = true;
+jest.mock('@/shared/lib/netState', () => ({ isOnlineNow: async () => mockOnlineNow }));
+jest.mock('@/core/auth/offlineCache', () => ({
+  clearLastUser: jest.fn(),
+  forgetAccount: jest.fn(),
+  loadLastUser: jest.fn(),
+  rememberAccount: jest.fn(),
+  rememberLastUser: jest.fn(),
+  userIdForEmail: jest.fn(),
+}));
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   pausePomodoroBeforeLogout: jest.fn(),
 }));
 
 import { supabase } from '@/core/supabase/client';
 import { resolveDekFromPassword } from '@/core/auth/dek';
-import { fetchProfile, minimalUserFromSession } from '@/core/auth/profile';
+import { fetchProfile, loadCachedUser, minimalUserFromSession } from '@/core/auth/profile';
 import {
   clearDekFromSecureStore,
   hasStoredDek,
   loadDekFromSecureStore,
   saveDekToSecureStore,
 } from '@/core/auth/secureStorage';
+import * as offlineCache from '@/core/auth/offlineCache';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 
 const auth = supabase.auth as any;
@@ -87,6 +105,7 @@ async function signInAs(result: { current: ReturnType<typeof useAuthAndEncryptio
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockOnlineNow = true;
   jest.spyOn(console, 'warn').mockImplementation(() => {});
   mockAuthCallback = null;
 
@@ -401,5 +420,138 @@ describe('DEK is cleared', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('delete_own_account');
     expect(clearStoredDek).toHaveBeenCalled();
     expect(result.current.user).toBeNull();
+  });
+});
+
+
+describe('offline', () => {
+  const offlineError = { message: 'Network request failed', status: 0 };
+  const cache = offlineCache as unknown as Record<string, jest.Mock>;
+
+  beforeEach(() => {
+    mockReconnect = null;
+    Object.values(cache)
+      .filter((fn) => jest.isMockFunction(fn))
+      .forEach((fn) => fn.mockResolvedValue(null));
+  });
+
+  it('opens on the cached account immediately, without waiting for the network', async () => {
+    cache.loadLastUser.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    (loadCachedUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com', cached: true });
+    // The session check never answers (dead connection) and must not block startup.
+    auth.getSession.mockReturnValue(new Promise(() => {}));
+
+    const hook = await renderHook(() => useAuthAndEncryption(), { wrapper });
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+
+    expect(hook.result.current.user).toMatchObject({ id: 'u1', cached: true });
+    expect(fetchProfile).not.toHaveBeenCalled();
+    expect(hook.result.current.dek).toBeNull(); // still locked: the DEK needs the password
+
+    // supabase-js reports INITIAL_SESSION with no session; that must not sign the user out.
+    await act(async () => {
+      await mockAuthCallback!('INITIAL_SESSION', null);
+    });
+    expect(hook.result.current.user).toMatchObject({ id: 'u1' });
+  });
+
+  it('keeps the cached account when the background session check fails with a network error', async () => {
+    cache.loadLastUser.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    (loadCachedUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: offlineError });
+
+    const hook = await renderHook(() => useAuthAndEncryption(), { wrapper });
+    await waitFor(() => expect(auth.getSession).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(hook.result.current.user).toMatchObject({ id: 'u1' });
+  });
+
+  it('signs out of the cached account when the background check finds no session', async () => {
+    cache.loadLastUser.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    (loadCachedUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const hook = await renderHook(() => useAuthAndEncryption(), { wrapper });
+    await waitFor(() => expect(hook.result.current.user).toBeNull());
+  });
+
+  it('refreshes the profile once the background check confirms the session', async () => {
+    cache.loadLastUser.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+    (loadCachedUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com', cached: true });
+    auth.getSession.mockResolvedValue({ data: { session }, error: null });
+    (fetchProfile as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com', fresh: true });
+
+    const hook = await renderHook(() => useAuthAndEncryption(), { wrapper });
+    await waitFor(() => expect(hook.result.current.user).toMatchObject({ fresh: true }));
+  });
+
+  it('stays signed out when there is no cached account', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: offlineError });
+    const { result } = await renderAuth(null);
+    expect(result.current.user).toBeNull();
+  });
+
+  it('signs in offline with the cached DEK material and restores the session when back online', async () => {
+    const { result } = await renderAuth(null);
+    auth.signInWithPassword.mockResolvedValue({ data: { user: null }, error: offlineError });
+    cache.userIdForEmail.mockResolvedValue('u1');
+    resolveDek.mockResolvedValue({ ok: true, dek });
+    (loadCachedUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+
+    let outcome: { error: string | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('a@b.com', 'pw');
+    });
+
+    expect(fetchProfile).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ error: null });
+    expect(resolveDek).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', password: 'pw' }));
+    expect(result.current.user).toMatchObject({ id: 'u1' });
+    expect(result.current.dek).toBe(dek);
+
+    auth.signInWithPassword.mockClear().mockResolvedValue({ data: {}, error: null });
+    await act(async () => {
+      mockReconnect!();
+    });
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw' });
+
+    // Credentials are dropped after success: a second reconnect does not sign in again.
+    auth.signInWithPassword.mockClear();
+    await act(async () => {
+      mockReconnect!();
+    });
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects an offline sign-in for an account never signed in on this device', async () => {
+    const { result } = await renderAuth(null);
+    auth.signInWithPassword.mockResolvedValue({ data: { user: null }, error: offlineError });
+    cache.userIdForEmail.mockResolvedValue(null);
+
+    let outcome: { error: string | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('a@b.com', 'pw');
+    });
+
+    expect(outcome?.error).toMatch(/internet/i);
+    expect(result.current.user).toBeNull();
+    expect(resolveDek).not.toHaveBeenCalled();
+  });
+
+  it('rejects a wrong password offline', async () => {
+    const { result } = await renderAuth(null);
+    auth.signInWithPassword.mockResolvedValue({ data: { user: null }, error: offlineError });
+    cache.userIdForEmail.mockResolvedValue('u1');
+    resolveDek.mockResolvedValue({ ok: false, error: 'bad password' });
+
+    let outcome: { error: string | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('a@b.com', 'nope');
+    });
+
+    expect(outcome).toEqual({ error: 'bad password' });
+    expect(result.current.user).toBeNull();
+    expect(result.current.dek).toBeNull();
   });
 });

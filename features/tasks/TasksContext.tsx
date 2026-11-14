@@ -11,14 +11,13 @@ import {
 } from 'react';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
-import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
 import { initialTasksData, tasksReducer, type TasksData } from '@/features/tasks/lib/tasksReducer';
 import {
   useTaskMutations,
   type TaskMutationsSnapshot,
 } from '@/features/tasks/lib/useTaskMutations';
 import { buildLabelLookup } from '@/features/tasks/lib/taskMappers';
-import { fetchCompletedPage, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
+import { taskStore } from '@/features/tasks/lib/store';
 import type {
   AddCategoryInput,
   AddTagInput,
@@ -112,7 +111,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
    */
   const refresh = useCallback(async (userId: string, timeoutLabel?: string) => {
     const requestId = ++requestIdRef.current;
-    const request = fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
+    const request = taskStore.fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
       if (requestId === requestIdRef.current && latest.current.user?.id === userId) {
         dispatch({ type: 'snapshotLoaded', snapshot });
       }
@@ -146,7 +145,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const activeDek = latest.current.dek;
         if (isEmpty && activeDek) {
           const seeded = await withTimeout(
-            seedDemoData(userId, activeDek),
+            taskStore.seedDemoData(userId, activeDek),
             TASKS_REFRESH_TIMEOUT_MS,
             'seedDemo'
           );
@@ -222,6 +221,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refresh]);
 
+  // Local-first stores sync in the background: kick one off whenever data is loaded, and
+  // re-read the local replica whenever a sync changed it. No-ops for the online-only store.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId || !dek || !taskStore.localFirst) return;
+    taskStore.requestSync(userId);
+    return taskStore.subscribe(() => {
+      if (latest.current.user?.id !== userId) return;
+      void refresh(userId).catch((err) =>
+        logger.warn('Failed to re-read after sync:', (err as Error)?.message ?? err)
+      );
+    });
+  }, [userId, dek, refresh]);
+
   const loadMoreCompleted = useCallback(async () => {
     const { user: currentUser, dek: currentDek, data: current } = latest.current;
     if (
@@ -236,7 +249,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     loadingMoreRef.current = true;
     setLoadingMoreCompleted(true);
     try {
-      const { page, hasMore, nextCursor } = await fetchCompletedPage(
+      const { page, hasMore, nextCursor } = await taskStore.fetchCompletedPage(
         currentUser.id,
         current.completedCursor,
         currentDek,

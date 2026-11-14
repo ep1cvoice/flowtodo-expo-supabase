@@ -7,6 +7,7 @@ import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { createActiveTasksStyles } from '@/features/tasks/components/activeTasksStyles';
+import SyncButton from '@/features/sync/SyncButton';
 import TaskFilterBar from '@/features/tasks/components/filters/TaskFilterBar';
 import { tokens } from '@/shared/constants/theme';
 import { useTaskReorder } from '@/features/tasks/lib/useTaskReorder';
@@ -68,6 +69,7 @@ export function useActiveTasksScreen() {
           onToggleSearch={toggleSearch}
           sortMode={sortMode}
           onOpenSort={openSortSheet}
+          leading={<SyncButton />}
         />
       ),
     });

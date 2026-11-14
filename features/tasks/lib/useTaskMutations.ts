@@ -2,21 +2,8 @@ import { strings } from '@/shared/lib/strings';
 import { useMemo, type Dispatch, type MutableRefObject } from 'react';
 
 import { requireDek } from '@/core/auth/requireDek';
-import { fetchTaskById } from '@/features/tasks/lib/queries';
+import { taskStore } from '@/features/tasks/lib/store';
 import { buildLabelLookup } from '@/features/tasks/lib/taskMappers';
-import {
-  deleteCategoryForUser,
-  deleteTagForUser,
-  deleteTaskForUser,
-  deleteTasksByDone,
-  insertEncryptedCategory,
-  insertEncryptedTag,
-  insertEncryptedTask,
-  setTaskCompletedAtRow,
-  setTaskScheduledRow,
-  updateEncryptedTask,
-  updateTaskSortOrders,
-} from '@/features/tasks/lib/mutations';
 import type {
   AddCategoryInput,
   AddTagInput,
@@ -71,7 +58,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
     /** Re-reads one task after a write and puts it into the state (no full refresh). */
     const syncTask = async (userId: string, id: number) => {
       const { dek, data } = latest.current;
-      const task = await fetchTaskById(
+      const task = await taskStore.fetchTaskById(
         userId,
         id,
         dek,
@@ -94,7 +81,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
         ? Math.min(...activeTasks.map((t) => t.sortOrder)) - 1
         : 0;
 
-      const id = await insertEncryptedTask({
+      const id = await taskStore.insertTask({
         userId,
         dek: activeDek,
         title,
@@ -113,7 +100,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
     ) => {
       const userId = requireUserId();
       const activeDek = requireDek(latest.current.dek);
-      await updateEncryptedTask({
+      await taskStore.updateTask({
         userId,
         dek: activeDek,
         id,
@@ -127,13 +114,13 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
 
     const setTaskScheduled = async (id: number, scheduled: string | null) => {
       const userId = requireUserId();
-      await setTaskScheduledRow(userId, id, scheduled);
+      await taskStore.setTaskScheduled(userId, id, scheduled);
       dispatch({ type: 'tasksPatched', patches: { [id]: { scheduled } } });
     };
 
     const addCategory = async (input: AddCategoryInput): Promise<Category> => {
       const userId = requireUserId();
-      const category = await insertEncryptedCategory(
+      const category = await taskStore.insertCategory(
         userId,
         requireDek(latest.current.dek),
         input
@@ -144,7 +131,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
 
     const addTag = async (input: AddTagInput): Promise<Tag> => {
       const userId = requireUserId();
-      const tag = await insertEncryptedTag(userId, requireDek(latest.current.dek), input);
+      const tag = await taskStore.insertTag(userId, requireDek(latest.current.dek), input);
       dispatch({ type: 'tagAdded', tag });
       return tag;
     };
@@ -171,7 +158,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       await runOptimistic(
         [{ type: 'categoryRemoved', id }],
         inverse,
-        () => deleteCategoryForUser(userId, id)
+        () => taskStore.deleteCategory(userId, id)
       );
     };
 
@@ -188,7 +175,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       inverse.push({ type: 'tasksPatched', patches });
 
       await runOptimistic([{ type: 'tagRemoved', id }], inverse, () =>
-        deleteTagForUser(userId, id)
+        taskStore.deleteTag(userId, id)
       );
     };
 
@@ -206,7 +193,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       await runOptimistic(
         [{ type: 'taskMoved', task: nextTask }],
         [{ type: 'taskMoved', task: current }],
-        () => setTaskCompletedAtRow(userId, id, nextCompletedAt)
+        () => taskStore.setTaskCompletedAt(userId, id, nextCompletedAt)
       );
     };
 
@@ -219,7 +206,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       await runOptimistic(
         [{ type: 'taskRemoved', id }],
         current ? [{ type: 'taskUpserted', task: current }] : [],
-        () => deleteTaskForUser(userId, id)
+        () => taskStore.deleteTask(userId, id)
       );
     };
 
@@ -230,7 +217,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       await runOptimistic(
         [{ type: 'allActiveCleared' }],
         activeTasks.map((task): TasksAction => ({ type: 'taskUpserted', task })),
-        () => deleteTasksByDone(userId, false)
+        () => taskStore.deleteTasksByDone(userId, false)
       );
     };
 
@@ -250,7 +237,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
             hasMoreCompleted,
           },
         ],
-        () => deleteTasksByDone(userId, true)
+        () => taskStore.deleteTasksByDone(userId, true)
       );
     };
 
@@ -266,7 +253,7 @@ export function useTaskMutations({ latest, dispatch }: TaskMutationsParams) {
       await runOptimistic(
         [{ type: 'sortOrdersApplied', orders }],
         [{ type: 'sortOrdersApplied', orders: previous }],
-        () => updateTaskSortOrders(userId, items)
+        () => taskStore.updateSortOrders(userId, items)
       );
     };
 

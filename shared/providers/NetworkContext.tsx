@@ -6,20 +6,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
+import NetInfo from '@react-native-community/netinfo';
+import { setKnownOnline } from '@/shared/lib/connectivity';
+import { resolveOnline } from '@/shared/lib/netState';
 
 interface NetworkContextValue {
   isOnline: boolean;
 }
 
 const NetworkContext = createContext<NetworkContextValue | null>(null);
-
-function resolveOnline(state: NetInfoState): boolean {
-  if (state.isConnected == null) return true;
-  if (state.isConnected === false) return false;
-  if (state.isInternetReachable === false) return false;
-  return true;
-}
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
@@ -28,10 +23,12 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     void NetInfo.fetch().then((state) => {
+      setKnownOnline(resolveOnline(state));
       if (mounted) setIsOnline(resolveOnline(state));
     });
 
     const unsubscribe = NetInfo.addEventListener((state) => {
+      setKnownOnline(resolveOnline(state));
       setIsOnline(resolveOnline(state));
     });
 

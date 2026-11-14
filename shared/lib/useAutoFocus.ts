@@ -7,7 +7,7 @@ const DEFAULT_DELAY = isAndroid ? 350 : 50;
 export function useAutoFocus(
   ref: RefObject<TextInput | null>,
   active: boolean,
-  delayMs: number = DEFAULT_DELAY,
+  delayMs: number = DEFAULT_DELAY
 ) {
   useEffect(() => {
     if (!active) return;

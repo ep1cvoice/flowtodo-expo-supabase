@@ -19,6 +19,7 @@ jest.mock('@/features/tasks/lib/mutations', () => ({
 }));
 
 jest.mock('@/features/tasks/lib/queries', () => ({ fetchTaskById: jest.fn() }));
+jest.mock('@/features/tasks/lib/seedDemoData', () => ({ seedDemoData: jest.fn() }));
 
 import * as m from '@/features/tasks/lib/mutations';
 

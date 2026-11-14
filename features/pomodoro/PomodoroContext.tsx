@@ -13,6 +13,7 @@ import type { PomoData, PomoRecord } from '@/types';
 import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
+import { taskStore } from '@/features/tasks/lib/store';
 import { fetchPomodoros, MAX_HISTORY } from '@/features/pomodoro/lib/queries';
 import {
   deletePomodoroRecord,
@@ -177,6 +178,10 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const durationSec = (Number.isFinite(minutes) && minutes > 0 ? minutes : 25) * 60;
         const taskName = task.title;
         const now = new Date().toISOString();
+
+        // The session references the task by foreign key, so a task created offline must
+        // reach the server first (throws when offline, like starting a session always did).
+        await taskStore.flush(userId);
 
         const pomo = await insertPomodoro({
           userId,

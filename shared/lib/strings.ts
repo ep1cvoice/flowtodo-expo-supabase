@@ -47,12 +47,30 @@ export const strings = {
     offline: 'No internet connection',
   },
 
+  sync: {
+    title: 'Synchronization',
+    syncing: 'Syncing…',
+    upToDate: 'All changes are saved to the cloud.',
+    pending: (count: number) =>
+      `${count} ${count === 1 ? 'change is' : 'changes are'} waiting to sync.`,
+    failed: (count: number) =>
+      `Sync failed${count > 0 ? ` — ${count} ${count === 1 ? 'change' : 'changes'} waiting` : ''}. Retrying automatically.`,
+    offline: (count: number) =>
+      count > 0
+        ? `You are offline. ${count} ${count === 1 ? 'change' : 'changes'} will sync when the connection returns.`
+        : 'You are offline. Everything is saved on this device and will sync when the connection returns.',
+    lastSynced: (when: string) => `Last synced: ${when}`,
+    syncNow: 'Sync now',
+  },
+
   auth: {
     logOut: 'Log Out',
     login: {
       title: 'Welcome Back',
       subtitle: 'Sign in to manage your tasks',
       accountCreated: 'Account created. You can now log in.',
+      offlineNoAccount:
+        'No internet connection. Sign in once while online to use the app offline on this device.',
       signInFailed: 'Sign in failed',
       loggingIn: 'Logging in...',
     },
@@ -107,7 +125,8 @@ export const strings = {
       noActiveSession: 'No active session.',
       biometricNotConfigured: 'Biometric unlock is not set up on this device.',
       authFailedUsePassword: 'Authentication failed. Use your password.',
-      noDecryptedKeyEnable: 'No decrypted key available. Unlock the app with your password to enable this.',
+      noDecryptedKeyEnable:
+        'No decrypted key available. Unlock the app with your password to enable this.',
       saveKeySecureStorage: "Could not save the key in the device's secure storage.",
       signInToUpdatePassword: 'Please sign in to update your password.',
       noDecryptedKeyChangePassword:
@@ -374,7 +393,8 @@ export const strings = {
     modeSaved: 'Timer mode saved.',
     sessionLength: 'Session length',
     sessionLengthHintCountdown: 'How long each new session runs before the alarm.',
-    sessionLengthHintCountup: 'Goal for the Completed count in your stats. Count-up sessions never ring.',
+    sessionLengthHintCountup:
+      'Goal for the Completed count in your stats. Count-up sessions never ring.',
     elapsedLabel: 'elapsed',
     minutes: 'min',
     setTime: 'Set Time',

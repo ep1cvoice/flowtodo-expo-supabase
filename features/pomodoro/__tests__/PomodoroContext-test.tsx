@@ -11,6 +11,9 @@ const usePomodoro = () => ({ ...usePomodoroState(), ...usePomodoroActions() });
 
 const mockAuth: { user: any; dek: Uint8Array | null } = { user: null, dek: null };
 
+jest.mock('@/features/tasks/lib/store', () => ({
+  taskStore: { flush: jest.fn().mockResolvedValue(undefined) },
+}));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/core/auth/EncryptionContext', () => ({ useEncryption: () => mockAuth }));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));

@@ -25,6 +25,8 @@ import {
 } from '@/core/crypto';
 import { supabase } from '@/core/supabase/client';
 import { resolveDekFromPassword } from '@/core/auth/dek';
+import { cacheProfileRow } from '@/core/auth/offlineCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const from = supabase.from as jest.Mock;
 const signIn = supabase.auth.signInWithPassword as jest.Mock;
@@ -44,7 +46,8 @@ const material = (kdf_iterations: number | null = 210000) => ({
 });
 const theDek = new Uint8Array([1, 2, 3]);
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
   jest.clearAllMocks();
   from.mockReset();
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -181,5 +184,39 @@ describe('resolveDekFromPassword', () => {
       expect(res).toEqual({ ok: false, error: 'Unable to configure encryption. Try again.' });
       expect(decrypt).not.toHaveBeenCalled();
     });
+  });
+});
+
+
+describe('resolveDekFromPassword with cached material', () => {
+  it('unlocks from the cache without waiting for the network', async () => {
+    await cacheProfileRow('u1', material());
+    from.mockReturnValue(createBuilder({ error: { message: 'Network request failed' } }));
+
+    const res = await resolveDekFromPassword(options);
+
+    expect(res).toEqual({ ok: true, dek: theDek });
+    expect(decrypt).toHaveBeenCalledWith('pw', 's', 'e', 'i', 210000);
+    // Only the background cache refresh may touch the server, never the unlock itself.
+    await flushPromises();
+  });
+
+  it('falls back to the server copy when the cached material no longer unwraps', async () => {
+    await cacheProfileRow('u1', material());
+    decrypt.mockRejectedValueOnce(new Error('bad tag')).mockResolvedValueOnce(theDek);
+    from.mockReturnValue(createBuilder({ data: material() }));
+
+    const res = await resolveDekFromPassword(options);
+
+    expect(res).toEqual({ ok: true, dek: theDek });
+    expect(decrypt).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a wrong password when both copies fail', async () => {
+    await cacheProfileRow('u1', material());
+    decrypt.mockRejectedValue(new Error('bad tag'));
+    from.mockReturnValue(createBuilder({ data: material() }));
+
+    expect(await resolveDekFromPassword(options)).toEqual({ ok: false, error: 'Wrong password' });
   });
 });

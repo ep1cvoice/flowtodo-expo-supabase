@@ -43,6 +43,7 @@
     "expo-router": "~57.0.29",
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.10",
+    "expo-sqlite": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-web-browser": "~57.0.3",
     "lucide-react-native": "^1.66.0",
@@ -85,6 +86,7 @@
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|lucide-react-native|react-native-sortables|@noble/.*)"
     ],
     "moduleNameMapper": {
+      "^@/features/tasks/lib/store$": "<rootDir>/features/tasks/lib/store/index.remote.ts",
       "^@/(.*)$": "<rootDir>/$1"
     }
   },

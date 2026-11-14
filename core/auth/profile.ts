@@ -1,20 +1,22 @@
-import {
-  clampFilterLimit,
-  FILTER_LIMIT_DEFAULT,
-} from '@/shared/constants/filterLimits';
+import { clampFilterLimit, FILTER_LIMIT_DEFAULT } from '@/shared/constants/filterLimits';
 import {
   PROFILE_FETCH_TIMEOUT_MS,
   PROFILE_RETRY_ATTEMPTS,
   PROFILE_RETRY_DELAY_MS,
 } from '@/core/auth/constants';
+import { cacheProfileRow, loadCachedProfileRow } from '@/core/auth/offlineCache';
+import { isNetworkError } from '@/shared/lib/networkError';
+import { TimeoutError, withTimeout } from '@/shared/lib/withTimeout';
 import { withRetry } from '@/shared/lib/retry';
-import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
 import { logger } from '@/shared/lib/logger';
 
 /** Raised when the profile query resolves with an error or no row, so it is retried like a thrown failure. */
 class ProfileQueryError extends Error {}
+
+/** The request never reached the server (no connection); retrying right away is pointless. */
+class ProfileOfflineError extends ProfileQueryError {}
 
 export function minimalUserFromSession(userId: string, email: string | undefined): User {
   return {
@@ -63,38 +65,70 @@ export function fetchProfileRow(userId: string): Promise<ProfileRow> {
         PROFILE_FETCH_TIMEOUT_MS,
         'fetchProfile'
       );
-      if (error || !data) throw new ProfileQueryError(error?.message);
+      if (error || !data) {
+        throw isNetworkError(error)
+          ? new ProfileOfflineError(error?.message)
+          : new ProfileQueryError(error?.message);
+      }
+      void cacheProfileRow(userId, data);
       return data as ProfileRow;
     },
-    { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
-  ).finally(() => {
-    inFlightProfileRows.delete(userId);
-  });
+    {
+      attempts: PROFILE_RETRY_ATTEMPTS,
+      delayMs: PROFILE_RETRY_DELAY_MS,
+      retryIf: (err) => !(err instanceof ProfileOfflineError),
+    }
+  )
+    .catch(async (err) => {
+      // Offline (or the server is unreachable): fall back to the last row seen online.
+      if (err instanceof ProfileOfflineError || err instanceof TimeoutError) {
+        const cached = await loadCachedProfileRow<ProfileRow>(userId);
+        if (cached) return cached;
+      }
+      throw err;
+    })
+    .finally(() => {
+      inFlightProfileRows.delete(userId);
+    });
 
   inFlightProfileRows.set(userId, request);
   return request;
 }
 
-export async function fetchProfile(userId: string, email: string | undefined): Promise<User | null> {
-  try {
-    const data = await fetchProfileRow(userId);
+function mapProfileRow(userId: string, email: string | undefined, data: ProfileRow): User {
+  return {
+    id: userId,
+    email: email ?? '',
+    username: data.username ?? '',
+    settings: {
+      theme: data.theme ?? undefined,
+      notificationType: data.notification_type ?? undefined,
+      pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
+      pomodoroMode: data.pomodoro_mode === 'countup' ? 'countup' : 'countdown',
+      view: data.view ?? undefined,
+      maxFilterSelections:
+        data.max_filter_selections != null
+          ? clampFilterLimit(Number(data.max_filter_selections))
+          : FILTER_LIMIT_DEFAULT,
+    },
+  };
+}
 
-    return {
-      id: userId,
-      email: email ?? '',
-      username: data.username ?? '',
-      settings: {
-        theme: data.theme ?? undefined,
-        notificationType: data.notification_type ?? undefined,
-        pomodoroTime: data.pomodoro_time != null ? Number(data.pomodoro_time) : undefined,
-        pomodoroMode: data.pomodoro_mode === 'countup' ? 'countup' : 'countdown',
-        view: data.view ?? undefined,
-        maxFilterSelections:
-          data.max_filter_selections != null
-            ? clampFilterLimit(Number(data.max_filter_selections))
-            : FILTER_LIMIT_DEFAULT,
-      },
-    };
+/** The user as of the last online visit; no network involved. Null when nothing is cached. */
+export async function loadCachedUser(
+  userId: string,
+  email: string | undefined
+): Promise<User | null> {
+  const row = await loadCachedProfileRow<ProfileRow>(userId);
+  return row ? mapProfileRow(userId, email, row) : null;
+}
+
+export async function fetchProfile(
+  userId: string,
+  email: string | undefined
+): Promise<User | null> {
+  try {
+    return mapProfileRow(userId, email, await fetchProfileRow(userId));
   } catch (err) {
     if (err instanceof ProfileQueryError) {
       logger.warn('fetchProfile failed after retries:', err.message || undefined);
