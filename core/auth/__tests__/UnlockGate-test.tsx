@@ -27,7 +27,7 @@ jest.mock('@/core/auth/EncryptionContext', () => ({
 }));
 
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme');
   return {
     useTheme: () => ({
       colors: lightColors,
@@ -52,7 +52,7 @@ jest.mock('expo-status-bar', () => ({
 }));
 
 jest.mock('expo-linear-gradient', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     LinearGradient: ({ children, ...props }: { children?: React.ReactNode }) => (
       <View {...props}>{children}</View>
@@ -61,7 +61,7 @@ jest.mock('expo-linear-gradient', () => {
 });
 
 jest.mock('react-native-safe-area-context', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     SafeAreaView: ({ children, ...props }: { children?: React.ReactNode }) => (
       <View {...props}>{children}</View>
@@ -71,7 +71,7 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 jest.mock('lucide-react-native', () => {
-  const { View } = require('react-native');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
   const Icon = () => <View />;
   return new Proxy(
     {},

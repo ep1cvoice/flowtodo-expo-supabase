@@ -1,5 +1,10 @@
 import { createBuilder } from '@/test/supabaseMock';
 
+import { supabase } from '@/core/supabase/client';
+import { logger } from '@/shared/lib/logger';
+import { fetchProfile, fetchProfileRow } from '@/core/auth/profile';
+import { cacheProfileRow } from '@/core/auth/offlineCache';
+
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn() } }));
 jest.mock('@/core/auth/constants', () => ({
   PROFILE_FETCH_TIMEOUT_MS: 1000,
@@ -9,11 +14,6 @@ jest.mock('@/core/auth/constants', () => ({
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-
-import { supabase } from '@/core/supabase/client';
-import { logger } from '@/shared/lib/logger';
-import { fetchProfile, fetchProfileRow } from '@/core/auth/profile';
-import { cacheProfileRow } from '@/core/auth/offlineCache';
 
 const from = supabase.from as jest.Mock;
 
@@ -79,7 +79,6 @@ describe('fetchProfile', () => {
 describe('fetchProfileRow sharing', () => {
   it('concurrent callers share one query; a later call fetches fresh data', async () => {
     from.mockImplementation(() => createBuilder({ data: row }));
-    const { fetchProfileRow } = require('@/core/auth/profile');
 
     await Promise.all([fetchProfileRow('u1'), fetchProfileRow('u1'), fetchProfile('u1', 'a@b.c')]);
     expect(from).toHaveBeenCalledTimes(1);

@@ -15,13 +15,13 @@ import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
 import { taskStore } from '@/features/tasks/lib/store';
+import { newLocalId } from '@/features/tasks/lib/store/localId';
 import { MAX_HISTORY } from '@/features/pomodoro/lib/queries';
 import { pomodoroStore } from '@/features/pomodoro/lib/store';
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
-
 
 interface PomodoroState {
   activeTaskId: number | null;
@@ -73,6 +73,10 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   // Actions read the latest values through this ref so they can stay referentially stable.
   const latest = useRef({ user, dek, activePomo });
   const activePomoRef = useRef(activePomo);
+  // Resolves once the insert of a just-started session has finished (success or failure).
+  const pendingStart = useRef<Promise<void> | null>(null);
+  // Bumped on every start, so a refresh can tell its snapshot is stale.
+  const startCount = useRef(0);
   // Refs are synced after render (before any effect or event handler can read them).
   useLayoutEffect(() => {
     latest.current = { user, dek, activePomo };
@@ -91,12 +95,17 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   const refresh = useCallback(async (userId: string, { resumeIfPaused = false } = {}) => {
+    const startsBefore = startCount.current;
     const { active: fetched, history: fetchedHistory } = await pomodoroStore.fetchPomodoros(
       userId,
       latest.current.dek
     );
 
     setHistory(fetchedHistory);
+
+    // A session started while this fetch was running (or is still being written) is newer
+    // than the snapshot; applying it would make the running timer vanish until the next sync.
+    if (startCount.current !== startsBefore || pendingStart.current) return;
 
     if (!fetched) {
       setActivePomo(null);
@@ -130,7 +139,11 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     if (!userId || !dek) return;
 
     let cancelled = false;
-    withTimeout(refresh(userId, { resumeIfPaused: true }), POMO_REFRESH_TIMEOUT_MS, 'refreshPomodoro')
+    withTimeout(
+      refresh(userId, { resumeIfPaused: true }),
+      POMO_REFRESH_TIMEOUT_MS,
+      'refreshPomodoro'
+    )
       .catch((err) => {
         logger.warn('Failed to load pomodoros:', err?.message ?? err);
       })
@@ -186,7 +199,23 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const taskName = task.title;
         const now = new Date().toISOString();
 
-        const pomo = await pomodoroStore.insertPomodoro({
+        // Show the session right away; the write may queue behind a running sync or wait for
+        // the network. Pause/resume/end await `pendingStart` so they never use the temporary id.
+        const tempId = newLocalId();
+        startCount.current += 1;
+        setActivePomo({
+          id: tempId,
+          taskId: task.id,
+          startedAt: now,
+          endedAt: null,
+          duration: durationSec,
+          elapsed: 0,
+          pausedAt: null,
+          pausedOnLogout: false,
+        });
+
+        const insert = pomodoroStore.insertPomodoro({
+          id: tempId,
           userId,
           dek: activeDek,
           taskId: task.id,
@@ -194,10 +223,36 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
           durationSec,
           startedAt: now,
         });
-        setActivePomo(pomo);
+        const settled = insert.then(
+          (pomo) => {
+            // The online-only store assigns its own id; keep any pause made in the meantime.
+            if (pomo.id !== tempId) {
+              // Actions awaiting this insert read `latest` before React re-renders.
+              const running = latest.current.activePomo;
+              if (running?.id === tempId) {
+                latest.current = { ...latest.current, activePomo: { ...running, id: pomo.id } };
+              }
+              setActivePomo((current) =>
+                current?.id === tempId ? { ...current, id: pomo.id } : current
+              );
+            }
+          },
+          () => {}
+        );
+        pendingStart.current = settled;
+        try {
+          await insert;
+        } catch (err) {
+          setActivePomo((current) => (current?.id === tempId ? null : current));
+          throw err;
+        } finally {
+          await settled;
+          if (pendingStart.current === settled) pendingStart.current = null;
+        }
       },
 
       pausePomo: async () => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current || current.pausedAt) return;
         const userId = requireUserId();
@@ -215,6 +270,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       },
 
       resumePomo: async () => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current || !current.pausedAt) return;
         const userId = requireUserId();
@@ -231,6 +287,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       },
 
       endPomo: async (taskTitle) => {
+        await pendingStart.current;
         const current = latest.current.activePomo;
         if (!current) return;
         const userId = requireUserId();

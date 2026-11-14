@@ -4,6 +4,10 @@ import { act, renderHook } from '@testing-library/react-native';
 import { initialTasksData, tasksReducer } from '@/features/tasks/lib/tasksReducer';
 import { useTaskMutations, type TaskMutationsSnapshot } from '@/features/tasks/lib/useTaskMutations';
 
+import * as m from '@/features/tasks/lib/mutations';
+
+import { fetchTaskById } from '@/features/tasks/lib/queries';
+
 jest.mock('@/features/tasks/lib/mutations', () => ({
   deleteCategoryForUser: jest.fn(),
   deleteTagForUser: jest.fn(),
@@ -20,10 +24,6 @@ jest.mock('@/features/tasks/lib/mutations', () => ({
 
 jest.mock('@/features/tasks/lib/queries', () => ({ fetchTaskById: jest.fn() }));
 jest.mock('@/features/tasks/lib/seedDemoData', () => ({ seedDemoData: jest.fn() }));
-
-import * as m from '@/features/tasks/lib/mutations';
-
-import { fetchTaskById } from '@/features/tasks/lib/queries';
 
 const fetchTask = fetchTaskById as jest.Mock;
 const mocked = m as unknown as Record<string, jest.Mock>;

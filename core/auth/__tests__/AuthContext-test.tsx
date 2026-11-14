@@ -3,6 +3,18 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '@/core/auth/AuthContext';
 import { EncryptionProvider, useEncryption } from '@/core/auth/EncryptionContext';
 
+import { supabase } from '@/core/supabase/client';
+import { resolveDekFromPassword } from '@/core/auth/dek';
+import { fetchProfile, loadCachedUser, minimalUserFromSession } from '@/core/auth/profile';
+import {
+  clearDekFromSecureStore,
+  hasStoredDek,
+  loadDekFromSecureStore,
+  saveDekToSecureStore,
+} from '@/core/auth/secureStorage';
+import * as offlineCache from '@/core/auth/offlineCache';
+import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
+
 let mockAuthCallback: ((event: string, session: unknown) => Promise<void>) | null = null;
 
 jest.mock('@/core/supabase/client', () => ({
@@ -53,18 +65,6 @@ jest.mock('@/core/auth/offlineCache', () => ({
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   pausePomodoroBeforeLogout: jest.fn(),
 }));
-
-import { supabase } from '@/core/supabase/client';
-import { resolveDekFromPassword } from '@/core/auth/dek';
-import { fetchProfile, loadCachedUser, minimalUserFromSession } from '@/core/auth/profile';
-import {
-  clearDekFromSecureStore,
-  hasStoredDek,
-  loadDekFromSecureStore,
-  saveDekToSecureStore,
-} from '@/core/auth/secureStorage';
-import * as offlineCache from '@/core/auth/offlineCache';
-import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
 
 const auth = supabase.auth as any;
 const resolveDek = resolveDekFromPassword as jest.Mock;

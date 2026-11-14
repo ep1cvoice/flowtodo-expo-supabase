@@ -4,7 +4,7 @@ import TasksLoadError from '@/features/tasks/components/TasksLoadError';
 jest.mock('lucide-react-native', () => ({ CloudOff: () => null }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme');
   return { useTheme: () => ({ colors: lightColors, isDark: false }) };
 });
 

@@ -16,7 +16,7 @@
     "web:export": "expo export -p web",
     "clean": "expo prebuild --clean",
     "test": "jest",
-    "lint": "expo lint",
+    "lint": "expo lint .",
     "typecheck": "tsc --noEmit",
     "types:gen": "supabase gen types typescript --local > types/database.ts"
   },

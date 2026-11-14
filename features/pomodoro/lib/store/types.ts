@@ -13,6 +13,8 @@ export interface PomodoroStore {
   /** Finished sessions since `sinceIso`; only unencrypted columns, so no DEK is needed. */
   fetchStatsRows(userId: string, sinceIso: string): Promise<PomoStatsRow[]>;
   insertPomodoro(options: {
+    /** Client-generated id; the online-only store ignores it and returns the server's. */
+    id?: number;
     userId: string;
     dek: Uint8Array;
     taskId: number;

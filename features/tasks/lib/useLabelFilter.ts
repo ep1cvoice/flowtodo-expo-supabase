@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useToast } from '@/shared/providers/ToastContext';
 import type { Category, Tag } from '@/types';
 
@@ -12,9 +12,11 @@ export function useLabelFilter(categories: Category[], tags: Tag[], maxSelection
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
-  // When the limit drops, trim the selection: categories first, tags get the rest.
-  // Runs only when the limit changes; it reads the selection of the render it runs after.
-  useEffect(() => {
+  // When the limit changes, trim the selection while rendering: categories first, tags get
+  // the rest.
+  const [prevMax, setPrevMax] = useState(maxSelections);
+  if (maxSelections !== prevMax) {
+    setPrevMax(maxSelections);
     const nextCats =
       selectedCategoryIds.length > maxSelections
         ? selectedCategoryIds.slice(0, maxSelections)
@@ -23,8 +25,7 @@ export function useLabelFilter(categories: Category[], tags: Tag[], maxSelection
 
     const room = maxSelections - nextCats.length;
     if (selectedTagIds.length > room) setSelectedTagIds(selectedTagIds.slice(0, room));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maxSelections]);
+  }
 
   const handleToggleCategory = useCallback(
     (id: number) => {

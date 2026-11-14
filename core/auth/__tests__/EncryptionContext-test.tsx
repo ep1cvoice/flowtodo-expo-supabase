@@ -3,6 +3,15 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { EncryptionProvider, useEncryption } from '@/core/auth/EncryptionContext';
 
+import { resolveDekFromPassword } from '@/core/auth/dek';
+import { rewrapDekAndUpdatePassword } from '@/core/auth/updatePassword';
+import {
+  clearDekFromSecureStore,
+  hasStoredDek,
+  loadDekFromSecureStore,
+  saveDekToSecureStore,
+} from '@/core/auth/secureStorage';
+
 jest.mock('@/core/auth/dek', () => ({ resolveDekFromPassword: jest.fn() }));
 jest.mock('@/core/auth/updatePassword', () => ({ rewrapDekAndUpdatePassword: jest.fn() }));
 jest.mock('@/core/auth/secureStorage', () => ({
@@ -14,15 +23,6 @@ jest.mock('@/core/auth/secureStorage', () => ({
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), log: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-
-import { resolveDekFromPassword } from '@/core/auth/dek';
-import { rewrapDekAndUpdatePassword } from '@/core/auth/updatePassword';
-import {
-  clearDekFromSecureStore,
-  hasStoredDek,
-  loadDekFromSecureStore,
-  saveDekToSecureStore,
-} from '@/core/auth/secureStorage';
 
 const resolveDek = resolveDekFromPassword as jest.Mock;
 const rewrap = rewrapDekAndUpdatePassword as jest.Mock;

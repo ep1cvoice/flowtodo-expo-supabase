@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
 import { AlarmClock, Calendar, Pencil, Trash2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,23 +36,28 @@ export default function MobileActionsSheet({
   const insets = useSafeAreaInsets();
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
+  // Reset while rendering when the sheet closes (no extra render with stale state).
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (!visible) setConfirming(false);
-  }, [visible]);
+  }
 
   return (
     <AppModal visible={visible} onClose={confirming ? () => setConfirming(false) : onClose}>
       <Pressable style={styles.mobileOverlay} onPress={onClose}>
         <Pressable
           style={[styles.mobileActionsModal, { paddingBottom: 8 + insets.bottom }]}
-          onPress={(e) => e.stopPropagation()}>
+          onPress={(e) => e.stopPropagation()}
+        >
           {canStart ? (
             <Pressable
               style={styles.mobileActionRow}
               onPress={() => {
                 onClose();
                 onStartPomodoro();
-              }}>
+              }}
+            >
               <AlarmClock size={18} color={colors.textPrimary} />
               <Text style={styles.mobileActionText}>{strings.tasks.actionPomodoro}</Text>
             </Pressable>
@@ -63,7 +68,8 @@ export default function MobileActionsSheet({
             onPress={() => {
               onClose();
               onOpenCalendar();
-            }}>
+            }}
+          >
             <Calendar size={18} color={colors.textPrimary} />
             <Text style={styles.mobileActionText}>{strings.tasks.actionCalendar}</Text>
           </Pressable>
@@ -73,23 +79,22 @@ export default function MobileActionsSheet({
             onPress={() => {
               onClose();
               onEdit();
-            }}>
+            }}
+          >
             <Pencil size={18} color={colors.textPrimary} />
             <Text style={styles.mobileActionText}>{strings.common.edit}</Text>
           </Pressable>
 
-          <Pressable
-            style={styles.mobileActionRow}
-            onPress={() => setConfirming(true)}>
+          <Pressable style={styles.mobileActionRow} onPress={() => setConfirming(true)}>
             <Trash2 size={18} color={colors.textPrimary} />
             <Text style={styles.mobileActionText}>{strings.common.delete}</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.mobileActionRow, styles.mobileClose]}
-            onPress={onClose}>
+          <Pressable style={[styles.mobileActionRow, styles.mobileClose]} onPress={onClose}>
             <X size={18} color={colors.red} />
-            <Text style={[styles.mobileActionText, { color: colors.red }]}>{strings.common.close}</Text>
+            <Text style={[styles.mobileActionText, { color: colors.red }]}>
+              {strings.common.close}
+            </Text>
           </Pressable>
         </Pressable>
       </Pressable>

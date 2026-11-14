@@ -28,12 +28,12 @@ jest.mock('@/features/tasks/components/item/TaskItemModalsContext', () => ({
   useTaskItemModals: () => ({ open: mockOpen }),
 }));
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme');
   return { useTheme: () => ({ colors: lightColors, isDark: false }) };
 });
 jest.mock('@/features/tasks/components/item/todoItemStyles', () => ({
   useTodoItemStyles: () => ({
-    colors: require('@/shared/constants/theme').lightColors,
+    colors: jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme').lightColors,
     styles: new Proxy({}, { get: () => ({}) }),
   }),
 }));

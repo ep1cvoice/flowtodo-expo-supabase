@@ -279,3 +279,85 @@ it('clears state when there is no user', async () => {
   expect(result.current.history).toEqual([]);
   expect(fetchPomodoros).not.toHaveBeenCalled();
 });
+
+describe('optimistic start', () => {
+  it('shows the session before the write finishes', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      (o: any) => new Promise((res) => (finish = () => res(pomo({ id: o.id }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    expect(result.current.activeTaskId).toBe(7);
+    expect(insertPomodoro).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.any(Number) })
+    );
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    expect(result.current.activeTaskId).toBe(7);
+  });
+
+  it('adopts the server id and pauses with it', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      () => new Promise((res) => (finish = () => res(pomo({ id: 99 }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    let paused!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    await act(async () => {
+      paused = result.current.pausePomo();
+    });
+    expect(pausePomodoroRow).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    await paused;
+    expect(pausePomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ id: 99 }));
+    expect(result.current.activePomo?.id).toBe(99);
+  });
+
+  it('keeps the new session when a refresh returns a snapshot without it', async () => {
+    let finish!: () => void;
+    insertPomodoro.mockImplementation(
+      (o: any) => new Promise((res) => (finish = () => res(pomo({ id: o.id }))))
+    );
+    const { result } = await renderPomodoro();
+
+    let started!: Promise<void>;
+    await act(async () => {
+      started = result.current.startPomo(TASK);
+    });
+    // e.g. a sync round finishing before the insert is visible in the store
+    await act(() => result.current.refetch());
+    expect(result.current.activeTaskId).toBe(7);
+
+    await act(async () => {
+      finish();
+    });
+    await started;
+    expect(result.current.activeTaskId).toBe(7);
+  });
+
+  it('rolls back and rethrows when the write fails', async () => {
+    insertPomodoro.mockRejectedValue(new Error('boom'));
+    const { result } = await renderPomodoro();
+    await act(async () => {
+      await expect(result.current.startPomo(TASK)).rejects.toThrow('boom');
+    });
+    expect(result.current.activePomo).toBeNull();
+  });
+});

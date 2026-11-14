@@ -1,9 +1,9 @@
+import { withFallback } from '@/features/tasks/lib/store/fallbackStore';
+import type { TaskStore } from '@/features/tasks/lib/store/types';
+
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
-
-import { withFallback } from '@/features/tasks/lib/store/fallbackStore';
-import type { TaskStore } from '@/features/tasks/lib/store/types';
 
 const fakeStore = (name: string) =>
   ({

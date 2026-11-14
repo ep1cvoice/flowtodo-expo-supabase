@@ -1,5 +1,10 @@
 import { createMemoryDb } from '@/test/memoryDb';
 
+import { setKnownOnline } from '@/shared/lib/connectivity';
+import { newLocalId } from '@/features/tasks/lib/store/localId';
+import { cancelSyncRetries, localTaskStore as store } from '@/features/tasks/lib/store/localStore';
+import { hasPulled, pullAll, pushPending, syncOnce } from '@/features/tasks/lib/store/syncEngine';
+
 const mockMemory = createMemoryDb();
 jest.mock('@/core/localdb/openUserDb', () => ({ openUserDb: async () => mockMemory }));
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
@@ -18,11 +23,6 @@ jest.mock('@/core/crypto', () => ({
   decryptField: (_d: Uint8Array, ct: string) => ct.slice(4, -1),
   hashForUniqueness: (_d: Uint8Array, text: string) => `h(${text})`,
 }));
-
-import { setKnownOnline } from '@/shared/lib/connectivity';
-import { newLocalId } from '@/features/tasks/lib/store/localId';
-import { cancelSyncRetries, localTaskStore as store } from '@/features/tasks/lib/store/localStore';
-import { hasPulled, pullAll, pushPending, syncOnce } from '@/features/tasks/lib/store/syncEngine';
 
 const dek = new Uint8Array(32);
 const base = { userId: 'u1', dek, description: '', categoryId: null, tagIds: [], scheduled: null };

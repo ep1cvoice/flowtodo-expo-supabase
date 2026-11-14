@@ -19,17 +19,24 @@ jest.mock('@/shared/providers/ToastContext', () => ({
   useToast: () => ({ showToast: mockShowToast }),
 }));
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>(
+    '@/shared/constants/theme'
+  );
   return { useTheme: () => ({ colors: lightColors, isDark: false }) };
 });
-jest.mock('@/shared/ui/ScreenBackground', () => ({ children }: { children?: React.ReactNode }) =>
-  children
+jest.mock(
+  '@/shared/ui/ScreenBackground',
+  () =>
+    ({ children }: { children?: React.ReactNode }) =>
+      children
 );
 jest.mock('@/features/pomodoro/components/ActiveSessionCard', () => () => null);
 jest.mock('@/features/pomodoro/components/PomodoroStats', () => () => null);
 jest.mock('@/features/pomodoro/components/PomodoroHistory', () => {
-  const { Text } = require('react-native');
-  return () => <Text>history-stub</Text>;
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  return function PomodoroHistoryStub() {
+    return <Text>history-stub</Text>;
+  };
 });
 
 describe('PomodoroScreen', () => {
@@ -68,7 +75,9 @@ describe('PomodoroScreen', () => {
     mockUpdateProfile.mockResolvedValue({ error: null });
     const { getByLabelText } = await render(<PomodoroScreen />);
     await fireEvent.press(getByLabelText(strings.pomodoro.modeCountup));
-    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith({ pomodoroMode: 'countup' }));
+    await waitFor(() =>
+      expect(mockUpdateProfile).toHaveBeenCalledWith({ pomodoroMode: 'countup' })
+    );
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(strings.pomodoro.modeSaved));
   });
 

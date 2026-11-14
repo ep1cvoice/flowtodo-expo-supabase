@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Animated, StyleSheet, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react-native';
@@ -11,11 +11,13 @@ export default function ToastHost() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(-16)).current;
+  const [opacity] = useState(() => new Animated.Value(0));
+  const [translateY] = useState(() => new Animated.Value(-16));
 
+  // Replays the entrance animation for every new toast (keyed by id).
+  const toastId = toast?.id;
   useEffect(() => {
-    if (!toast) {
+    if (toastId == null) {
       opacity.setValue(0);
       translateY.setValue(-16);
       return;
@@ -35,7 +37,7 @@ export default function ToastHost() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [toast?.id, opacity, translateY]);
+  }, [toastId, opacity, translateY]);
 
   if (!toast) return null;
 
@@ -53,12 +55,14 @@ export default function ToastHost() {
           opacity,
           transform: [{ translateY }],
         },
-      ]}>
+      ]}
+    >
       <Pressable
         onPress={hideToast}
         style={[styles.toast, { borderColor: accent }]}
         accessibilityRole="alert"
-        accessibilityLiveRegion="polite">
+        accessibilityLiveRegion="polite"
+      >
         <Icon size={18} color={accent} strokeWidth={2.2} />
         <Text style={styles.message} numberOfLines={3}>
           {toast.message}

@@ -1,5 +1,15 @@
 import { callsOf, createBuilder, flushPromises } from '@/test/supabaseMock';
 
+import {
+  decryptDek,
+  encryptDekWithPassword,
+  generateEncryptionMaterial,
+} from '@/core/crypto';
+import { supabase } from '@/core/supabase/client';
+import { resolveDekFromPassword } from '@/core/auth/dek';
+import { cacheProfileRow } from '@/core/auth/offlineCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 jest.mock('@/core/supabase/client', () => ({
   supabase: { from: jest.fn(), auth: { signInWithPassword: jest.fn() } },
 }));
@@ -17,16 +27,6 @@ jest.mock('@/core/crypto', () => ({
 }));
 jest.mock('@/shared/lib/retry', () => ({ withRetry: (fn: () => Promise<unknown>) => fn() }));
 jest.mock('@/shared/lib/withTimeout', () => ({ withTimeout: (p: Promise<unknown>) => p }));
-
-import {
-  decryptDek,
-  encryptDekWithPassword,
-  generateEncryptionMaterial,
-} from '@/core/crypto';
-import { supabase } from '@/core/supabase/client';
-import { resolveDekFromPassword } from '@/core/auth/dek';
-import { cacheProfileRow } from '@/core/auth/offlineCache';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const from = supabase.from as jest.Mock;
 const signIn = supabase.auth.signInWithPassword as jest.Mock;

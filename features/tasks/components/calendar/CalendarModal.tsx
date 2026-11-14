@@ -1,11 +1,6 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
@@ -46,12 +41,19 @@ export default function CalendarModal({
     return new Date(base.getFullYear(), base.getMonth(), 1);
   });
 
-  useEffect(() => {
-    if (!visible) return;
-    setDraft(selected);
-    const base = selected ?? today;
-    setMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
-  }, [visible, selected, today]);
+  // Sync the draft while rendering whenever the modal opens or the selection changes
+  // (also when mounted open).
+  const [prevInputs, setPrevInputs] = useState<{ visible: boolean; selected: Date | null } | null>(
+    null
+  );
+  if (!prevInputs || prevInputs.visible !== visible || prevInputs.selected !== selected) {
+    setPrevInputs({ visible, selected });
+    if (visible) {
+      setDraft(selected);
+      const base = selected ?? today;
+      setMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
+    }
+  }
 
   const weeks = useMemo(() => buildMonthWeeks(monthCursor), [monthCursor]);
 
@@ -68,26 +70,29 @@ export default function CalendarModal({
       header="plain"
       maxWidth={360}
       cardStyle={styles.card}
-      mobileCardStyle={styles.cardMobile}>
+      mobileCardStyle={styles.cardMobile}
+    >
       <View style={styles.monthNav}>
-            <Pressable
-              onPress={() =>
-                setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))
-              }
-              style={styles.navBtn}
-              hitSlop={8}>
-              <ChevronLeft size={22} color={colors.textPrimary} />
-            </Pressable>
-            <Text style={styles.monthLabel}>{monthLabel}</Text>
-            <Pressable
-              onPress={() =>
-                setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))
-              }
-              style={styles.navBtn}
-              hitSlop={8}>
-              <ChevronRight size={22} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+        <Pressable
+          onPress={() =>
+            setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))
+          }
+          style={styles.navBtn}
+          hitSlop={8}
+        >
+          <ChevronLeft size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.monthLabel}>{monthLabel}</Text>
+        <Pressable
+          onPress={() =>
+            setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))
+          }
+          style={styles.navBtn}
+          hitSlop={8}
+        >
+          <ChevronRight size={22} color={colors.textPrimary} />
+        </Pressable>
+      </View>
 
       <MonthGrid
         weeks={weeks}
@@ -101,27 +106,29 @@ export default function CalendarModal({
       />
 
       <View style={styles.footer}>
-            <Pressable
-              onPress={onClear}
-              style={({ pressed, hovered }) => [
-                styles.footerBtn,
-                styles.clearBtn,
-                (hovered || pressed) && styles.clearPressed,
-              ]}>
-              <Text style={styles.clearText}>{strings.tasks.clearDate}</Text>
-            </Pressable>
-            <Pressable
-              disabled={!canConfirm}
-              onPress={() => draft && onConfirm(draft)}
-              style={({ pressed, hovered }) => [
-                styles.footerBtn,
-                styles.setBtn,
-                !canConfirm && styles.setDisabled,
-                canConfirm && (hovered || pressed) && styles.setPressed,
-              ]}>
-              <Text style={styles.setText}>{strings.tasks.setDate}</Text>
-            </Pressable>
-          </View>
+        <Pressable
+          onPress={onClear}
+          style={({ pressed, hovered }) => [
+            styles.footerBtn,
+            styles.clearBtn,
+            (hovered || pressed) && styles.clearPressed,
+          ]}
+        >
+          <Text style={styles.clearText}>{strings.tasks.clearDate}</Text>
+        </Pressable>
+        <Pressable
+          disabled={!canConfirm}
+          onPress={() => draft && onConfirm(draft)}
+          style={({ pressed, hovered }) => [
+            styles.footerBtn,
+            styles.setBtn,
+            !canConfirm && styles.setDisabled,
+            canConfirm && (hovered || pressed) && styles.setPressed,
+          ]}
+        >
+          <Text style={styles.setText}>{strings.tasks.setDate}</Text>
+        </Pressable>
+      </View>
     </SheetFrame>
   );
 }

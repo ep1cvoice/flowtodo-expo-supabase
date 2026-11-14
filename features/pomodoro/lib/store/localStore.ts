@@ -83,7 +83,7 @@ export const localPomodoroStore: PomodoroStore = {
   async insertPomodoro(o) {
     const db = await openUserDb(o.userId);
     const enc = await encryptedColumns(o.dek, 'task_name', o.taskName);
-    const id = newLocalId();
+    const id = o.id ?? newLocalId();
     await db.runAsync(
       `INSERT INTO pomodoros (id, task_id, task_name_enc, task_name_iv, duration, elapsed,
          started_at, paused_at, ended_at, paused_on_logout, created_at, sync_state, rev)

@@ -8,7 +8,10 @@ import { useAuth } from '@/core/auth/AuthContext';
 import { formatClock } from '@/features/pomodoro/lib/formatClock';
 import { playPomodoroAlarm, stopPomodoroAlarm } from '@/features/pomodoro/pomodoroAlarm';
 import TomatoIcon from '@/features/pomodoro/components/TomatoIcon';
-import { usePomodoroMiniBarStyles, POMO_RED } from '@/features/pomodoro/components/PomodoroMiniBarStyles';
+import {
+  usePomodoroMiniBarStyles,
+  POMO_RED,
+} from '@/features/pomodoro/components/PomodoroMiniBarStyles';
 import AppModal from '@/shared/ui/AppModal';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { strings } from '@/shared/lib/strings';
@@ -30,33 +33,34 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
   const { activePomo } = usePomodoroState();
   const { pausePomo, resumePomo, endPomo, getElapsedSeconds } = usePomodoroActions();
   const { activeTasks } = useTasksState();
-  const [elapsed, setElapsed] = useState(0);
-  const [showAlarm, setShowAlarm] = useState(false);
-  const alarmedRef = useRef(false);
+  // Re-renders once per second while a session exists; the elapsed time itself is computed
+  // during render, so the clock is current from the very first frame.
+  const [, setTick] = useState(0);
+  // Session whose alarm the user dismissed (hides the modal while `endPomo` is running).
+  const [dismissedId, setDismissedId] = useState<number | null>(null);
+  // Session the alarm already rang for, so it rings (and pauses) only once.
+  const alarmedIdRef = useRef<number | null>(null);
+
+  const elapsed = activePomo ? getElapsedSeconds(activePomo) : 0;
+  const duration = Number(activePomo?.duration) || 0;
+  const timeUp = !!activePomo && mode === 'countdown' && duration > 0 && elapsed >= duration;
+  const showAlarm = timeUp && dismissedId !== activePomo.id;
 
   useEffect(() => {
     if (!activePomo) {
-      setElapsed(0);
-      setShowAlarm(false);
-      alarmedRef.current = false;
       void stopPomodoroAlarm();
       return;
     }
-    const tick = () => {
-      const total = getElapsedSeconds(activePomo);
-      setElapsed(total);
-      const duration = Number(activePomo.duration) || 0;
-      if (mode === 'countdown' && !alarmedRef.current && duration > 0 && total >= duration) {
-        alarmedRef.current = true;
-        setShowAlarm(true);
-        if (!activePomo.pausedAt) void pausePomo();
-        void playPomodoroAlarm();
-      }
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
-  }, [activePomo, getElapsedSeconds, pausePomo, mode]);
+  }, [activePomo]);
+
+  useEffect(() => {
+    if (!activePomo || !timeUp || alarmedIdRef.current === activePomo.id) return;
+    alarmedIdRef.current = activePomo.id;
+    if (!activePomo.pausedAt) void pausePomo();
+    void playPomodoroAlarm();
+  }, [activePomo, timeUp, pausePomo]);
 
   useEffect(() => {
     return () => {
@@ -68,11 +72,11 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
 
   const task = activeTasks.find((t) => t.id === activePomo.taskId);
   const isPaused = !!activePomo.pausedAt || showAlarm;
-  const shown = displaySeconds(mode, elapsed, Number(activePomo.duration));
+  const shown = displaySeconds(mode, elapsed, duration);
 
   const stopAlarmAndEnd = () => {
     void stopPomodoroAlarm();
-    setShowAlarm(false);
+    setDismissedId(activePomo.id);
     void endPomo(task?.title);
   };
 
@@ -90,7 +94,8 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
             accessibilityRole="button"
             accessibilityLabel={strings.pomodoro.openFullscreen}
             onPress={onOpen}
-            style={({ pressed, hovered }) => [styles.body, (pressed || hovered) && styles.pressed]}>
+            style={({ pressed, hovered }) => [styles.body, (pressed || hovered) && styles.pressed]}
+          >
             <TomatoIcon size={18} color={POMO_RED} />
             <Text style={styles.time}>{formatClock(shown)}</Text>
             <Text style={styles.title} numberOfLines={1}>
@@ -102,7 +107,8 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
             accessibilityLabel={isPaused ? strings.pomodoro.resume : strings.pomodoro.pause}
             onPress={togglePause}
             hitSlop={6}
-            style={({ pressed, hovered }) => [styles.btn, (pressed || hovered) && styles.pressed]}>
+            style={({ pressed, hovered }) => [styles.btn, (pressed || hovered) && styles.pressed]}
+          >
             {isPaused && !showAlarm ? (
               <Play size={18} color={POMO_RED} />
             ) : (
@@ -114,7 +120,8 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
             accessibilityLabel={strings.pomodoro.endPomodoro}
             onPress={stopAlarmAndEnd}
             hitSlop={6}
-            style={({ pressed, hovered }) => [styles.btn, (pressed || hovered) && styles.pressed]}>
+            style={({ pressed, hovered }) => [styles.btn, (pressed || hovered) && styles.pressed]}
+          >
             <X size={18} color={POMO_RED} />
           </Pressable>
         </View>
@@ -129,7 +136,11 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
             <Text style={styles.alarmText}>{strings.pomodoro.finished}</Text>
             <Pressable
               onPress={stopAlarmAndEnd}
-              style={({ pressed, hovered }) => [styles.okBtn, (hovered || pressed) && styles.okBtnPressed]}>
+              style={({ pressed, hovered }) => [
+                styles.okBtn,
+                (hovered || pressed) && styles.okBtnPressed,
+              ]}
+            >
               <Text style={styles.okBtnText}>{strings.common.ok}</Text>
             </Pressable>
           </Pressable>

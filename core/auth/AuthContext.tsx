@@ -204,26 +204,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [setDek]
   );
 
-  // Back online after an offline sign-in: create the real Supabase session in the background.
-  useOnReconnect(() => {
-    const credentials = pendingCredentialsRef.current;
-    if (!credentials) return;
-    void (async () => {
-      try {
-        const { error } = await supabase.auth.signInWithPassword(credentials);
-        if (!error) {
-          pendingCredentialsRef.current = null;
-        } else if (!isNetworkError(error)) {
-          // The password changed elsewhere: the cached account is no longer valid.
-          pendingCredentialsRef.current = null;
-          void logout();
-        }
-      } catch (err) {
-        logger.warn('Background sign-in failed:', (err as Error)?.message ?? err);
-      }
-    })();
-  });
-
   const signIn = useCallback(
     async (email: string, password: string) => {
       setIsAuthenticating(true);
@@ -304,6 +284,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await resetEncryption();
     }
   }, [resetEncryption]);
+
+  // Back online after an offline sign-in: create the real Supabase session in the background.
+  useOnReconnect(() => {
+    const credentials = pendingCredentialsRef.current;
+    if (!credentials) return;
+    void (async () => {
+      try {
+        const { error } = await supabase.auth.signInWithPassword(credentials);
+        if (!error) {
+          pendingCredentialsRef.current = null;
+        } else if (!isNetworkError(error)) {
+          // The password changed elsewhere: the cached account is no longer valid.
+          pendingCredentialsRef.current = null;
+          void logout();
+        }
+      } catch (err) {
+        logger.warn('Background sign-in failed:', (err as Error)?.message ?? err);
+      }
+    })();
+  });
 
   const userId = user?.id ?? null;
 

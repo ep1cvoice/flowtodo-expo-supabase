@@ -1,8 +1,10 @@
 // Quick-crypto path: PBKDF2 must use the async (off-JS-thread) variant, never pbkdf2Sync.
 import type { Buffer } from 'buffer';
+
+import { decryptDek, encryptDekWithPassword } from '@/core/crypto/index.native';
 const mockPbkdf2Sync = jest.fn();
 jest.mock('react-native-quick-crypto', () => {
-  const nodeCrypto = require('crypto');
+  const nodeCrypto = jest.requireActual('crypto');
   return {
     randomBytes: (n: number) => nodeCrypto.randomBytes(n),
     pbkdf2: (
@@ -24,8 +26,6 @@ jest.mock('expo-constants', () => ({
   default: { executionEnvironment: 'bare' },
   ExecutionEnvironment: { StoreClient: 'storeClient' },
 }));
-
-import { decryptDek, encryptDekWithPassword } from '@/core/crypto/index.native';
 
 it('round-trips the DEK through the async quick-crypto PBKDF2 without calling pbkdf2Sync', async () => {
   const dek = new Uint8Array(32).fill(5);

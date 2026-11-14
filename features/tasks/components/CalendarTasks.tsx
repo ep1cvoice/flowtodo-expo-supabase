@@ -141,7 +141,7 @@ export default function CalendarTasks() {
                   style={[styles.monthPager, frameStyle]}
                   onLayout={(event) => {
                     const nextWidth = event.nativeEvent.layout.width;
-                    if (nextWidth > 0) rowHeightSv.value = nextWidth / 7;
+                    if (nextWidth > 0) rowHeightSv.set(nextWidth / 7);
                     setPageWidth((current) => (current === nextWidth ? current : nextWidth));
                   }}>
                   {pageWidth > 0 ? (

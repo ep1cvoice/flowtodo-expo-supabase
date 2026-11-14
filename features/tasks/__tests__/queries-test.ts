@@ -1,12 +1,12 @@
 import { callsOf, createBuilder } from '@/test/supabaseMock';
 
+import { supabase } from '@/core/supabase/client';
+import { fetchTasksSnapshot, TASK_SELECT } from '@/features/tasks/lib/queries';
+
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn() } }));
 jest.mock('@/core/crypto', () => ({
   decryptField: (_dek: Uint8Array, ciphertext: string, iv: string) => `dec(${ciphertext}:${iv})`,
 }));
-
-import { supabase } from '@/core/supabase/client';
-import { fetchTasksSnapshot, TASK_SELECT } from '@/features/tasks/lib/queries';
 
 const from = supabase.from as jest.Mock;
 const dek = new Uint8Array(32);

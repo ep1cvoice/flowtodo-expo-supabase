@@ -1,5 +1,8 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
+import SyncButton from '@/features/sync/SyncButton';
+import { strings } from '@/shared/lib/strings';
+
 const mockStore = {
   localFirst: true,
   requestSync: jest.fn(),
@@ -19,7 +22,7 @@ jest.mock('@/features/tasks/lib/store', () => ({
   },
 }));
 jest.mock('@/shared/providers/ThemeContext', () => {
-  const { lightColors } = require('@/shared/constants/theme');
+  const { lightColors } = jest.requireActual<typeof import('@/shared/constants/theme')>('@/shared/constants/theme');
   return { useTheme: () => ({ colors: lightColors, isDark: false }) };
 });
 jest.mock('lucide-react-native', () => ({
@@ -38,9 +41,6 @@ jest.mock('@/shared/providers/NetworkContext', () => ({
   useNetwork: () => ({ isOnline: mockOnline }),
 }));
 jest.mock('@/core/auth/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
-
-import SyncButton from '@/features/sync/SyncButton';
-import { strings } from '@/shared/lib/strings';
 
 const renderButton = () => render(<SyncButton />);
 

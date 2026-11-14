@@ -1,11 +1,6 @@
 import { createBuilder, callsOf } from '@/test/supabaseMock';
 import { createMemoryDb } from '@/test/memoryDb';
 
-jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
-jest.mock('@/shared/lib/logger', () => ({
-  logger: { warn: jest.fn(), debug: jest.fn(), error: jest.fn() },
-}));
-
 import { supabase } from '@/core/supabase/client';
 import {
   countPending,
@@ -15,6 +10,11 @@ import {
   pushPending,
   syncOnce,
 } from '@/features/tasks/lib/store/syncEngine';
+
+jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
+jest.mock('@/shared/lib/logger', () => ({
+  logger: { warn: jest.fn(), debug: jest.fn(), error: jest.fn() },
+}));
 
 const from = supabase.from as jest.Mock;
 const rpc = supabase.rpc as jest.Mock;

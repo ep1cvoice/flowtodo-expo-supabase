@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -52,14 +53,14 @@ export function useNetwork(): NetworkContextValue {
 export function useOnReconnect(callback: () => void) {
   const { isOnline } = useNetwork();
   const wasOnlineRef = useRef(isOnline);
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  // Always calls the latest callback without re-running the effect when it changes.
+  const onReconnect = useEffectEvent(callback);
 
   useEffect(() => {
     const wasOnline = wasOnlineRef.current;
     wasOnlineRef.current = isOnline;
     if (!wasOnline && isOnline) {
-      callbackRef.current();
+      onReconnect();
     }
   }, [isOnline]);
 }

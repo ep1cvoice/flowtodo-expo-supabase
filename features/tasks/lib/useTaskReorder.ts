@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToast } from '@/shared/providers/ToastContext';
 import { toastForError } from '@/shared/lib/networkError';
@@ -62,7 +62,9 @@ export function useTaskReorder({
 
   // Kept in a ref so `moveTask` stays referentially stable: it is passed to memoized rows.
   const moveContext = useRef({ canReorder, filteredTasks, persistVisibleOrder });
-  moveContext.current = { canReorder, filteredTasks, persistVisibleOrder };
+  useLayoutEffect(() => {
+    moveContext.current = { canReorder, filteredTasks, persistVisibleOrder };
+  });
 
   const moveTask = useCallback((taskId: number, direction: -1 | 1) => {
     const { canReorder, filteredTasks, persistVisibleOrder } = moveContext.current;

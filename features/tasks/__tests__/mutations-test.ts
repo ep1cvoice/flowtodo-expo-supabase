@@ -1,5 +1,16 @@
 import { callsOf, createBuilder } from '@/test/supabaseMock';
 
+import { encryptField, hashForUniqueness } from '@/core/crypto';
+import { supabase } from '@/core/supabase/client';
+import {
+  deleteTaskForUser,
+  insertEncryptedTag,
+  insertEncryptedTask,
+  setTaskCompletedAtRow,
+  updateEncryptedTask,
+  updateTaskSortOrders,
+} from '@/features/tasks/lib/mutations';
+
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
 jest.mock('@/core/crypto', () => ({
   encryptField: jest.fn(async () => ({ ciphertext: 'ct', iv: 'iv' })),
@@ -17,17 +28,6 @@ jest.mock('@/features/tasks/lib/taskMappers', () => ({
   mapCategory: jest.fn((row) => ({ mapped: 'category', row })),
   mapTag: jest.fn((row) => ({ mapped: 'tag', row })),
 }));
-
-import { encryptField, hashForUniqueness } from '@/core/crypto';
-import { supabase } from '@/core/supabase/client';
-import {
-  deleteTaskForUser,
-  insertEncryptedTag,
-  insertEncryptedTask,
-  setTaskCompletedAtRow,
-  updateEncryptedTask,
-  updateTaskSortOrders,
-} from '@/features/tasks/lib/mutations';
 
 const from = supabase.from as jest.Mock;
 const dek = new Uint8Array(32);
