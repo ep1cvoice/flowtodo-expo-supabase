@@ -22,6 +22,7 @@ export default function MonthPage({
   pageWidth,
   frameStyle,
   selectedDay,
+  focusDay,
   today,
   expanded,
   expandedSv,
@@ -33,7 +34,8 @@ export default function MonthPage({
   month: Date;
   pageWidth: number;
   frameStyle: AnimatedStyle<ViewStyle>;
-  selectedDay: Date;
+  selectedDay: Date | null;
+  focusDay: Date;
   today: Date;
   expanded: boolean;
   expandedSv: SharedValue<number>;
@@ -43,7 +45,7 @@ export default function MonthPage({
   styles: CalendarStyles;
 }) {
   const weeks = useMemo(() => buildMonthWeeks(month), [month]);
-  const focusIndex = useMemo(() => focusWeekIndex(weeks, selectedDay), [weeks, selectedDay]);
+  const focusIndex = useMemo(() => focusWeekIndex(weeks, focusDay), [weeks, focusDay]);
   const focusSv = useSharedValue(focusIndex);
   const weekScrollRef = useAnimatedRef<Animated.ScrollView>();
 
@@ -86,7 +88,7 @@ export default function MonthPage({
           showWeekdays={false}
           onPressDay={onPressDay}
           dayState={(day) => ({
-            selected: sameDay(day, selectedDay),
+            selected: selectedDay ? sameDay(day, selectedDay) : false,
             today: sameDay(day, today),
             muted: day.getMonth() !== month.getMonth(),
           })}

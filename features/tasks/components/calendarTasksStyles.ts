@@ -19,6 +19,15 @@ export function createCalendarTasksStyles(colors: AppColors) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderColor,
     },
+    // Used when the calendar sits inside the padded task list instead of spanning the screen.
+    monthShellInset: {
+      marginHorizontal: 0,
+      marginBottom: 8,
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderColor,
+      overflow: 'hidden',
+    },
     monthPager: {
       width: '100%',
       overflow: 'hidden',

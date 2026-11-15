@@ -7,6 +7,7 @@ import { useTasksActions, useTasksState } from '@/features/tasks/TasksContext';
 import { useTaskActions } from '@/features/tasks/lib/useTaskActions';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { createActiveTasksStyles } from '@/features/tasks/components/activeTasksStyles';
+import CalendarViewToggle from '@/features/tasks/components/calendar/CalendarViewToggle';
 import SyncButton from '@/features/sync/SyncButton';
 import TaskFilterBar from '@/features/tasks/components/filters/TaskFilterBar';
 import { tokens } from '@/shared/constants/theme';
@@ -31,6 +32,8 @@ export function useActiveTasksScreen() {
     hasSearch,
     toggleSearch,
     sortMode,
+    viewMode,
+    toggleViewMode,
     selectedDay,
     validCategoryIds,
     validTagIds,
@@ -69,7 +72,12 @@ export function useActiveTasksScreen() {
           onToggleSearch={toggleSearch}
           sortMode={sortMode}
           onOpenSort={openSortSheet}
-          leading={<SyncButton />}
+          leading={
+            <>
+              <SyncButton />
+              <CalendarViewToggle mode={viewMode} onPress={toggleViewMode} />
+            </>
+          }
         />
       ),
     });
@@ -86,6 +94,8 @@ export function useActiveTasksScreen() {
     hasSearch,
     toggleSearch,
     sortMode,
+    viewMode,
+    toggleViewMode,
     openFilterSheet,
     openSortSheet,
   ]);

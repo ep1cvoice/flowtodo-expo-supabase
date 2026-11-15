@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import AddTaskModal from '@/features/tasks/components/form/AddTaskModal';
 import { useTasksActions } from '@/features/tasks/TasksContext';
 
-type ScheduledRoute = 'active' | 'calendar';
+type ScheduledRoute = 'active';
 
 type CreateTaskContextValue = {
   setScheduledDay: (route: ScheduledRoute, day: Date | null) => void;
@@ -15,7 +15,6 @@ export function CreateTaskProvider({ children }: { children: ReactNode }) {
   const { addTask } = useTasksActions();
   const scheduledRef = useRef<Record<ScheduledRoute, Date | null>>({
     active: null,
-    calendar: null,
   });
   const [visible, setVisible] = useState(false);
   const [scheduled, setScheduled] = useState<Date | null>(null);
@@ -26,9 +25,7 @@ export function CreateTaskProvider({ children }: { children: ReactNode }) {
 
   const openCreate = useCallback((routeName: string) => {
     const day =
-      routeName === 'active' || routeName === 'calendar'
-        ? scheduledRef.current[routeName]
-        : null;
+      routeName === 'active' ? scheduledRef.current[routeName] : null;
     setScheduled(day);
     setVisible(true);
   }, []);

@@ -72,8 +72,10 @@ export default function TaskFilterBar({
           ]}
           accessibilityRole="button"
           accessibilityLabel={strings.tasks.filterTasks}>
-          <ListFilter size={16} color={colors.textSecondary} />
-          <Text style={styles.filterBtnText}>{strings.tasks.filter}</Text>
+          <ListFilter size={16} color={colors.textSecondary} strokeWidth={2.2} />
+          {variant === 'header' ? null : (
+            <Text style={styles.filterBtnText}>{strings.tasks.filter}</Text>
+          )}
         </Pressable>
       ) : (
         <>
@@ -157,8 +159,8 @@ function createStyles(colors: AppColors, variant: 'inline' | 'header') {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingVertical: isHeader ? 7 : 8,
-      paddingHorizontal: isHeader ? 10 : 12,
+      paddingVertical: 8,
+      paddingHorizontal: isHeader ? 8 : 12,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.borderColor,
