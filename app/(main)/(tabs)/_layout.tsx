@@ -1,7 +1,7 @@
 import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { ListTodo, CheckCircle2, Settings, Timer, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Tags, Timer, type LucideIcon } from 'lucide-react-native';
 import { Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MainTabBar from '@/shared/ui/navigation/MainTabBar';
@@ -14,6 +14,7 @@ import { platformSelect } from '@/shared/lib/platform';
 const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
   completed: CheckCircle2,
+  labels: Tags,
   settings: Settings,
   pomodoro: Timer,
 };
@@ -146,6 +147,14 @@ export default function MainTabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <CheckCircle2 size={size} color={color} strokeWidth={2} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="labels"
+        options={{
+          title: strings.settings.labels.title,
+          tabBarLabel: strings.nav.labels,
+          tabBarIcon: ({ color, size }) => <Tags size={size} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
