@@ -39,6 +39,7 @@ export const strings = {
     calendar: 'Calendar',
     pomodoro: 'Pomodoro',
     completed: 'Completed',
+    labels: 'Labels',
     settings: 'Settings',
     createTask: 'Create new task',
     notFoundHeader: 'Oops!',

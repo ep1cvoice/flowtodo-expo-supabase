@@ -4,7 +4,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import DataSection from '@/features/settings/components/DataSection';
-import LabelsSection from '@/features/settings/components/LabelsSection';
 import PomodoroLink from '@/features/settings/components/PomodoroLink';
 import PreferencesSection from '@/features/settings/components/PreferencesSection';
 import ProfileSection from '@/features/settings/components/ProfileSection';
@@ -13,7 +12,7 @@ import ScreenBackground from '@/shared/ui/ScreenBackground';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useKeyboardBottomInset } from '@/shared/lib/useKeyboardBottomInset';
 
-type SectionKey = 'profile' | 'preferences' | 'labels' | 'data';
+type SectionKey = 'profile' | 'preferences' | 'data';
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
@@ -46,10 +45,6 @@ export default function SettingsScreen() {
           <PreferencesSection
             open={openSection === 'preferences'}
             onToggle={() => toggleSection('preferences')}
-          />
-          <LabelsSection
-            open={openSection === 'labels'}
-            onToggle={() => toggleSection('labels')}
           />
           <DataSection open={openSection === 'data'} onToggle={() => toggleSection('data')} />
           <PomodoroLink />

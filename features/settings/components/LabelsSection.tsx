@@ -1,8 +1,7 @@
 import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { Plus, Tags, Trash2 } from 'lucide-react-native';
-import SettingsSection from '@/features/settings/components/SettingsSection';
+import { Plus, Trash2 } from 'lucide-react-native';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
 import LabelModal from '@/features/tasks/components/form/LabelModal';
@@ -19,12 +18,7 @@ import { toastForError } from '@/shared/lib/networkError';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import type { CategoryIcon } from '@/types';
 
-interface LabelsSectionProps {
-  open: boolean;
-  onToggle: () => void;
-}
-
-export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
+export default function LabelsSection() {
   const { user, updateProfile } = useAuth();
   const { colors, styles } = useSettingsStyles();
   const { showToast } = useToast();
@@ -48,7 +42,9 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
     setFilterLimitErr('');
     const value = Number(filterLimit);
     if (!Number.isFinite(value) || value < FILTER_LIMIT_MIN || value > FILTER_LIMIT_MAX) {
-      setFilterLimitErr(strings.settings.labels.filterLimitRange(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX));
+      setFilterLimitErr(
+        strings.settings.labels.filterLimitRange(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX)
+      );
       return;
     }
 
@@ -89,131 +85,136 @@ export default function LabelsSection({ open, onToggle }: LabelsSectionProps) {
 
   return (
     <>
-      <SettingsSection title={strings.settings.labels.title} Icon={Tags} open={open} onToggle={onToggle}>
-        {open ? (
-          <>
-            <Text style={styles.label}>{strings.settings.labels.filterLimit}</Text>
-            <Text style={styles.description}>
-              {strings.settings.labels.filterLimitDescription(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX)}
-            </Text>
-            <View style={styles.filterLimitBlock}>
-              <View style={styles.filterLimitRow}>
-                <Text style={styles.filterLimitLabel}>{strings.settings.labels.maxSelected}</Text>
-                <TextInput
-                  value={filterLimit}
-                  onChangeText={(val) => {
-                    if (val === '') return setFilterLimit('');
-                    if (/^\d{1,2}$/.test(val)) setFilterLimit(val);
-                  }}
-                  keyboardType="number-pad"
-                  style={styles.pomodoroInput}
-                  placeholderTextColor={colors.textMuted}
-                />
-                <Pressable
-                  style={({ pressed, hovered }) => [
-                    styles.primaryBtn,
-                    (hovered || pressed) && styles.primaryBtnPressed,
-                    filterLimitSaving && styles.primaryBtnDisabled,
-                  ]}
-                  disabled={filterLimitSaving}
-                  onPress={handleFilterLimitsSave}>
-                  <Text style={styles.primaryBtnText}>
-                    {filterLimitSaving ? strings.common.saving : strings.common.save}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-            {!!filterLimitErr && <Text style={styles.errorInfo}>{filterLimitErr}</Text>}
+      <View style={styles.sectionBody}>
+        <Text style={styles.label}>{strings.settings.labels.filterLimit}</Text>
+        <Text style={styles.description}>
+          {strings.settings.labels.filterLimitDescription(FILTER_LIMIT_MIN, FILTER_LIMIT_MAX)}
+        </Text>
+        <View style={styles.filterLimitBlock}>
+          <View style={styles.filterLimitRow}>
+            <Text style={styles.filterLimitLabel}>{strings.settings.labels.maxSelected}</Text>
+            <TextInput
+              value={filterLimit}
+              onChangeText={(val) => {
+                if (val === '') return setFilterLimit('');
+                if (/^\d{1,2}$/.test(val)) setFilterLimit(val);
+              }}
+              keyboardType="number-pad"
+              style={styles.pomodoroInput}
+              placeholderTextColor={colors.textMuted}
+            />
+            <Pressable
+              style={({ pressed, hovered }) => [
+                styles.primaryBtn,
+                (hovered || pressed) && styles.primaryBtnPressed,
+                filterLimitSaving && styles.primaryBtnDisabled,
+              ]}
+              disabled={filterLimitSaving}
+              onPress={handleFilterLimitsSave}
+            >
+              <Text style={styles.primaryBtnText}>
+                {filterLimitSaving ? strings.common.saving : strings.common.save}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+        {!!filterLimitErr && <Text style={styles.errorInfo}>{filterLimitErr}</Text>}
 
-            <View style={styles.labelBlock}>
-              <View style={styles.labelBlockHeader}>
-                <Text style={styles.label}>{strings.common.categories}</Text>
-                <Pressable
-                  style={({ pressed, hovered }) => [
-                    styles.addLinkBtn,
-                    (hovered || pressed) && styles.addLinkBtnPressed,
-                  ]}
-                  onPress={() => setShowCategoryModal(true)}>
-                  <Plus size={14} color={colors.primary} />
-                  <Text style={styles.addLinkText}>{strings.settings.labels.addCategory}</Text>
-                </Pressable>
-              </View>
-              {categories.length === 0 ? (
-                <Text style={styles.description}>{strings.settings.labels.noCategories}</Text>
-              ) : (
-                <View style={styles.manageList}>
-                  {categories.map((cat) => (
-                    <View key={cat.id} style={styles.manageRow}>
-                      <View style={styles.manageRowStart}>
-                        <View style={[styles.manageDot, { backgroundColor: cat.color }]} />
-                        <Text style={styles.manageName} numberOfLines={1}>
-                          {cat.name}
-                        </Text>
-                      </View>
-                      <Pressable
-                        onPress={() =>
-                          setPendingRemove({ kind: 'category', id: cat.id, name: cat.name })
-                        }
-                        hitSlop={8}
-                        style={({ pressed, hovered }) => [
-                          styles.manageDeleteBtn,
-                          (hovered || pressed) && styles.manageDeleteBtnPressed,
-                        ]}
-                        accessibilityLabel={`Remove category ${cat.name}`}>
-                        <Trash2 size={16} color={colors.red} />
-                      </Pressable>
-                    </View>
-                  ))}
+        <View style={styles.labelBlock}>
+          <View style={styles.labelBlockHeader}>
+            <Text style={styles.label}>{strings.common.categories}</Text>
+            <Pressable
+              style={({ pressed, hovered }) => [
+                styles.addLinkBtn,
+                (hovered || pressed) && styles.addLinkBtnPressed,
+              ]}
+              onPress={() => setShowCategoryModal(true)}
+            >
+              <Plus size={14} color={colors.primary} />
+              <Text style={styles.addLinkText}>{strings.settings.labels.addCategory}</Text>
+            </Pressable>
+          </View>
+          {categories.length === 0 ? (
+            <Text style={styles.description}>{strings.settings.labels.noCategories}</Text>
+          ) : (
+            <View style={styles.manageList}>
+              {categories.map((cat) => (
+                <View key={cat.id} style={styles.manageRow}>
+                  <View style={styles.manageRowStart}>
+                    <View style={[styles.manageDot, { backgroundColor: cat.color }]} />
+                    <Text style={styles.manageName} numberOfLines={1}>
+                      {cat.name}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() =>
+                      setPendingRemove({ kind: 'category', id: cat.id, name: cat.name })
+                    }
+                    hitSlop={8}
+                    style={({ pressed, hovered }) => [
+                      styles.manageDeleteBtn,
+                      (hovered || pressed) && styles.manageDeleteBtnPressed,
+                    ]}
+                    accessibilityLabel={`Remove category ${cat.name}`}
+                  >
+                    <Trash2 size={16} color={colors.red} />
+                  </Pressable>
                 </View>
-              )}
+              ))}
             </View>
+          )}
+        </View>
 
-            <View style={styles.labelBlock}>
-              <View style={styles.labelBlockHeader}>
-                <Text style={styles.label}>{strings.common.tags}</Text>
-                <Pressable
-                  style={({ pressed, hovered }) => [
-                    styles.addLinkBtn,
-                    (hovered || pressed) && styles.addLinkBtnPressed,
-                  ]}
-                  onPress={() => setShowTagModal(true)}>
-                  <Plus size={14} color={colors.primary} />
-                  <Text style={styles.addLinkText}>{strings.settings.labels.addTag}</Text>
-                </Pressable>
-              </View>
-              {tags.length === 0 ? (
-                <Text style={styles.description}>{strings.settings.labels.noTags}</Text>
-              ) : (
-                <View style={styles.manageList}>
-                  {tags.map((tag) => (
-                    <View key={tag.id} style={styles.manageRow}>
-                      <View style={styles.manageRowStart}>
-                        <View style={[styles.manageDot, { backgroundColor: tag.color }]} />
-                        <Text style={styles.manageName} numberOfLines={1}>
-                          #{tag.name}
-                        </Text>
-                      </View>
-                      <Pressable
-                        onPress={() => setPendingRemove({ kind: 'tag', id: tag.id, name: tag.name })}
-                        hitSlop={8}
-                        style={({ pressed, hovered }) => [
-                          styles.manageDeleteBtn,
-                          (hovered || pressed) && styles.manageDeleteBtnPressed,
-                        ]}
-                        accessibilityLabel={`Remove tag ${tag.name}`}>
-                        <Trash2 size={16} color={colors.red} />
-                      </Pressable>
-                    </View>
-                  ))}
+        <View style={styles.labelBlock}>
+          <View style={styles.labelBlockHeader}>
+            <Text style={styles.label}>{strings.common.tags}</Text>
+            <Pressable
+              style={({ pressed, hovered }) => [
+                styles.addLinkBtn,
+                (hovered || pressed) && styles.addLinkBtnPressed,
+              ]}
+              onPress={() => setShowTagModal(true)}
+            >
+              <Plus size={14} color={colors.primary} />
+              <Text style={styles.addLinkText}>{strings.settings.labels.addTag}</Text>
+            </Pressable>
+          </View>
+          {tags.length === 0 ? (
+            <Text style={styles.description}>{strings.settings.labels.noTags}</Text>
+          ) : (
+            <View style={styles.manageList}>
+              {tags.map((tag) => (
+                <View key={tag.id} style={styles.manageRow}>
+                  <View style={styles.manageRowStart}>
+                    <View style={[styles.manageDot, { backgroundColor: tag.color }]} />
+                    <Text style={styles.manageName} numberOfLines={1}>
+                      #{tag.name}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setPendingRemove({ kind: 'tag', id: tag.id, name: tag.name })}
+                    hitSlop={8}
+                    style={({ pressed, hovered }) => [
+                      styles.manageDeleteBtn,
+                      (hovered || pressed) && styles.manageDeleteBtnPressed,
+                    ]}
+                    accessibilityLabel={`Remove tag ${tag.name}`}
+                  >
+                    <Trash2 size={16} color={colors.red} />
+                  </Pressable>
                 </View>
-              )}
+              ))}
             </View>
-          </>
-        ) : null}
-      </SettingsSection>
+          )}
+        </View>
+      </View>
       <ConfirmModal
         visible={pendingRemove !== null}
-        title={pendingRemove?.kind === 'tag' ? strings.settings.labels.removeTagTitle : strings.settings.labels.removeCategoryTitle}
+        title={
+          pendingRemove?.kind === 'tag'
+            ? strings.settings.labels.removeTagTitle
+            : strings.settings.labels.removeCategoryTitle
+        }
         message={
           pendingRemove?.kind === 'tag'
             ? strings.settings.labels.removeTagMessage(pendingRemove.name)

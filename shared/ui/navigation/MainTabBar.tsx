@@ -95,14 +95,12 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
             </Pressable>
           );
 
-          if (route.name !== 'active') return item;
+          if (route.name !== 'completed') return item;
 
           return (
             <Fragment key={route.key}>
               {item}
               <View style={styles.plusGroup}>
-                {/* Empty slot keeps the + button where it was before the calendar tab was removed. */}
-                <View style={styles.spacer} />
                 <View style={styles.plusSlot}>
                 <Pressable
                   onPress={() => openCreate(focusedRoute)}
@@ -179,11 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     overflow: 'visible',
   },
-  spacer: {
-    flex: 1,
-  },
   plusGroup: {
-    flex: 2,
     flexDirection: 'row',
     alignItems: 'stretch',
     overflow: 'visible',
