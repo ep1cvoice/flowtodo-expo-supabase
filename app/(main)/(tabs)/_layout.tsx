@@ -1,7 +1,7 @@
 import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { ListTodo, CheckCircle2, Settings, Calendar, Timer, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Timer, type LucideIcon } from 'lucide-react-native';
 import { Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MainTabBar from '@/shared/ui/navigation/MainTabBar';
@@ -15,7 +15,6 @@ const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
   completed: CheckCircle2,
   settings: Settings,
-  calendar: Calendar,
   pomodoro: Timer,
 };
 
@@ -135,14 +134,6 @@ export default function MainTabsLayout() {
           title: strings.nav.allTab,
           tabBarLabel: strings.nav.allTasks,
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} strokeWidth={2} />,
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: strings.nav.calendar,
-          tabBarLabel: 'Calendar',
-          tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} strokeWidth={2} />,
         }}
       />
       {/* Reachable from Settings only; keeps the bottom bar symmetric around the + button. */}

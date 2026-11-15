@@ -12,6 +12,7 @@ import {
 import { useDayFilter } from '@/features/tasks/lib/useDayFilter';
 import { useLabelFilter } from '@/features/tasks/lib/useLabelFilter';
 import { useTaskSearch } from '@/features/tasks/lib/useTaskSearch';
+import { useCalendarViewMode } from '@/features/tasks/lib/useCalendarViewMode';
 import { useTaskSort } from '@/features/tasks/lib/useTaskSort';
 
 export function useActiveTaskFilters() {
@@ -20,6 +21,7 @@ export function useActiveTaskFilters() {
   const search = useTaskSearch();
   const { sortMode, handleSelectSort } = useTaskSort();
   const day = useDayFilter(activeTasks);
+  const calendarView = useCalendarViewMode();
 
   const maxFilterSelections = clampFilterLimit(
     user?.settings?.maxFilterSelections ?? FILTER_LIMIT_DEFAULT
@@ -60,6 +62,7 @@ export function useActiveTaskFilters() {
     ...search,
     ...day,
     ...labels,
+    ...calendarView,
     activeTasks,
     sortMode,
     handleSelectSort,

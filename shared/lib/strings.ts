@@ -278,6 +278,8 @@ export const strings = {
     nextMonth: 'Next month',
     showCurrentWeek: 'Show current week',
     showFullMonth: 'Show full month',
+    switchToCalendarView: 'Switch to full calendar view',
+    switchToDayView: 'Switch to compact day view',
     showDetails: 'Show task details',
     loadMore: 'Load more',
     loadMoreCompleted: 'Load more completed tasks',

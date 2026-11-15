@@ -1,5 +1,5 @@
 import { strings } from '@/shared/lib/strings';
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -95,12 +95,15 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
             </Pressable>
           );
 
-          if (route.name !== 'calendar') return item;
+          if (route.name !== 'active') return item;
 
           return (
-            <View key={route.key} style={styles.calendarGroup}>
+            <Fragment key={route.key}>
               {item}
-              <View style={styles.plusSlot}>
+              <View style={styles.plusGroup}>
+                {/* Empty slot keeps the + button where it was before the calendar tab was removed. */}
+                <View style={styles.spacer} />
+                <View style={styles.plusSlot}>
                 <Pressable
                   onPress={() => openCreate(focusedRoute)}
                   accessibilityRole="button"
@@ -118,8 +121,9 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
                   ]}>
                   <Plus size={28} color="#fff" strokeWidth={2.4} />
                 </Pressable>
+                </View>
               </View>
-            </View>
+            </Fragment>
           );
         })}
       </View>
@@ -175,7 +179,10 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     overflow: 'visible',
   },
-  calendarGroup: {
+  spacer: {
+    flex: 1,
+  },
+  plusGroup: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'stretch',
