@@ -1,5 +1,5 @@
 /** Delay before a long press starts dragging a task in the sortable list. */
-export const DRAG_ACTIVATION_DELAY_MS = 450;
+export const DRAG_ACTIVATION_DELAY_MS = 500;
 
 /** Timeout for loading/refreshing tasks (and seeding demo data). */
 export const TASKS_REFRESH_TIMEOUT_MS = 15_000;
