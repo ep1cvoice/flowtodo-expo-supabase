@@ -116,7 +116,12 @@ describe('resolveDekFromPassword', () => {
         dek_iv: 'i2',
         kdf_iterations: 210000,
       });
-      expect(callsOf(upgrade, 'eq')[0]).toEqual(['id', 'u1']);
+      expect(callsOf(upgrade, 'eq')).toEqual([
+        ['id', 'u1'],
+        // Only while the server still holds the unwrapped material (no password change since).
+        ['salt', 's'],
+        ['encrypted_dek', 'e'],
+      ]);
     });
 
     it('makes no extra query when iterations are already current', async () => {
@@ -170,13 +175,49 @@ describe('resolveDekFromPassword', () => {
 
       expect(res).toEqual({ ok: true, dek: theDek });
       expect(callsOf(update, 'update')[0][0]).toMatchObject({ salt: 'gs', encrypted_dek: 'ge' });
+      // Only fills an empty profile, never replaces a stored key.
+      expect(callsOf(update, 'is')).toEqual([['encrypted_dek', null]]);
       expect(decrypt).toHaveBeenCalledWith('pw', 'gs', 'ge', 'gi', 210000);
+    });
+
+    it('another device stored a key meanwhile → uses that key instead of overwriting it', async () => {
+      from
+        .mockReturnValueOnce(createBuilder({ data: empty }))
+        .mockReturnValueOnce(createBuilder({ data: [] })) // conditional update matched nothing
+        .mockReturnValueOnce(createBuilder({ data: material() })); // the stored key
+      (generateEncryptionMaterial as jest.Mock).mockResolvedValue(generated);
+
+      const res = await resolveDekFromPassword(options);
+
+      expect(res).toEqual({ ok: true, dek: theDek });
+      expect(decrypt).toHaveBeenCalledWith('pw', 's', 'e', 'i', 210000);
+    });
+
+    it('never backfills from an offline copy of the profile', async () => {
+      await cacheProfileRow('u1', empty);
+      from.mockReturnValue(createBuilder({ error: { message: 'Network request failed' } }));
+
+      const res = await resolveDekFromPassword(options);
+
+      expect(res).toEqual({ ok: false, error: 'Unable to fetch encryption profile data' });
+      expect(generateEncryptionMaterial).not.toHaveBeenCalled();
+    });
+
+    it('password could not be verified (network) → no DEK generated', async () => {
+      from.mockReturnValueOnce(createBuilder({ data: empty }));
+      signIn.mockResolvedValue({ error: { message: 'Network request failed', status: 0 } });
+
+      const res = await resolveDekFromPassword({ ...options, verifyEmail: 'a@b.com' });
+
+      expect(res.ok).toBe(false);
+      expect(generateEncryptionMaterial).not.toHaveBeenCalled();
     });
 
     it('profile row not ready yet (empty update result) → configuration error', async () => {
       from
         .mockReturnValueOnce(createBuilder({ data: empty }))
-        .mockReturnValueOnce(createBuilder({ data: [] }));
+        .mockReturnValueOnce(createBuilder({ data: [] }))
+        .mockReturnValueOnce(createBuilder({ data: null })); // re-read: no row yet
       (generateEncryptionMaterial as jest.Mock).mockResolvedValue(generated);
 
       const res = await resolveDekFromPassword(options);

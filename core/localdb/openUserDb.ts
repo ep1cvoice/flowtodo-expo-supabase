@@ -18,10 +18,12 @@ async function migrate(db: LocalDb) {
  * One database file per user, so accounts never see each other's rows. Everything stored
  * in it is already end-to-end encrypted (ciphertext + IV), same as on the server.
  */
+const fileName = (userId: string) => `flowtodo-${userId}.db`;
+
 export function openUserDb(userId: string): Promise<LocalDb> {
   let db = opened.get(userId);
   if (!db) {
-    db = SQLite.openDatabaseAsync(`flowtodo-${userId}.db`).then(async (database) => {
+    db = SQLite.openDatabaseAsync(fileName(userId)).then(async (database) => {
       await migrate(database);
       return database;
     });
@@ -30,4 +32,18 @@ export function openUserDb(userId: string): Promise<LocalDb> {
     opened.set(userId, db);
   }
   return db;
+}
+
+/**
+ * Closes and deletes the account's database file (account deletion). Its rows are
+ * ciphertext, but nothing of a deleted account should stay on the device.
+ */
+export async function deleteUserDb(userId: string): Promise<void> {
+  const db = opened.get(userId);
+  opened.delete(userId);
+  if (db) {
+    const database = await db.catch(() => null);
+    await database?.closeAsync();
+  }
+  await SQLite.deleteDatabaseAsync(fileName(userId));
 }

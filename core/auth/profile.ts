@@ -46,15 +46,26 @@ type ProfileRow = {
   kdf_iterations: number | null;
 };
 
+export interface FetchedProfileRow {
+  row: ProfileRow;
+  /** True when the server was unreachable and the row is the copy from the last online visit. */
+  fromCache: boolean;
+}
+
 // Concurrent callers (session bootstrap, auth events, DEK unwrap) share one query.
 // Entries live only while the request is in flight, so later callers always get fresh data.
-const inFlightProfileRows = new Map<string, Promise<ProfileRow>>();
+const inFlightProfileRows = new Map<string, Promise<FetchedProfileRow>>();
 
 /**
  * Fetches the whole profile row (settings + DEK material) with retry and timeout.
  * Throws after the retries are exhausted.
  */
 export function fetchProfileRow(userId: string): Promise<ProfileRow> {
+  return fetchProfileRowWithSource(userId).then(({ row }) => row);
+}
+
+/** Like `fetchProfileRow`, but tells whether the row came from the offline cache. */
+export function fetchProfileRowWithSource(userId: string): Promise<FetchedProfileRow> {
   const existing = inFlightProfileRows.get(userId);
   if (existing) return existing;
 
@@ -71,7 +82,7 @@ export function fetchProfileRow(userId: string): Promise<ProfileRow> {
           : new ProfileQueryError(error?.message);
       }
       void cacheProfileRow(userId, data);
-      return data as ProfileRow;
+      return { row: data as ProfileRow, fromCache: false };
     },
     {
       attempts: PROFILE_RETRY_ATTEMPTS,
@@ -83,7 +94,7 @@ export function fetchProfileRow(userId: string): Promise<ProfileRow> {
       // Offline (or the server is unreachable): fall back to the last row seen online.
       if (err instanceof ProfileOfflineError || err instanceof TimeoutError) {
         const cached = await loadCachedProfileRow<ProfileRow>(userId);
-        if (cached) return cached;
+        if (cached) return { row: cached, fromCache: true };
       }
       throw err;
     })
@@ -178,6 +189,10 @@ export async function updateProfileSettings(
   if (error) {
     return { error: error.message, applied: {} };
   }
+
+  // Keep the offline copy in step, so a later offline start shows the new settings.
+  const cached = await loadCachedProfileRow<ProfileRow>(userId);
+  if (cached) await cacheProfileRow(userId, { ...cached, ...row });
 
   const applied: ProfileUpdates = { ...updates };
   if (updates.maxFilterSelections !== undefined) {

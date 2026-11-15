@@ -57,3 +57,18 @@ it('falls back to the online store for good when the database cannot be opened',
   expect(local.requestSync).not.toHaveBeenCalled();
   expect(local.flush).not.toHaveBeenCalled();
 });
+
+it('tells other features which store an account uses, from the same single decision', async () => {
+  const local = fakeStore('local');
+  const remote = fakeStore('remote');
+  let opens = 0;
+  // Fails the first time only (e.g. another tab held the lock): the decision must stick.
+  const store = withFallback(local, remote, async () => {
+    if (opens++ === 0) throw new Error('locked');
+  });
+
+  expect(await store.usesPrimary('u1')).toBe(false);
+  expect(await store.usesPrimary('u1')).toBe(false);
+  expect(await store.fetchTasksSnapshot('u1', null)).toEqual({ from: 'remote' });
+  expect(opens).toBe(1);
+});

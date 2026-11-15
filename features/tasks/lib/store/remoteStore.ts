@@ -39,6 +39,7 @@ export const remoteTaskStore: TaskStore = {
   updateSortOrders: updateTaskSortOrders,
   requestSync: () => {},
   flush: async () => {},
+  stopSync: async () => {},
   getSyncStatus: () => IDLE_SYNC_STATUS,
   subscribeSyncStatus: () => () => {},
   subscribe: () => () => {},

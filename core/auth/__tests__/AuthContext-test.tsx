@@ -14,6 +14,11 @@ import {
 } from '@/core/auth/secureStorage';
 import * as offlineCache from '@/core/auth/offlineCache';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
+import {
+  deleteLocalAccountData,
+  requestAccountSync,
+  stopAccountSync,
+} from '@/features/tasks/lib/store/accountLifecycle';
 
 let mockAuthCallback: ((event: string, session: unknown) => Promise<void>) | null = null;
 
@@ -64,6 +69,11 @@ jest.mock('@/core/auth/offlineCache', () => ({
 }));
 jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   pausePomodoroBeforeLogout: jest.fn(),
+}));
+jest.mock('@/features/tasks/lib/store/accountLifecycle', () => ({
+  deleteLocalAccountData: jest.fn(),
+  requestAccountSync: jest.fn(),
+  stopAccountSync: jest.fn(),
 }));
 
 const auth = supabase.auth as any;
@@ -221,6 +231,10 @@ describe('signIn', () => {
     expect(res).toEqual({ error: 'Invalid password or corrupted encryption data' });
     expect(auth.signOut).toHaveBeenCalled();
     expect(result.current.dek).toBeNull();
+    // A locked account is not remembered for the next start or for offline sign-in.
+    expect(offlineCache.rememberAccount).not.toHaveBeenCalled();
+    expect(offlineCache.rememberLastUser).not.toHaveBeenCalled();
+    expect(offlineCache.clearLastUser).toHaveBeenCalled();
   });
 
   it('resets isAuthenticating even when signIn throws', async () => {
@@ -365,7 +379,8 @@ describe('enableBiometricUnlock / disableBiometricUnlock', () => {
 describe('DEK is cleared', () => {
   it('on logout: memory, secure storage and the Supabase session', async () => {
     (hasStoredDek as jest.Mock).mockResolvedValue(true);
-    const { result } = await renderAuth(null);
+    const { result } = await renderAuth(session);
+    await waitFor(() => expect(result.current.user).toMatchObject({ id: 'u1' }));
     await signInAs(result);
     expect(result.current.dek).toBe(dek);
 
@@ -374,6 +389,11 @@ describe('DEK is cleared', () => {
     });
 
     expect(pausePomodoroBeforeLogout).toHaveBeenCalled();
+    expect(stopAccountSync).toHaveBeenCalledWith('u1');
+    // Sync is stopped while the session still exists.
+    expect((stopAccountSync as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      auth.signOut.mock.invocationCallOrder[0]
+    );
     expect(auth.signOut).toHaveBeenCalled();
     expect(clearStoredDek).toHaveBeenCalled();
     expect(result.current.dek).toBeNull();
@@ -420,6 +440,7 @@ describe('DEK is cleared', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('delete_own_account');
     expect(clearStoredDek).toHaveBeenCalled();
     expect(result.current.user).toBeNull();
+    expect(deleteLocalAccountData).toHaveBeenCalledWith('u1');
   });
 });
 
@@ -515,6 +536,8 @@ describe('offline', () => {
       mockReconnect!();
     });
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pw' });
+    // Changes made while signed in offline are synced with the new session.
+    expect(requestAccountSync).toHaveBeenCalledWith('u1');
 
     // Credentials are dropped after success: a second reconnect does not sign in again.
     auth.signInWithPassword.mockClear();

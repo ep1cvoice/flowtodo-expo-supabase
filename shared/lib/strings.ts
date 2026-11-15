@@ -61,6 +61,8 @@ export const strings = {
         : 'You are offline. Everything is saved on this device and will sync when the connection returns.',
     lastSynced: (when: string) => `Last synced: ${when}`,
     syncNow: 'Sync now',
+    noSession: 'Not signed in to the cloud. Changes will sync after you sign in again.',
+    aborted: 'Sync was cancelled.',
   },
 
   auth: {

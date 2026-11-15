@@ -25,6 +25,7 @@ import type {
   AddTaskInput,
   UpdateTaskInput,
 } from '@/features/tasks/lib/types';
+import { isKnownOffline } from '@/shared/lib/connectivity';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 import { logger } from '@/shared/lib/logger';
@@ -111,12 +112,16 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
    */
   const refresh = useCallback(async (userId: string, timeoutLabel?: string) => {
     const requestId = ++requestIdRef.current;
-    const request = taskStore.fetchTasksSnapshot(userId, latest.current.dek).then((snapshot) => {
-      if (requestId === requestIdRef.current && latest.current.user?.id === userId) {
-        dispatch({ type: 'snapshotLoaded', snapshot });
-      }
-      return snapshot;
-    });
+    // Keep the completed pages already loaded (a background re-read must not page back).
+    const completedLimit = latest.current.data.completedTasks.length;
+    const request = taskStore
+      .fetchTasksSnapshot(userId, latest.current.dek, { completedLimit })
+      .then((snapshot) => {
+        if (requestId === requestIdRef.current && latest.current.user?.id === userId) {
+          dispatch({ type: 'snapshotLoaded', snapshot });
+        }
+        return snapshot;
+      });
     if (!timeoutLabel) return request;
     try {
       return await withTimeout(request, TASKS_REFRESH_TIMEOUT_MS, timeoutLabel);
@@ -144,12 +149,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           snapshot.completedTasks.length === 0;
 
         const activeDek = latest.current.dek;
-        if (isEmpty && activeDek) {
-          const seeded = await withTimeout(
-            taskStore.seedDemoData(userId, activeDek),
-            TASKS_REFRESH_TIMEOUT_MS,
-            'seedDemo'
-          );
+        // Offline there is nothing to seed with (it is a server RPC); the empty list stays.
+        if (isEmpty && activeDek && !isKnownOffline()) {
+          let seeded = false;
+          try {
+            seeded = await withTimeout(
+              taskStore.seedDemoData(userId, activeDek),
+              TASKS_REFRESH_TIMEOUT_MS,
+              'seedDemo'
+            );
+          } catch (err) {
+            // The list itself loaded fine: an empty list beats an error view. Seeding is
+            // tried again on the next load of an empty list.
+            logger.warn('Demo data seeding failed:', (err as Error)?.message ?? err);
+          }
           if (!isCurrent()) return;
           // Not seeded = the account was seeded before and the user emptied it on purpose.
           if (seeded) await refresh(userId, 'refreshTasksAfterSeed');

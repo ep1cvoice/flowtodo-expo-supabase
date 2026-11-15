@@ -66,6 +66,27 @@ describe('useDescriptionAutosave', () => {
     expect(mockUpdateTask).toHaveBeenCalledTimes(1);
   });
 
+  it('saves an edit made while the previous save was still running', async () => {
+    let finishFirst!: () => void;
+    mockUpdateTask.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finishFirst = resolve))
+    );
+    const { result } = await renderHook(() => useDescriptionAutosave(makeTask()));
+    await act(async () => result.current.handleFocus());
+    await act(async () => result.current.setDraft('first'));
+    await act(async () => {
+      void result.current.saveDescription();
+    });
+    await act(async () => result.current.setDraft('second'));
+    await act(async () => result.current.handleBlur()); // the first save is still running
+    expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+
+    await act(async () => finishFirst());
+
+    expect(mockUpdateTask).toHaveBeenCalledTimes(2);
+    expect(mockUpdateTask).toHaveBeenLastCalledWith(5, expect.objectContaining({ description: 'second' }));
+  });
+
   it('reverts the draft and toasts when saving fails while not focused', async () => {
     mockUpdateTask.mockRejectedValue(new Error('boom'));
     const { result } = await renderHook(() => useDescriptionAutosave(makeTask()));

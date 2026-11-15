@@ -17,6 +17,7 @@ jest.mock('@/shared/lib/logger', () => ({
 }));
 jest.mock('@/features/tasks/lib/store/localStore', () => ({
   localTaskStore: { requestSync: jest.fn() },
+  ensureInitialPullFor: jest.fn(async () => {}),
 }));
 jest.mock('@/features/tasks/lib/store/syncEngine', () => ({
   hasPulled: jest.fn(async () => true),
@@ -76,6 +77,27 @@ describe('local pomodoro store', () => {
     expect(await store.fetchStatsRows('u1', T0)).toEqual([
       { endedAt: '2026-01-01T11:00:00.000Z', elapsed: 9000, duration: 1500 },
     ]);
+  });
+
+  it('does not overwrite a session that was already finished elsewhere', async () => {
+    const { id } = await store.insertPomodoro({ ...start, startedAt: T0 });
+    const endedElsewhere = '2026-01-01T10:20:00.000Z';
+    await mockMemory.runAsync(
+      `UPDATE pomodoros SET ended_at = ?, elapsed = 1200000 WHERE id = ?`,
+      endedElsewhere,
+      id
+    );
+
+    await store.endPomodoroRow({
+      userId: 'u1',
+      dek,
+      id,
+      elapsed: 1_500_000,
+      endedAt: '2026-01-01T10:30:00.000Z',
+      taskName: 'Write',
+    });
+
+    expect((await rows())[0]).toMatchObject({ ended_at: endedElsewhere, elapsed: 1200000 });
   });
 
   it('only freezes still-active sessions when onlyActive is set', async () => {

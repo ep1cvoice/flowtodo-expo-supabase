@@ -29,6 +29,11 @@ import { isNetworkError, toastForError } from '@/shared/lib/networkError';
 import { isOnlineNow } from '@/shared/lib/netState';
 import { useOnReconnect } from '@/shared/providers/NetworkContext';
 import { pausePomodoroBeforeLogout } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
+import {
+  deleteLocalAccountData,
+  requestAccountSync,
+  stopAccountSync,
+} from '@/features/tasks/lib/store/accountLifecycle';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { supabase } from '@/core/supabase/client';
 import type { ProfileUpdates, User } from '@/types';
@@ -66,7 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const offlineRestoredRef = useRef(false);
   // Only for an offline sign-in: kept in memory (never persisted) so the Supabase session can
   // be created silently as soon as the connection returns.
-  const pendingCredentialsRef = useRef<{ email: string; password: string } | null>(null);
+  const pendingCredentialsRef = useRef<{
+    userId: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -194,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!resolved.ok) return { error: resolved.error };
 
       offlineRestoredRef.current = true;
-      pendingCredentialsRef.current = { email, password };
+      pendingCredentialsRef.current = { userId: cachedUserId, email, password };
       setDek(resolved.dek);
       setUserState(
         (await loadCachedUser(cachedUserId, email)) ?? minimalUserFromSession(cachedUserId, email)
@@ -221,8 +230,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: error?.message ?? strings.auth.login.signInFailed };
         }
 
-        void rememberAccount(email, data.user.id);
-        void rememberLastUser({ id: data.user.id, email });
         const resolved = await resolveDekFromPassword({
           userId: data.user.id,
           password,
@@ -231,9 +238,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (!resolved.ok) {
           await supabase.auth.signOut();
+          // The SIGNED_IN event remembered the account; a locked account must not be the one
+          // the next start opens on.
+          await clearLastUser();
           return { error: resolved.error };
         }
 
+        // Only an account that could be unlocked is remembered for offline sign-in and startup.
+        void rememberAccount(email, data.user.id);
+        void rememberLastUser({ id: data.user.id, email });
         setDek(resolved.dek);
         // Note: this does NOT silently enable biometric unlock. Persisting
         // the DEK to the secure store is an explicit opt-in via
@@ -273,8 +286,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const userId = user?.id ?? null;
+
   const logout = useCallback(async () => {
     await pausePomodoroBeforeLogout();
+    // No sync round (or scheduled retry) may outlive the session it belongs to.
+    if (userId) await stopAccountSync(userId);
     await clearLastUser();
     pendingCredentialsRef.current = null;
     offlineRestoredRef.current = false;
@@ -283,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       await resetEncryption();
     }
-  }, [resetEncryption]);
+  }, [resetEncryption, userId]);
 
   // Back online after an offline sign-in: create the real Supabase session in the background.
   useOnReconnect(() => {
@@ -291,9 +308,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!credentials) return;
     void (async () => {
       try {
-        const { error } = await supabase.auth.signInWithPassword(credentials);
+        const { error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
         if (!error) {
           pendingCredentialsRef.current = null;
+          // Changes made while signed in offline can reach the server now.
+          requestAccountSync(credentials.userId);
         } else if (!isNetworkError(error)) {
           // The password changed elsewhere: the cached account is no longer valid.
           pendingCredentialsRef.current = null;
@@ -304,8 +326,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   });
-
-  const userId = user?.id ?? null;
 
   const updateProfile = useCallback(
     async (updates: ProfileUpdates) => {
@@ -339,10 +359,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: error.message };
     }
 
+    await stopAccountSync(userId);
     await supabase.auth.signOut();
     await resetEncryption();
     await forgetAccount(userId, user?.email ?? '');
     setUserState(null);
+    await deleteLocalAccountData(userId);
     return { error: null };
   }, [userId, user?.email, resetEncryption]);
 

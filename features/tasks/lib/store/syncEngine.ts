@@ -1,3 +1,4 @@
+import { withDbLock, writeTransaction } from '@/core/localdb/dbLock';
 import type { LocalDb } from '@/core/localdb/openUserDb';
 import { supabase } from '@/core/supabase/client';
 import {
@@ -7,6 +8,14 @@ import {
   pushPomodoros,
 } from '@/features/pomodoro/lib/store/pomodoroSync';
 import { newLocalId } from '@/features/tasks/lib/store/localId';
+import {
+  assertSession,
+  checkpoint,
+  signalOf,
+  SyncAbortedError,
+  SyncSessionError,
+  type SyncOptions,
+} from '@/features/tasks/lib/store/syncGuard';
 import { errorMessage } from '@/shared/lib/errorMessage';
 import { logger } from '@/shared/lib/logger';
 
@@ -16,11 +25,14 @@ import { logger } from '@/shared/lib/logger';
  * - Local rows carry `sync_state` ('synced' | 'dirty' | 'deleted') and a `rev` counter that
  *   is bumped on every local write. A push only marks a row synced if `rev` did not change
  *   while the request was in flight.
- * - Push: dirty rows are upserted (labels first, then tasks), deleted rows are deleted
- *   remotely (tasks first, then labels) and purged locally.
+ * - Push: deleted rows are deleted remotely (tasks first, then labels) and purged locally,
+ *   then dirty rows are upserted (labels first, then tasks). Deleting first lets a label
+ *   that was deleted and re-created under the same name replace the old one.
  * - Pull: the whole remote state is fetched (paged) and applied; rows with pending local
  *   changes are never overwritten (last write wins, a local edit beats a remote delete).
  * - Only ciphertext is handled here, so no DEK is needed.
+ * - Every local write goes through the database lock (see core/localdb/dbLock.ts), and every
+ *   round first checks that the Supabase session belongs to this account (see syncGuard.ts).
  */
 
 const PAGE_SIZE = 1000;
@@ -77,9 +89,17 @@ function isIdCollision(error: { code?: string } | null): boolean {
 /** Gives a never-synced local row a fresh id and re-points everything that referenced it. */
 async function reId(db: LocalDb, table: 'tasks' | LabelTable, oldId: number): Promise<number> {
   const id = newLocalId();
-  await db.withTransactionAsync(async () => {
+  await writeTransaction(db, async () => {
     await db.runAsync(`UPDATE ${table} SET id = ? WHERE id = ?`, id, oldId);
-    if (table === 'categories') {
+    if (table === 'tasks') {
+      await db.runAsync(
+        `UPDATE pomodoros SET task_id = ?, rev = rev + 1,
+           sync_state = CASE WHEN sync_state = 'deleted' THEN 'deleted' ELSE 'dirty' END
+         WHERE task_id = ?`,
+        id,
+        oldId
+      );
+    } else if (table === 'categories') {
       await db.runAsync(
         `UPDATE tasks SET category_id = ?, sync_state = 'dirty', rev = rev + 1 WHERE category_id = ?`,
         id,
@@ -104,19 +124,38 @@ async function reId(db: LocalDb, table: 'tasks' | LabelTable, oldId: number): Pr
 }
 
 async function markSynced(db: LocalDb, table: string, id: number, rev: number) {
-  await db.runAsync(`UPDATE ${table} SET sync_state = 'synced' WHERE id = ? AND rev = ?`, id, rev);
+  await withDbLock(db, () =>
+    db.runAsync(`UPDATE ${table} SET sync_state = 'synced' WHERE id = ? AND rev = ?`, id, rev)
+  );
+}
+
+/** Ids of tasks whose JSON `tag_ids` contains `tagId` (a text match would also hit 120, 312…). */
+async function tasksWithTag(db: LocalDb, tagId: number) {
+  const tasks = await db.getAllAsync<{ id: number; tag_ids: string }>(
+    `SELECT id, tag_ids FROM tasks WHERE tag_ids != '[]'`
+  );
+  return tasks
+    .map((task) => ({ id: task.id, tagIds: JSON.parse(task.tag_ids) as number[] }))
+    .filter((task) => task.tagIds.includes(tagId));
 }
 
 /**
  * Another device created a label with the same (encrypted-hash) name. Keep the remote one:
  * re-point local references to it and drop the local duplicate.
  */
-async function adoptRemoteLabel(db: LocalDb, userId: string, table: LabelTable, row: LabelRow) {
+async function adoptRemoteLabel(
+  db: LocalDb,
+  userId: string,
+  table: LabelTable,
+  row: LabelRow,
+  signal: AbortSignal
+) {
   const { data, error } = await supabase
     .from(table)
     .select('id')
     .eq('user_id', userId)
     .eq('name_hash', row.name_hash ?? '')
+    .abortSignal(signal)
     .maybeSingle();
   if (error) throw error;
   if (!data) {
@@ -126,7 +165,8 @@ async function adoptRemoteLabel(db: LocalDb, userId: string, table: LabelTable, 
   }
 
   const remoteId = Number(data.id);
-  await db.withTransactionAsync(async () => {
+  checkpoint(signal);
+  await writeTransaction(db, async () => {
     if (table === 'categories') {
       await db.runAsync(
         `UPDATE tasks SET category_id = ?, sync_state = 'dirty', rev = rev + 1 WHERE category_id = ?`,
@@ -134,14 +174,8 @@ async function adoptRemoteLabel(db: LocalDb, userId: string, table: LabelTable, 
         row.id
       );
     } else {
-      const tasks = await db.getAllAsync<{ id: number; tag_ids: string }>(
-        `SELECT id, tag_ids FROM tasks WHERE tag_ids LIKE '%' || ? || '%'`,
-        String(row.id)
-      );
-      for (const task of tasks) {
-        const ids = (JSON.parse(task.tag_ids) as number[]).map((id) =>
-          id === row.id ? remoteId : id
-        );
+      for (const task of await tasksWithTag(db, row.id)) {
+        const ids = task.tagIds.map((id) => (id === row.id ? remoteId : id));
         await db.runAsync(
           `UPDATE tasks SET tag_ids = ?, sync_state = 'dirty', rev = rev + 1 WHERE id = ?`,
           JSON.stringify([...new Set(ids)]),
@@ -153,11 +187,12 @@ async function adoptRemoteLabel(db: LocalDb, userId: string, table: LabelTable, 
   });
 }
 
-async function pushLabels(db: LocalDb, userId: string, table: LabelTable) {
+async function pushLabels(db: LocalDb, userId: string, table: LabelTable, signal: AbortSignal) {
   const dirty = await db.getAllAsync<LabelRow>(`SELECT * FROM ${table} WHERE sync_state = 'dirty'`);
   for (const original of dirty) {
     let row = original;
     for (let attempt = 0; ; attempt++) {
+      checkpoint(signal);
       const payload = {
         id: row.id,
         user_id: userId,
@@ -169,13 +204,18 @@ async function pushLabels(db: LocalDb, userId: string, table: LabelTable) {
         ...(table === 'categories' ? { icon: row.icon } : {}),
       };
       // The two tables have different column sets; the payload matches each one.
-      const { error } = await supabase.from(table).upsert(payload as never, { onConflict: 'id' });
+      const { error } = await supabase
+        .from(table)
+        .upsert(payload as never, { onConflict: 'id' })
+        .abortSignal(signal);
       if (error?.code === RLS_VIOLATION && attempt === 0) {
+        // Only a real id collision if the session is still this account's.
+        await assertSession(userId, signal);
         row = { ...row, id: await reId(db, table, row.id) };
         continue;
       }
       if (isUniqueViolation(error)) {
-        await adoptRemoteLabel(db, userId, table, row);
+        await adoptRemoteLabel(db, userId, table, row, signal);
         break;
       }
       if (error) throw error;
@@ -185,43 +225,51 @@ async function pushLabels(db: LocalDb, userId: string, table: LabelTable) {
   }
 }
 
-async function pushTasks(db: LocalDb, userId: string) {
+async function pushTasks(db: LocalDb, userId: string, signal: AbortSignal) {
   const dirty = await db.getAllAsync<TaskRow>(`SELECT * FROM tasks WHERE sync_state = 'dirty'`);
   for (const original of dirty) {
     let row = original;
     for (let attempt = 0; ; attempt++) {
-      const { error } = await supabase.from('tasks').upsert(
-        {
-          id: row.id,
-          user_id: userId,
-          title_enc: row.title_enc,
-          title_iv: row.title_iv,
-          description_enc: row.description_enc,
-          description_iv: row.description_iv,
-          scheduled: row.scheduled,
-          completed_at: row.completed_at,
-          sort_order: row.sort_order,
-          category_id: row.category_id,
-          created_at: row.created_at,
-        },
-        { onConflict: 'id' }
-      );
+      checkpoint(signal);
+      const { error } = await supabase
+        .from('tasks')
+        .upsert(
+          {
+            id: row.id,
+            user_id: userId,
+            title_enc: row.title_enc,
+            title_iv: row.title_iv,
+            description_enc: row.description_enc,
+            description_iv: row.description_iv,
+            scheduled: row.scheduled,
+            completed_at: row.completed_at,
+            sort_order: row.sort_order,
+            category_id: row.category_id,
+            created_at: row.created_at,
+          },
+          { onConflict: 'id' }
+        )
+        .abortSignal(signal);
       if (isIdCollision(error) && attempt === 0) {
+        // Only a real id collision if the session is still this account's.
+        await assertSession(userId, signal);
         row = { ...row, id: await reId(db, 'tasks', row.id) };
         continue;
       }
       if (error) throw error;
 
       // Replaces the task's tags atomically on the server.
-      const { error: tagError } = await supabase.rpc('update_task_with_tags', {
-        p_task_id: row.id,
-        p_category_id: row.category_id,
-        p_title_enc: row.title_enc,
-        p_title_iv: row.title_iv,
-        p_description_enc: row.description_enc,
-        p_description_iv: row.description_iv,
-        p_tag_ids: JSON.parse(row.tag_ids) as number[],
-      });
+      const { error: tagError } = await supabase
+        .rpc('update_task_with_tags', {
+          p_task_id: row.id,
+          p_category_id: row.category_id,
+          p_title_enc: row.title_enc,
+          p_title_iv: row.title_iv,
+          p_description_enc: row.description_enc,
+          p_description_iv: row.description_iv,
+          p_tag_ids: JSON.parse(row.tag_ids) as number[],
+        })
+        .abortSignal(signal);
       if (tagError) throw tagError;
       await markSynced(db, 'tasks', row.id, row.rev);
       break;
@@ -229,28 +277,50 @@ async function pushTasks(db: LocalDb, userId: string) {
   }
 }
 
-async function pushDeletes(db: LocalDb, userId: string, table: 'tasks' | LabelTable) {
+async function pushDeletes(
+  db: LocalDb,
+  userId: string,
+  table: 'tasks' | LabelTable,
+  signal: AbortSignal
+) {
   const deleted = await db.getAllAsync<{ id: number; rev: number }>(
     `SELECT id, rev FROM ${table} WHERE sync_state = 'deleted'`
   );
   for (const row of deleted) {
-    const { error } = await supabase.from(table).delete().eq('id', row.id).eq('user_id', userId);
+    checkpoint(signal);
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', row.id)
+      .eq('user_id', userId)
+      .abortSignal(signal);
     if (error) throw error;
-    await db.runAsync(`DELETE FROM ${table} WHERE id = ? AND rev = ?`, row.id, row.rev);
+    await withDbLock(db, () =>
+      db.runAsync(`DELETE FROM ${table} WHERE id = ? AND rev = ?`, row.id, row.rev)
+    );
   }
 }
 
 /** Sends all pending local changes. Throws on the first network/server error. */
-export async function pushPending(db: LocalDb, userId: string): Promise<void> {
-  await pushDeletes(db, userId, 'tasks');
-  await pushLabels(db, userId, 'categories');
-  await pushLabels(db, userId, 'tags');
-  await pushTasks(db, userId);
-  // After the tasks they reference; before label/task deletes are irrelevant to them.
-  await pushPomodoros(db, userId);
-  await pushPomodoroDeletes(db, userId);
-  await pushDeletes(db, userId, 'categories');
-  await pushDeletes(db, userId, 'tags');
+export async function pushPending(
+  db: LocalDb,
+  userId: string,
+  options?: SyncOptions
+): Promise<void> {
+  const signal = signalOf(options);
+  await assertSession(userId, signal);
+  await pushDeletes(db, userId, 'tasks', signal);
+  // Before the label upserts: a label deleted and re-created offline under the same name
+  // must not hit the unique constraint of the old one (and be merged into it). Local tasks
+  // no longer reference deleted labels, so the order does not matter to them.
+  await pushDeletes(db, userId, 'categories', signal);
+  await pushDeletes(db, userId, 'tags', signal);
+  await pushLabels(db, userId, 'categories', signal);
+  await pushLabels(db, userId, 'tags', signal);
+  await pushTasks(db, userId, signal);
+  // After the tasks they reference.
+  await pushPomodoros(db, userId, signal);
+  await pushPomodoroDeletes(db, userId, signal);
 }
 
 async function fetchAll<T>(
@@ -275,13 +345,32 @@ async function removeMissing(db: LocalDb, table: string, remoteIds: Set<number>)
 }
 
 /** Fetches the remote state and applies it. Returns true when local data may have changed. */
-export async function pullAll(db: LocalDb, userId: string): Promise<boolean> {
+export async function pullAll(
+  db: LocalDb,
+  userId: string,
+  options?: SyncOptions
+): Promise<boolean> {
+  const signal = signalOf(options);
+  // Without this account's session RLS returns empty lists, which would wipe the replica.
+  await assertSession(userId, signal);
   const [categories, tags, tasks, pomodoros] = await Promise.all([
     fetchAll((from, to) =>
-      supabase.from('categories').select('*').eq('user_id', userId).order('id').range(from, to)
+      supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id')
+        .range(from, to)
+        .abortSignal(signal)
     ),
     fetchAll((from, to) =>
-      supabase.from('tags').select('*').eq('user_id', userId).order('id').range(from, to)
+      supabase
+        .from('tags')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id')
+        .range(from, to)
+        .abortSignal(signal)
     ),
     fetchAll((from, to) =>
       supabase
@@ -290,11 +379,16 @@ export async function pullAll(db: LocalDb, userId: string): Promise<boolean> {
         .eq('user_id', userId)
         .order('id')
         .range(from, to)
+        .abortSignal(signal)
     ),
-    fetchRemotePomodoros(userId),
+    fetchRemotePomodoros(userId, signal),
   ]);
+  // The session may have ended while the requests were in flight (logout).
+  await assertSession(userId, signal);
 
-  await db.withTransactionAsync(async () => {
+  // Locked, so a local write can neither slip in between reading the pending rows and
+  // overwriting the synced ones, nor join (and be rolled back with) this transaction.
+  await writeTransaction(db, async () => {
     // Pending local rows win; everything else mirrors the server.
     const pending = async (table: string) =>
       new Set(
@@ -417,16 +511,22 @@ export async function hasPulled(db: LocalDb): Promise<boolean> {
  * (pending rows are protected from it) and is returned so the UI can show it; a pull
  * failure throws.
  */
-export async function syncOnce(db: LocalDb, userId: string): Promise<Error | null> {
+export async function syncOnce(
+  db: LocalDb,
+  userId: string,
+  options?: SyncOptions
+): Promise<Error | null> {
   let pushError: Error | null = null;
   try {
-    await pushPending(db, userId);
+    await pushPending(db, userId, options);
   } catch (err) {
+    // Wrong/no session or cancelled: the pull must not run either.
+    if (err instanceof SyncSessionError || err instanceof SyncAbortedError) throw err;
     // Offline or a server hiccup: rows stay pending and are retried on the next sync.
     logger.warn('Push failed:', errorMessage(err));
     pushError = new Error(errorMessage(err));
   }
-  await pullAll(db, userId);
+  await pullAll(db, userId, options);
   return pushError;
 }
 

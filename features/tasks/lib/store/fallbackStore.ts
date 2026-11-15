@@ -31,11 +31,16 @@ const userIdOf = (first: unknown): string =>
  * lacks the required APIs. The choice is made once per user, on first use, so reads and
  * writes of an account never end up in two different places.
  */
+export type FallbackTaskStore = TaskStore & {
+  /** Resolves to true when the account uses `primary` (the local database). */
+  usesPrimary(userId: string): Promise<boolean>;
+};
+
 export function withFallback(
   primary: TaskStore,
   fallback: TaskStore,
   probe: (userId: string) => Promise<unknown>
-): TaskStore {
+): FallbackTaskStore {
   const decisions = new Map<string, Promise<TaskStore>>();
   let primaryBroken = false;
 
@@ -69,6 +74,10 @@ export function withFallback(
     flush: async (userId: string) => {
       if ((await pick(userId)) === primary) await primary.flush(userId);
     },
+    stopSync: async (userId: string) => {
+      if ((await pick(userId)) === primary) await primary.stopSync(userId);
+    },
+    usesPrimary: async (userId: string) => (await pick(userId)) === primary,
     subscribe: primary.subscribe,
     getSyncStatus: primary.getSyncStatus,
     subscribeSyncStatus: primary.subscribeSyncStatus,
@@ -81,5 +90,5 @@ export function withFallback(
     };
   }
 
-  return store as unknown as TaskStore;
+  return store as unknown as FallbackTaskStore;
 }
