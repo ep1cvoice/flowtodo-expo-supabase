@@ -1,3 +1,4 @@
+import { withDbLock, writeTransaction } from '@/core/localdb/dbLock';
 import { openUserDb, type LocalDb } from '@/core/localdb/openUserDb';
 import {
   COMPLETED_PAGE_SIZE,
@@ -27,6 +28,7 @@ import {
   pushPending,
   syncOnce,
 } from '@/features/tasks/lib/store/syncEngine';
+import { SyncAbortedError, SyncSessionError } from '@/features/tasks/lib/store/syncGuard';
 import {
   IDLE_SYNC_STATUS,
   type SyncStatus,
@@ -36,7 +38,7 @@ import { errorMessage } from '@/shared/lib/errorMessage';
 import { logger } from '@/shared/lib/logger';
 import { isKnownOffline } from '@/shared/lib/connectivity';
 import { strings } from '@/shared/lib/strings';
-import { withTimeout } from '@/shared/lib/withTimeout';
+import { TimeoutError, withTimeout } from '@/shared/lib/withTimeout';
 import type { Category, Tag, Task } from '@/types';
 import type { Database } from '@/types/database';
 
@@ -105,6 +107,37 @@ const inFlight = new Map<string, Promise<void>>();
 const rerun = new Set<string>();
 let status: SyncStatus = IDLE_SYNC_STATUS;
 
+/**
+ * Everything that talks to the server for an account (sync rounds, flush, initial pull) runs
+ * one at a time, so a pull never applies data fetched before a concurrent push finished.
+ */
+const syncQueues = new Map<string, Promise<void>>();
+/** Abort controllers of the server work queued or running per account (see `stopSync`). */
+const controllers = new Map<string, Set<AbortController>>();
+
+function exclusive<T>(
+  userId: string,
+  task: (signal: AbortSignal) => Promise<T>,
+  controller = new AbortController()
+): Promise<T> {
+  let owned = controllers.get(userId);
+  if (!owned) controllers.set(userId, (owned = new Set()));
+  owned.add(controller);
+
+  const previous = syncQueues.get(userId) ?? Promise.resolve();
+  const run = previous.then(() => task(controller.signal));
+  const tail = run.then(
+    () => undefined,
+    () => undefined
+  );
+  syncQueues.set(userId, tail);
+  void tail.then(() => {
+    owned.delete(controller);
+    if (syncQueues.get(userId) === tail) syncQueues.delete(userId);
+  });
+  return run;
+}
+
 function notify() {
   listeners.forEach((l) => l());
 }
@@ -153,8 +186,10 @@ export function cancelSyncRetries() {
 async function runSync(userId: string): Promise<void> {
   const db = await openUserDb(userId);
   setStatus({ syncing: true });
+  const controller = new AbortController();
+  const work = exclusive(userId, (signal) => syncOnce(db, userId, { signal }), controller);
   try {
-    const pushError = await withTimeout(syncOnce(db, userId), SYNC_TIMEOUT_MS, 'sync');
+    const pushError = await withTimeout(work, SYNC_TIMEOUT_MS, 'sync');
     setStatus({
       error: pushError?.message ?? null,
       lastSyncedAt: pushError ? status.lastSyncedAt : new Date().toISOString(),
@@ -165,8 +200,18 @@ async function runSync(userId: string): Promise<void> {
       retryAttempts.delete(userId);
     }
   } catch (err) {
+    if (err instanceof TimeoutError) {
+      // The timeout alone does not stop the round: cancel it for real and wait until it has
+      // stopped, so the next round never runs alongside it.
+      controller.abort();
+      await work.catch(() => {});
+    }
     setStatus({ error: errorMessage(err) });
-    scheduleRetry(userId);
+    // No session (signed out / offline sign-in) or stopped on purpose: nothing to retry; the
+    // next sign-in or request starts a new round.
+    if (!(err instanceof SyncSessionError) && !(err instanceof SyncAbortedError)) {
+      scheduleRetry(userId);
+    }
     throw err;
   } finally {
     setStatus({ syncing: false });
@@ -197,17 +242,40 @@ function requestSync(userId: string) {
 /** Pushes everything pending and resolves once it reached the server; throws otherwise. */
 async function flush(userId: string) {
   if (isKnownOffline()) throw new Error(strings.common.noConnection);
-  await inFlight.get(userId);
   const db = await openUserDb(userId);
-  if ((await countPending(db)) === 0) return;
-  await pushPending(db, userId);
+  await exclusive(userId, async (signal) => {
+    if ((await countPending(db)) === 0) return;
+    await pushPending(db, userId, { signal });
+  });
   await refreshPending(userId);
+}
+
+/**
+ * Stops all server work for an account before its session ends (logout, account deletion):
+ * cancels scheduled retries and queued rounds, aborts the running one and waits until it
+ * has stopped. A later `requestSync` starts again normally.
+ */
+async function stopSync(userId: string) {
+  clearRetry(userId);
+  retryAttempts.delete(userId);
+  rerun.delete(userId);
+  controllers.get(userId)?.forEach((controller) => controller.abort());
+  await syncQueues.get(userId);
+  await inFlight.get(userId);
 }
 
 /** Awaits the first full pull of an account (a new device has nothing local yet). */
 async function ensureInitialPull(db: LocalDb, userId: string) {
   if (await hasPulled(db)) return;
-  await pullAll(db, userId);
+  await exclusive(userId, async (signal) => {
+    if (await hasPulled(db)) return;
+    await pullAll(db, userId, { signal });
+  });
+}
+
+/** The first pull of an account, queued with the other server work (for the pomodoro store). */
+export async function ensureInitialPullFor(userId: string) {
+  await ensureInitialPull(await openUserDb(userId), userId);
 }
 
 async function loadLabels(db: LocalDb, dek: Uint8Array | null) {
@@ -227,7 +295,8 @@ async function readCompletedPage(
   userId: string,
   cursor: CompletedCursor | null,
   dek: Uint8Array | null,
-  labels: LabelLookup
+  labels: LabelLookup,
+  pageSize = COMPLETED_PAGE_SIZE
 ) {
   const rows = cursor
     ? await db.getAllAsync<LocalTaskRow>(
@@ -237,16 +306,16 @@ async function readCompletedPage(
         cursor.completedAt,
         cursor.completedAt,
         cursor.id,
-        COMPLETED_PAGE_SIZE + 1
+        pageSize + 1
       )
     : await db.getAllAsync<LocalTaskRow>(
         `SELECT * FROM tasks WHERE ${LIVE} AND done = 1 AND completed_at IS NOT NULL
          ORDER BY completed_at DESC, id DESC LIMIT ?`,
-        COMPLETED_PAGE_SIZE + 1
+        pageSize + 1
       );
   const tasks = mapRows(userId, rows, dek, labels);
-  const hasMore = tasks.length > COMPLETED_PAGE_SIZE;
-  const page = hasMore ? tasks.slice(0, COMPLETED_PAGE_SIZE) : tasks;
+  const hasMore = tasks.length > pageSize;
+  const page = hasMore ? tasks.slice(0, pageSize) : tasks;
   const nextCursor = page.length > 0 ? getCompletedCursor(page[page.length - 1]) : null;
   return { page, hasMore, nextCursor };
 }
@@ -256,7 +325,7 @@ const now = () => new Date().toISOString();
 export const localTaskStore: TaskStore = {
   localFirst: true,
 
-  async fetchTasksSnapshot(userId, dek) {
+  async fetchTasksSnapshot(userId, dek, options) {
     const db = await openUserDb(userId);
     await ensureInitialPull(db, userId);
     const { categories, tags, labels } = await loadLabels(db, dek);
@@ -266,7 +335,9 @@ export const localTaskStore: TaskStore = {
     const count = await db.getFirstAsync<{ n: number }>(
       `SELECT COUNT(*) AS n FROM tasks WHERE ${LIVE} AND done = 1`
     );
-    const completed = await readCompletedPage(db, userId, null, dek, labels);
+    // A re-read after a sync keeps the completed pages already loaded on screen.
+    const pageSize = Math.max(COMPLETED_PAGE_SIZE, options?.completedLimit ?? 0);
+    const completed = await readCompletedPage(db, userId, null, dek, labels, pageSize);
     const completedTasks = sortCompletedTasks(completed.page);
     return {
       categories,
@@ -296,7 +367,10 @@ export const localTaskStore: TaskStore = {
     // Seeding is a one-time, server-side atomic RPC, so it needs a connection; the result is
     // then pulled into the local replica.
     const seeded = await seedDemoDataRemote(userId, dek);
-    if (seeded) await pullAll(await openUserDb(userId), userId);
+    if (seeded) {
+      const db = await openUserDb(userId);
+      await exclusive(userId, (signal) => pullAll(db, userId, { signal }));
+    }
     return seeded;
   },
 
@@ -305,22 +379,24 @@ export const localTaskStore: TaskStore = {
     const enc = await encryptTaskFields(o.dek, o.title, o.description);
     const id = newLocalId();
     const ts = now();
-    await db.runAsync(
-      `INSERT INTO tasks (id, title_enc, title_iv, description_enc, description_iv, done,
-         scheduled, completed_at, sort_order, category_id, tag_ids, created_at, updated_at,
-         sync_state, rev)
-       VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?, ?, 'dirty', 1)`,
-      id,
-      enc.title_enc,
-      enc.title_iv,
-      enc.description_enc,
-      enc.description_iv,
-      o.scheduled,
-      o.sortOrder,
-      o.categoryId,
-      JSON.stringify(o.tagIds),
-      ts,
-      ts
+    await withDbLock(db, () =>
+      db.runAsync(
+        `INSERT INTO tasks (id, title_enc, title_iv, description_enc, description_iv, done,
+           scheduled, completed_at, sort_order, category_id, tag_ids, created_at, updated_at,
+           sync_state, rev)
+         VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?, ?, 'dirty', 1)`,
+        id,
+        enc.title_enc,
+        enc.title_iv,
+        enc.description_enc,
+        enc.description_iv,
+        o.scheduled,
+        o.sortOrder,
+        o.categoryId,
+        JSON.stringify(o.tagIds),
+        ts,
+        ts
+      )
     );
     requestSync(o.userId);
     return id;
@@ -329,18 +405,20 @@ export const localTaskStore: TaskStore = {
   async updateTask(o) {
     const db = await openUserDb(o.userId);
     const enc = await encryptTaskFields(o.dek, o.title, o.description);
-    const result = await db.runAsync(
-      `UPDATE tasks SET category_id = ?, title_enc = ?, title_iv = ?, description_enc = ?,
-         description_iv = ?, tag_ids = ?, ${TOUCH}
-       WHERE id = ? AND ${LIVE}`,
-      o.categoryId,
-      enc.title_enc,
-      enc.title_iv,
-      enc.description_enc,
-      enc.description_iv,
-      JSON.stringify(o.tagIds),
-      now(),
-      o.id
+    const result = await withDbLock(db, () =>
+      db.runAsync(
+        `UPDATE tasks SET category_id = ?, title_enc = ?, title_iv = ?, description_enc = ?,
+           description_iv = ?, tag_ids = ?, ${TOUCH}
+         WHERE id = ? AND ${LIVE}`,
+        o.categoryId,
+        enc.title_enc,
+        enc.title_iv,
+        enc.description_enc,
+        enc.description_iv,
+        JSON.stringify(o.tagIds),
+        now(),
+        o.id
+      )
     );
     if (result.changes === 0) throw new Error('Task not found');
     requestSync(o.userId);
@@ -349,24 +427,26 @@ export const localTaskStore: TaskStore = {
   async insertCategory(userId, dek, input) {
     const db = await openUserDb(userId);
     const enc = await encryptedColumns(dek, 'name', input.name, { hash: true });
-    const existing = await db.getFirstAsync<CategoryRow>(
-      `SELECT * FROM categories WHERE name_hash = ? AND ${LIVE}`,
-      enc.name_hash
-    );
-    if (existing) throw new Error('A category with this name already exists');
     const id = newLocalId();
-    await db.runAsync(
-      `INSERT INTO categories (id, name_enc, name_iv, name_hash, color, icon, created_at, sync_state, rev)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'dirty', 1)`,
-      id,
-      enc.name_enc,
-      enc.name_iv,
-      enc.name_hash,
-      input.color,
-      String(input.icon),
-      now()
-    );
-    const row = await db.getFirstAsync<CategoryRow>(`SELECT * FROM categories WHERE id = ?`, id);
+    const row = await withDbLock(db, async () => {
+      const existing = await db.getFirstAsync<CategoryRow>(
+        `SELECT * FROM categories WHERE name_hash = ? AND ${LIVE}`,
+        enc.name_hash
+      );
+      if (existing) throw new Error('A category with this name already exists');
+      await db.runAsync(
+        `INSERT INTO categories (id, name_enc, name_iv, name_hash, color, icon, created_at, sync_state, rev)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'dirty', 1)`,
+        id,
+        enc.name_enc,
+        enc.name_iv,
+        enc.name_hash,
+        input.color,
+        String(input.icon),
+        now()
+      );
+      return db.getFirstAsync<CategoryRow>(`SELECT * FROM categories WHERE id = ?`, id);
+    });
     requestSync(userId);
     return mapCategory({ ...row!, user_id: userId }, dek);
   },
@@ -374,30 +454,32 @@ export const localTaskStore: TaskStore = {
   async insertTag(userId, dek, input) {
     const db = await openUserDb(userId);
     const enc = await encryptedColumns(dek, 'name', input.name, { hash: true });
-    const existing = await db.getFirstAsync<TagRow>(
-      `SELECT * FROM tags WHERE name_hash = ? AND ${LIVE}`,
-      enc.name_hash
-    );
-    if (existing) throw new Error('A tag with this name already exists');
     const id = newLocalId();
-    await db.runAsync(
-      `INSERT INTO tags (id, name_enc, name_iv, name_hash, color, created_at, sync_state, rev)
-       VALUES (?, ?, ?, ?, ?, ?, 'dirty', 1)`,
-      id,
-      enc.name_enc,
-      enc.name_iv,
-      enc.name_hash,
-      input.color,
-      now()
-    );
-    const row = await db.getFirstAsync<TagRow>(`SELECT * FROM tags WHERE id = ?`, id);
+    const row = await withDbLock(db, async () => {
+      const existing = await db.getFirstAsync<TagRow>(
+        `SELECT * FROM tags WHERE name_hash = ? AND ${LIVE}`,
+        enc.name_hash
+      );
+      if (existing) throw new Error('A tag with this name already exists');
+      await db.runAsync(
+        `INSERT INTO tags (id, name_enc, name_iv, name_hash, color, created_at, sync_state, rev)
+         VALUES (?, ?, ?, ?, ?, ?, 'dirty', 1)`,
+        id,
+        enc.name_enc,
+        enc.name_iv,
+        enc.name_hash,
+        input.color,
+        now()
+      );
+      return db.getFirstAsync<TagRow>(`SELECT * FROM tags WHERE id = ?`, id);
+    });
     requestSync(userId);
     return mapTag({ ...row!, user_id: userId }, dek);
   },
 
   async deleteCategory(userId, id) {
     const db = await openUserDb(userId);
-    await db.withTransactionAsync(async () => {
+    await writeTransaction(db, async () => {
       await db.runAsync(
         `UPDATE categories SET sync_state = 'deleted', rev = rev + 1 WHERE id = ?`,
         id
@@ -410,7 +492,7 @@ export const localTaskStore: TaskStore = {
 
   async deleteTag(userId, id) {
     const db = await openUserDb(userId);
-    await db.withTransactionAsync(async () => {
+    await writeTransaction(db, async () => {
       await db.runAsync(`UPDATE tags SET sync_state = 'deleted', rev = rev + 1 WHERE id = ?`, id);
       const tasks = await db.getAllAsync<{ id: number; tag_ids: string }>(
         `SELECT id, tag_ids FROM tasks WHERE tag_ids != '[]'`
@@ -430,38 +512,46 @@ export const localTaskStore: TaskStore = {
 
   async setTaskScheduled(userId, id, scheduled) {
     const db = await openUserDb(userId);
-    await db.runAsync(
-      `UPDATE tasks SET scheduled = ?, ${TOUCH} WHERE id = ? AND ${LIVE}`,
-      scheduled,
-      now(),
-      id
+    await withDbLock(db, () =>
+      db.runAsync(
+        `UPDATE tasks SET scheduled = ?, ${TOUCH} WHERE id = ? AND ${LIVE}`,
+        scheduled,
+        now(),
+        id
+      )
     );
     requestSync(userId);
   },
 
   async setTaskCompletedAt(userId, id, completedAt) {
     const db = await openUserDb(userId);
-    await db.runAsync(
-      `UPDATE tasks SET completed_at = ?, done = ?, ${TOUCH} WHERE id = ? AND ${LIVE}`,
-      normalizeTimestamp(completedAt),
-      completedAt ? 1 : 0,
-      now(),
-      id
+    await withDbLock(db, () =>
+      db.runAsync(
+        `UPDATE tasks SET completed_at = ?, done = ?, ${TOUCH} WHERE id = ? AND ${LIVE}`,
+        normalizeTimestamp(completedAt),
+        completedAt ? 1 : 0,
+        now(),
+        id
+      )
     );
     requestSync(userId);
   },
 
   async deleteTask(userId, id) {
     const db = await openUserDb(userId);
-    await db.runAsync(`UPDATE tasks SET sync_state = 'deleted', rev = rev + 1 WHERE id = ?`, id);
+    await withDbLock(db, () =>
+      db.runAsync(`UPDATE tasks SET sync_state = 'deleted', rev = rev + 1 WHERE id = ?`, id)
+    );
     requestSync(userId);
   },
 
   async deleteTasksByDone(userId, done) {
     const db = await openUserDb(userId);
-    await db.runAsync(
-      `UPDATE tasks SET sync_state = 'deleted', rev = rev + 1 WHERE done = ? AND ${LIVE}`,
-      done ? 1 : 0
+    await withDbLock(db, () =>
+      db.runAsync(
+        `UPDATE tasks SET sync_state = 'deleted', rev = rev + 1 WHERE done = ? AND ${LIVE}`,
+        done ? 1 : 0
+      )
     );
     requestSync(userId);
   },
@@ -470,7 +560,7 @@ export const localTaskStore: TaskStore = {
     if (items.length === 0) return;
     const db = await openUserDb(userId);
     const ts = now();
-    await db.withTransactionAsync(async () => {
+    await writeTransaction(db, async () => {
       for (const { id, sortOrder } of items) {
         await db.runAsync(
           `UPDATE tasks SET sort_order = ?, ${TOUCH} WHERE id = ? AND sort_order != ? AND ${LIVE}`,
@@ -486,6 +576,7 @@ export const localTaskStore: TaskStore = {
 
   requestSync,
   flush,
+  stopSync,
 
   subscribe(listener) {
     listeners.add(listener);

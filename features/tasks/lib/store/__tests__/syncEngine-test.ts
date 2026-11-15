@@ -1,6 +1,9 @@
 import { createBuilder, callsOf } from '@/test/supabaseMock';
 import { createMemoryDb } from '@/test/memoryDb';
 
+import { withDbLock, writeTransaction } from '@/core/localdb/dbLock';
+import { SyncAbortedError, SyncSessionError } from '@/features/tasks/lib/store/syncGuard';
+
 import { supabase } from '@/core/supabase/client';
 import {
   countPending,
@@ -11,13 +14,29 @@ import {
   syncOnce,
 } from '@/features/tasks/lib/store/syncEngine';
 
-jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn(), rpc: jest.fn() } }));
+const mockRpc = jest.fn();
+jest.mock('@/core/supabase/client', () => ({
+  supabase: {
+    from: jest.fn(),
+    // Like the real builder: awaitable and cancellable with `.abortSignal()`.
+    rpc: (...args: unknown[]) => {
+      const result = Promise.resolve(mockRpc(...args));
+      return Object.assign(result, { abortSignal: () => result });
+    },
+    auth: { getSession: jest.fn() },
+  },
+}));
 jest.mock('@/shared/lib/logger', () => ({
   logger: { warn: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
 
 const from = supabase.from as jest.Mock;
-const rpc = supabase.rpc as jest.Mock;
+const rpc = mockRpc;
+const getSession = supabase.auth.getSession as jest.Mock;
+const sessionOf = (id: string | null) => ({
+  data: { session: id ? { user: { id } } : null },
+  error: null,
+});
 const asDb = (db: ReturnType<typeof createMemoryDb>) => db as never;
 
 const remoteTask = (id: number, extra: object = {}) => ({
@@ -60,6 +79,7 @@ const insertDirtyTask = (db: ReturnType<typeof createMemoryDb>, id: number, stat
 beforeEach(() => {
   from.mockReset();
   rpc.mockReset().mockResolvedValue({ error: null });
+  getSession.mockReset().mockResolvedValue(sessionOf('u1'));
 });
 
 describe('normalizeTimestamp', () => {
@@ -243,5 +263,177 @@ describe('syncOnce', () => {
       { id: 1, sync_state: 'synced' },
       { id: 10, sync_state: 'dirty' },
     ]);
+  });
+});
+
+describe('session guard', () => {
+  it('does not apply a pull (or wipe the replica) without this account’s session', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 1, 'synced');
+    mockRemote({ tasks: [] }); // what RLS answers without a session
+
+    for (const session of [sessionOf(null), sessionOf('someone-else')]) {
+      getSession.mockResolvedValue(session);
+      await expect(pullAll(asDb(db), 'u1')).rejects.toThrow(SyncSessionError);
+    }
+
+    expect(await db.getAllAsync('SELECT id FROM tasks')).toHaveLength(1);
+    expect(await hasPulled(asDb(db))).toBe(false);
+  });
+
+  it('does not apply a pull when the session ended while it was in flight', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 1, 'synced');
+    mockRemote({ tasks: [] });
+    getSession.mockResolvedValueOnce(sessionOf('u1')).mockResolvedValue(sessionOf(null));
+
+    await expect(pullAll(asDb(db), 'u1')).rejects.toThrow(SyncSessionError);
+    expect(await db.getAllAsync('SELECT id FROM tasks')).toHaveLength(1);
+  });
+
+  it('pushes nothing (and gives no row a new id) with another account’s session', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 10);
+    mockRemote({});
+    getSession.mockResolvedValue(sessionOf('someone-else'));
+
+    await expect(syncOnce(asDb(db), 'u1')).rejects.toThrow(SyncSessionError);
+    expect(from).not.toHaveBeenCalled();
+    expect(await db.getAllAsync('SELECT id, sync_state FROM tasks')).toEqual([
+      { id: 10, sync_state: 'dirty' },
+    ]);
+  });
+
+  it('stops before the next request once the round is aborted', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 10);
+    mockRemote({});
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(syncOnce(asDb(db), 'u1', { signal: controller.signal })).rejects.toThrow(
+      SyncAbortedError
+    );
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe('label deleted and re-created under the same name', () => {
+  it('deletes the old label remotely before creating the new one', async () => {
+    const db = createMemoryDb();
+    await db.runAsync(
+      `INSERT INTO categories (id, name_enc, name_iv, name_hash, color, icon, created_at, sync_state, rev)
+       VALUES (1, 'n', 'iv', 'h', '#000', 'x', 'x', 'deleted', 2),
+              (2, 'n', 'iv', 'h', '#000', 'x', 'x', 'dirty', 1)`
+    );
+    await db.runAsync(
+      `INSERT INTO tasks (id, category_id, created_at, updated_at, sync_state) VALUES (10, 2, 'x', 'x', 'synced')`
+    );
+    const builders = mockRemote({});
+
+    await pushPending(asDb(db), 'u1');
+
+    // One builder per request, in request order.
+    const order = builders.categories.map((b) =>
+      callsOf(b, 'delete').length ? 'delete' : callsOf(b, 'upsert').length ? 'upsert' : '?'
+    );
+    expect(order).toEqual(['delete', 'upsert']);
+    expect(await db.getAllAsync('SELECT id, sync_state FROM categories')).toEqual([
+      { id: 2, sync_state: 'synced' },
+    ]);
+    expect(
+      (await db.getFirstAsync<{ category_id: number }>('SELECT category_id FROM tasks'))!
+        .category_id
+    ).toBe(2);
+  });
+});
+
+describe('adopting a remote tag', () => {
+  it('re-points only tasks that really carry the tag (not 120, 312…)', async () => {
+    const db = createMemoryDb();
+    await db.runAsync(
+      `INSERT INTO tags (id, name_enc, name_iv, name_hash, color, created_at, sync_state, rev)
+       VALUES (12, 'n', 'iv', 'h', '#000', 'x', 'dirty', 1)`
+    );
+    await db.runAsync(
+      `INSERT INTO tasks (id, tag_ids, created_at, updated_at, sync_state)
+       VALUES (1, '[12]', 'x', 'x', 'synced'), (2, '[120,312]', 'x', 'x', 'synced')`
+    );
+    let call = 0;
+    from.mockImplementation((table: string) => {
+      if (table !== 'tags') return createBuilder({});
+      return createBuilder(call++ === 0 ? { error: { code: '23505' } } : { data: { id: 500 } });
+    });
+    rpc.mockResolvedValue({ error: { message: 'offline' } }); // keep the tasks' state visible
+
+    await pushPending(asDb(db), 'u1').catch(() => {});
+
+    expect(await db.getAllAsync('SELECT id, tag_ids, sync_state FROM tasks ORDER BY id')).toEqual([
+      { id: 1, tag_ids: '[500]', sync_state: 'dirty' },
+      { id: 2, tag_ids: '[120,312]', sync_state: 'synced' },
+    ]);
+  });
+});
+
+describe('new id for a task', () => {
+  it('moves its pomodoros along', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 10);
+    await db.runAsync(
+      `INSERT INTO pomodoros (id, task_id, duration, started_at, created_at, sync_state, rev)
+       VALUES (7, 10, 1500, 'x', 'x', 'synced', 0)`
+    );
+    let n = 0;
+    from.mockImplementation((table: string) =>
+      createBuilder({ error: table === 'tasks' && n++ === 0 ? { code: '42501' } : null })
+    );
+
+    await pushPending(asDb(db), 'u1');
+
+    const task = await db.getFirstAsync<{ id: number }>('SELECT id FROM tasks');
+    const pomo = await db.getFirstAsync<{ task_id: number }>('SELECT task_id FROM pomodoros');
+    expect(task!.id).not.toBe(10);
+    expect(pomo!.task_id).toBe(task!.id);
+  });
+});
+
+describe('pull vs. local writes', () => {
+  it('a local edit made during the pull is neither overwritten nor rolled back', async () => {
+    const db = createMemoryDb();
+    await insertDirtyTask(db, 1, 'synced');
+    mockRemote({ tasks: [remoteTask(1, { title_enc: 'remote' })] });
+
+    // The edit is issued while the pull is between its requests and its transaction.
+    getSession.mockResolvedValueOnce(sessionOf('u1')).mockImplementationOnce(async () => {
+      void withDbLock(asDb(db), () =>
+        db.runAsync(
+          `UPDATE tasks SET title_enc = 'edited', sync_state = 'dirty', rev = rev + 1 WHERE id = 1`
+        )
+      );
+      return sessionOf('u1');
+    });
+
+    await pullAll(asDb(db), 'u1');
+    await withDbLock(asDb(db), async () => {});
+
+    expect(await db.getFirstAsync('SELECT title_enc, sync_state FROM tasks')).toEqual({
+      title_enc: 'edited',
+      sync_state: 'dirty',
+    });
+  });
+
+  it('a transaction started during the pull waits instead of failing', async () => {
+    const db = createMemoryDb();
+    mockRemote({ tasks: [remoteTask(1)] });
+    let nested: Promise<void> | null = null;
+    getSession.mockResolvedValueOnce(sessionOf('u1')).mockImplementationOnce(async () => {
+      nested = writeTransaction(asDb(db), async () => {
+        await db.runAsync(`UPDATE tasks SET category_id = NULL WHERE category_id = 3`);
+      });
+      return sessionOf('u1');
+    });
+
+    await pullAll(asDb(db), 'u1');
+    await expect(nested).resolves.toBeUndefined();
   });
 });

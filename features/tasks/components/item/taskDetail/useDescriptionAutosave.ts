@@ -16,6 +16,8 @@ export function useDescriptionAutosave(task: Task) {
   const draftRef = useRef(draft);
   const focusedRef = useRef(false);
   const savingRef = useRef(false);
+  // A save requested while one is running; it runs right after, with the newest draft.
+  const saveQueuedRef = useRef(false);
   // Set when a tap should dismiss the keyboard without saving (e.g. the delete button).
   const skipSaveRef = useRef(false);
   const lastSavedRef = useRef((task.description ?? '').trim());
@@ -33,9 +35,13 @@ export function useDescriptionAutosave(task: Task) {
     lastSavedRef.current = next.trim();
   }, [task.id, task.description, setDraft]);
 
-  const saveDescription = async () => {
+  const saveDescription = async (): Promise<void> => {
+    if (savingRef.current) {
+      saveQueuedRef.current = true;
+      return;
+    }
     const next = draftRef.current.trim();
-    if (next === lastSavedRef.current || savingRef.current) return;
+    if (next === lastSavedRef.current) return;
 
     savingRef.current = true;
     try {
@@ -49,15 +55,21 @@ export function useDescriptionAutosave(task: Task) {
           }),
         strings.tasks.saveDescriptionFailed,
       );
+      // Text typed while this save was running is newer: keep it (it is saved next).
+      const editedMeanwhile = saveQueuedRef.current;
       if (result.ok) {
         lastSavedRef.current = next;
-        if (!focusedRef.current) setDraft(next);
+        if (!focusedRef.current && !editedMeanwhile) setDraft(next);
       } else {
         logger.warn(strings.tasks.descriptionSaveLog, result.error);
-        if (!focusedRef.current) setDraft(task.description ?? '');
+        if (!focusedRef.current && !editedMeanwhile) setDraft(task.description ?? '');
       }
     } finally {
       savingRef.current = false;
+    }
+    if (saveQueuedRef.current) {
+      saveQueuedRef.current = false;
+      await saveDescription();
     }
   };
 

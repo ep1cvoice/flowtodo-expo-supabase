@@ -6,6 +6,7 @@ import { TasksProvider, useTasksActions, useTasksState } from '@/features/tasks/
 import { seedDemoData } from '@/features/tasks/lib/seedDemoData';
 import { fetchTaskById, fetchTasksSnapshot } from '@/features/tasks/lib/queries';
 import { insertEncryptedTask, updateEncryptedTask } from '@/features/tasks/lib/mutations';
+import { setKnownOnline } from '@/shared/lib/connectivity';
 
 const useTasks = () => ({ ...useTasksState(), ...useTasksActions() });
 
@@ -107,7 +108,7 @@ describe('initial load', () => {
   it('loads the snapshot for the signed-in user with their DEK', async () => {
     const { result } = await renderTasks();
 
-    expect(fetchSnapshot).toHaveBeenCalledWith('u1', dek);
+    expect(fetchSnapshot).toHaveBeenCalledWith('u1', dek, { completedLimit: 0 });
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([1, 2]);
     expect(seed).not.toHaveBeenCalled();
   });
@@ -120,6 +121,28 @@ describe('initial load', () => {
     expect(seed).toHaveBeenCalledWith('u1', dek);
     expect(fetchSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.activeTasks.map((t) => t.id)).toEqual([9]);
+  });
+
+  it('shows an empty list, not an error, when seeding fails (e.g. offline)', async () => {
+    fetchSnapshot.mockResolvedValue(snapshotWith([]));
+    seed.mockRejectedValue(new Error('Network request failed'));
+
+    const { result } = await renderTasks();
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.activeTasks).toEqual([]);
+  });
+
+  it('does not try to seed while known to be offline', async () => {
+    fetchSnapshot.mockResolvedValue(snapshotWith([]));
+    setKnownOnline(false);
+    try {
+      const { result } = await renderTasks();
+      expect(seed).not.toHaveBeenCalled();
+      expect(result.current.error).toBeNull();
+    } finally {
+      setKnownOnline(true);
+    }
   });
 
   it('does not reload when the account was already seeded (user emptied it on purpose)', async () => {
@@ -156,7 +179,7 @@ describe('initial load', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(fetchSnapshot).toHaveBeenCalledTimes(1);
-    expect(fetchSnapshot).toHaveBeenCalledWith('u1', dek);
+    expect(fetchSnapshot).toHaveBeenCalledWith('u1', dek, { completedLimit: 0 });
   });
 
   it('does not query anything when signed out', async () => {

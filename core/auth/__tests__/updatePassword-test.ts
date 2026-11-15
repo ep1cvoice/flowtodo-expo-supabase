@@ -73,8 +73,18 @@ beforeEach(() => {
 });
 
 it('fails without touching the profile when the current password is wrong', async () => {
-  mockState.signIn = { error: new Error('bad creds') };
+  mockState.signIn = {
+    error: Object.assign(new Error('Invalid login credentials'), { code: 'invalid_credentials' }),
+  };
   const { error } = await rewrapDekAndUpdatePassword(options);
+  expect(error).toBe('Current password is incorrect');
+  expect(mockState.updates).toHaveLength(0);
+});
+
+it('does not call a network failure an incorrect password', async () => {
+  mockState.signIn = { error: Object.assign(new Error('Network request failed'), { status: 0 }) };
+  const { error } = await rewrapDekAndUpdatePassword(options);
+  expect(error).not.toBe('Current password is incorrect');
   expect(error).toEqual(expect.any(String));
   expect(mockState.updates).toHaveLength(0);
 });

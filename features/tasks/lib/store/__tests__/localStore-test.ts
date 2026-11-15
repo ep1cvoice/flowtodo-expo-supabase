@@ -4,6 +4,8 @@ import { setKnownOnline } from '@/shared/lib/connectivity';
 import { newLocalId } from '@/features/tasks/lib/store/localId';
 import { cancelSyncRetries, localTaskStore as store } from '@/features/tasks/lib/store/localStore';
 import { hasPulled, pullAll, pushPending, syncOnce } from '@/features/tasks/lib/store/syncEngine';
+import { SyncSessionError } from '@/features/tasks/lib/store/syncGuard';
+import { COMPLETED_PAGE_SIZE } from '@/features/tasks/lib/completedPagination';
 
 const mockMemory = createMemoryDb();
 jest.mock('@/core/localdb/openUserDb', () => ({ openUserDb: async () => mockMemory }));
@@ -37,6 +39,8 @@ beforeEach(async () => {
   for (const t of ['tasks', 'categories', 'tags', 'meta'])
     await mockMemory.execAsync(`DELETE FROM ${t}`);
   jest.clearAllMocks();
+  // clearAllMocks keeps implementations; a hanging one must not leak into the next test.
+  (syncOnce as jest.Mock).mockImplementation(async () => {});
 });
 
 it('generates unique, increasing ids within the safe integer range', () => {
@@ -55,7 +59,9 @@ it('writes tasks locally as dirty, readable immediately, and requests a sync', a
       .sync_state
   ).toBe('dirty');
   await new Promise<void>((r) => setImmediate(r));
-  expect(syncOnce).toHaveBeenCalledWith(expect.anything(), 'u1');
+  expect(syncOnce).toHaveBeenCalledWith(expect.anything(), 'u1', {
+    signal: expect.anything(),
+  });
 });
 
 it('moves tasks between active and completed and pages completed ones', async () => {
@@ -125,7 +131,8 @@ it('rejects a duplicate label name locally', async () => {
 });
 
 it('pulls before the first read on a fresh device', async () => {
-  (hasPulled as jest.Mock).mockResolvedValueOnce(false);
+  // Checked once before queueing the pull and once more when its turn comes.
+  (hasPulled as jest.Mock).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
   await store.fetchTasksSnapshot('u1', dek);
   expect(pullAll).toHaveBeenCalledTimes(1);
 });
@@ -206,4 +213,92 @@ it('does not poll while offline; the reconnect sync takes over', async () => {
   setKnownOnline(false);
   await jest.advanceTimersByTimeAsync(120_000);
   expect(syncOnce).toHaveBeenCalledTimes(1);
+});
+
+it('a timed-out round is cancelled, and the next one starts only after it stopped', async () => {
+  jest.useFakeTimers();
+  let running = 0;
+  let maxRunning = 0;
+  let firstSignal: AbortSignal | undefined;
+  (syncOnce as jest.Mock).mockImplementation(
+    (_db: unknown, _u: string, { signal }: { signal: AbortSignal }) => {
+      firstSignal ??= signal;
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      return new Promise((resolve, reject) => {
+        // Hangs until aborted (like a request on a dead connection), then needs a moment.
+        signal.addEventListener('abort', () =>
+          setTimeout(() => {
+            running--;
+            reject(new Error('aborted'));
+          }, 1_000)
+        );
+      });
+    }
+  );
+
+  await store.insertTask({ ...base, title: 'T', sortOrder: 0 });
+  await jest.advanceTimersByTimeAsync(30_000); // the round times out
+  expect(firstSignal?.aborted).toBe(true);
+  store.requestSync('u1'); // arrives while the cancelled round is still stopping
+  await jest.advanceTimersByTimeAsync(500);
+  expect(syncOnce).toHaveBeenCalledTimes(1);
+
+  await jest.advanceTimersByTimeAsync(1_000);
+  expect(syncOnce).toHaveBeenCalledTimes(2);
+  expect(maxRunning).toBe(1);
+  const stopping = store.stopSync('u1');
+  await jest.advanceTimersByTimeAsync(2_000);
+  await stopping;
+});
+
+it('stopSync aborts the running round and cancels scheduled retries', async () => {
+  jest.useFakeTimers();
+  let signal: AbortSignal | undefined;
+  (syncOnce as jest.Mock).mockResolvedValueOnce(new Error('Network request failed'));
+  await store.insertTask({ ...base, title: 'L', sortOrder: 0 });
+  await jest.advanceTimersByTimeAsync(10);
+  expect(syncOnce).toHaveBeenCalledTimes(1); // failed, a retry is scheduled
+
+  await store.stopSync('u1');
+  await jest.advanceTimersByTimeAsync(120_000);
+  expect(syncOnce).toHaveBeenCalledTimes(1);
+
+  (syncOnce as jest.Mock).mockImplementationOnce(
+    (_db: unknown, _u: string, options: { signal: AbortSignal }) => {
+      signal = options.signal;
+      return new Promise((_resolve, reject) =>
+        signal!.addEventListener('abort', () => reject(new Error('aborted')))
+      );
+    }
+  );
+  store.requestSync('u1');
+  await jest.advanceTimersByTimeAsync(10);
+  await store.stopSync('u1');
+  expect(signal?.aborted).toBe(true);
+});
+
+it('does not retry a round that had no session for the account', async () => {
+  jest.useFakeTimers();
+  (syncOnce as jest.Mock).mockRejectedValueOnce(new SyncSessionError());
+  await store.insertTask({ ...base, title: 'N', sortOrder: 0 });
+  await jest.advanceTimersByTimeAsync(120_000);
+  expect(syncOnce).toHaveBeenCalledTimes(1);
+});
+
+it('a re-read keeps as many completed tasks as are already loaded', async () => {
+  for (let i = 0; i < COMPLETED_PAGE_SIZE + 5; i++) {
+    const id = await store.insertTask({ ...base, title: `C${i}`, sortOrder: i });
+    await store.setTaskCompletedAt('u1', id, new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString());
+  }
+
+  const first = await store.fetchTasksSnapshot('u1', dek);
+  expect(first.completedTasks).toHaveLength(COMPLETED_PAGE_SIZE);
+  expect(first.hasMore).toBe(true);
+
+  const reread = await store.fetchTasksSnapshot('u1', dek, {
+    completedLimit: COMPLETED_PAGE_SIZE + 5,
+  });
+  expect(reread.completedTasks).toHaveLength(COMPLETED_PAGE_SIZE + 5);
+  expect(reread.hasMore).toBe(false);
 });

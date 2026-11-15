@@ -2,8 +2,8 @@ import { createBuilder } from '@/test/supabaseMock';
 
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
-import { fetchProfile, fetchProfileRow } from '@/core/auth/profile';
-import { cacheProfileRow } from '@/core/auth/offlineCache';
+import { fetchProfile, fetchProfileRow, updateProfileSettings } from '@/core/auth/profile';
+import { cacheProfileRow, loadCachedProfileRow } from '@/core/auth/offlineCache';
 
 jest.mock('@/core/supabase/client', () => ({ supabase: { from: jest.fn() } }));
 jest.mock('@/core/auth/constants', () => ({
@@ -120,5 +120,17 @@ describe('offline fallback', () => {
     from.mockImplementation(() => createBuilder({ error: { message: 'permission denied' } }));
     await expect(fetchProfileRow('u11')).rejects.toThrow();
     expect(from).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('updateProfileSettings', () => {
+  it('keeps the offline copy in step with the saved settings', async () => {
+    await cacheProfileRow('u9', { ...row, salt: 's' });
+    from.mockReturnValue(createBuilder({ error: null }));
+
+    const { error } = await updateProfileSettings('u9', { theme: 'light' });
+
+    expect(error).toBeNull();
+    expect(await loadCachedProfileRow('u9')).toMatchObject({ theme: 'light', salt: 's' });
   });
 });

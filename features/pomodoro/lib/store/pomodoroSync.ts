@@ -1,11 +1,14 @@
+import { withDbLock } from '@/core/localdb/dbLock';
 import type { LocalDb } from '@/core/localdb/openUserDb';
 import { supabase } from '@/core/supabase/client';
 import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { newLocalId } from '@/features/tasks/lib/store/localId';
+import { assertSession, checkpoint, NEVER_ABORTED } from '@/features/tasks/lib/store/syncGuard';
 
 /**
  * Pomodoro part of the sync round (see tasks/lib/store/syncEngine.ts, which calls this).
- * Same rules as for tasks: `sync_state` + `rev`, pending local rows win over the pull.
+ * Same rules as for tasks: `sync_state` + `rev`, pending local rows win over the pull, and
+ * every local write outside the pull transaction goes through the database lock.
  */
 
 const PAGE_SIZE = 1000;
@@ -45,7 +48,9 @@ async function purgeOrphanTaskRef(db: LocalDb, row: LocalPomodoroRow): Promise<L
     row.task_id
   );
   if (task) return row;
-  await db.runAsync(`UPDATE pomodoros SET task_id = NULL WHERE id = ? AND rev = ?`, row.id, row.rev);
+  await withDbLock(db, () =>
+    db.runAsync(`UPDATE pomodoros SET task_id = NULL WHERE id = ? AND rev = ?`, row.id, row.rev)
+  );
   return { ...row, task_id: null };
 }
 
@@ -66,12 +71,14 @@ async function endLocally(db: LocalDb, row: LocalPomodoroRow): Promise<LocalPomo
     pausedAt: row.paused_at,
     pausedOnLogout: false,
   });
-  await db.runAsync(
-    `UPDATE pomodoros SET ended_at = ?, elapsed = ?, paused_at = NULL, paused_on_logout = 0,
-       sync_state = 'dirty', rev = rev + 1 WHERE id = ?`,
-    endedAt,
-    elapsed,
-    row.id
+  await withDbLock(db, () =>
+    db.runAsync(
+      `UPDATE pomodoros SET ended_at = ?, elapsed = ?, paused_at = NULL, paused_on_logout = 0,
+         sync_state = 'dirty', rev = rev + 1 WHERE id = ? AND ended_at IS NULL`,
+      endedAt,
+      elapsed,
+      row.id
+    )
   );
   const fresh = await db.getFirstAsync<LocalPomodoroRow>(
     `SELECT * FROM pomodoros WHERE id = ?`,
@@ -82,17 +89,22 @@ async function endLocally(db: LocalDb, row: LocalPomodoroRow): Promise<LocalPomo
 
 async function reId(db: LocalDb, oldId: number): Promise<number> {
   const id = newLocalId();
-  await db.runAsync(`UPDATE pomodoros SET id = ? WHERE id = ?`, id, oldId);
+  await withDbLock(db, () => db.runAsync(`UPDATE pomodoros SET id = ? WHERE id = ?`, id, oldId));
   return id;
 }
 
-export async function pushPomodoros(db: LocalDb, userId: string) {
+export async function pushPomodoros(
+  db: LocalDb,
+  userId: string,
+  signal: AbortSignal = NEVER_ABORTED
+) {
   const dirty = await db.getAllAsync<LocalPomodoroRow>(
     `SELECT * FROM pomodoros WHERE sync_state = 'dirty' ORDER BY created_at`
   );
   for (const original of dirty) {
     let row = await purgeOrphanTaskRef(db, original);
     for (let attempt = 0; ; attempt++) {
+      checkpoint(signal);
       const { error } = await supabase.from('pomodoros').upsert(
         {
           id: row.id,
@@ -109,9 +121,11 @@ export async function pushPomodoros(db: LocalDb, userId: string) {
           created_at: row.created_at,
         },
         { onConflict: 'id' }
-      );
+      ).abortSignal(signal);
       if (error && attempt < MAX_ATTEMPTS) {
         if (error.code === RLS_VIOLATION) {
+          // Only a real id collision if the session is still this account's.
+          await assertSession(userId, signal);
           row = { ...row, id: await reId(db, row.id) };
           continue;
         }
@@ -120,34 +134,46 @@ export async function pushPomodoros(db: LocalDb, userId: string) {
           continue;
         }
         if (error.code === FK_VIOLATION && row.task_id != null) {
-          await db.runAsync(`UPDATE pomodoros SET task_id = NULL WHERE id = ?`, row.id);
+          await withDbLock(db, () =>
+            db.runAsync(`UPDATE pomodoros SET task_id = NULL WHERE id = ?`, row.id)
+          );
           row = { ...row, task_id: null };
           continue;
         }
       }
       if (error) throw error;
-      await db.runAsync(
-        `UPDATE pomodoros SET sync_state = 'synced' WHERE id = ? AND rev = ?`,
-        row.id,
-        row.rev
+      await withDbLock(db, () =>
+        db.runAsync(
+          `UPDATE pomodoros SET sync_state = 'synced' WHERE id = ? AND rev = ?`,
+          row.id,
+          row.rev
+        )
       );
       break;
     }
   }
 }
 
-export async function pushPomodoroDeletes(db: LocalDb, userId: string) {
+export async function pushPomodoroDeletes(
+  db: LocalDb,
+  userId: string,
+  signal: AbortSignal = NEVER_ABORTED
+) {
   const deleted = await db.getAllAsync<{ id: number; rev: number }>(
     `SELECT id, rev FROM pomodoros WHERE sync_state = 'deleted'`
   );
   for (const row of deleted) {
+    checkpoint(signal);
     const { error } = await supabase
       .from('pomodoros')
       .delete()
       .eq('id', row.id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .abortSignal(signal);
     if (error) throw error;
-    await db.runAsync(`DELETE FROM pomodoros WHERE id = ? AND rev = ?`, row.id, row.rev);
+    await withDbLock(db, () =>
+      db.runAsync(`DELETE FROM pomodoros WHERE id = ? AND rev = ?`, row.id, row.rev)
+    );
   }
 }
 
@@ -165,7 +191,10 @@ export interface RemotePomodoroRow {
   created_at: string;
 }
 
-export async function fetchRemotePomodoros(userId: string): Promise<RemotePomodoroRow[]> {
+export async function fetchRemotePomodoros(
+  userId: string,
+  signal: AbortSignal = NEVER_ABORTED
+): Promise<RemotePomodoroRow[]> {
   const rows: RemotePomodoroRow[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
@@ -173,7 +202,8 @@ export async function fetchRemotePomodoros(userId: string): Promise<RemotePomodo
       .select('*')
       .eq('user_id', userId)
       .order('id')
-      .range(from, from + PAGE_SIZE - 1);
+      .range(from, from + PAGE_SIZE - 1)
+      .abortSignal(signal);
     if (error) throw error;
     rows.push(...((data ?? []) as RemotePomodoroRow[]));
     if (!data || data.length < PAGE_SIZE) return rows;

@@ -12,7 +12,9 @@ import {
 } from '@/core/crypto';
 import { withRetry } from '@/shared/lib/retry';
 import { loadCachedProfileRow } from '@/core/auth/offlineCache';
-import { fetchProfileRow } from '@/core/auth/profile';
+import { fetchProfileRow, fetchProfileRowWithSource } from '@/core/auth/profile';
+import { isRejectedPassword } from '@/core/auth/rejectedPassword';
+import { toastForError } from '@/shared/lib/networkError';
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
 
@@ -23,28 +25,20 @@ type DekMaterial = {
   kdf_iterations: number;
 };
 
-function isRejectedPassword(
-  err: { message?: string; status?: number; code?: string } | null
-): boolean {
-  if (!err) return false;
-  if (err.code === 'invalid_credentials') return true;
-  const message = (err.message ?? '').toLowerCase();
-  return (
-    message.includes('invalid login credentials') ||
-    message.includes('invalid password') ||
-    message.includes('email not confirmed')
-  );
-}
-
 /**
- * Re-wrapuje DEK nową (silniejszą) liczbą iteracji PBKDF2, w tle, bez blokowania UI.
- * Wywoływane po udanym odszyfrowaniu, jeśli profil ma jeszcze starą wartość kdf_iterations.
+ * Re-wraps the DEK with the current (stronger) PBKDF2 iteration count, in the background,
+ * without blocking the UI. Called after a successful unwrap when the material is older.
+ *
+ * The write only applies while the server still holds the material that was unwrapped
+ * (`unwrapped`): if the password was changed on another device meanwhile, a re-wrap with
+ * the old password must not replace the new wrap.
  */
 async function upgradeKdfIterationsInBackground(
   userId: string,
   decryptedDek: Uint8Array,
   password: string,
-  currentIterations: number
+  currentIterations: number,
+  unwrapped: Pick<DekMaterial, 'salt' | 'encrypted_dek'>
 ) {
   if (currentIterations >= CURRENT_PBKDF2_ITERATIONS) return;
 
@@ -58,7 +52,9 @@ async function upgradeKdfIterationsInBackground(
         dek_iv: rewrapped.dekIv,
         kdf_iterations: rewrapped.kdfIterations,
       })
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('salt', unwrapped.salt)
+      .eq('encrypted_dek', unwrapped.encrypted_dek);
 
     if (error) {
       logger.warn('KDF iterations upgrade failed:', error.message);
@@ -70,45 +66,56 @@ async function upgradeKdfIterationsInBackground(
   }
 }
 
+/**
+ * Creates the DEK of an account that has none yet. The write only fills an empty profile
+ * (`encrypted_dek IS NULL`), so it can never replace a key another device stored meanwhile;
+ * in that case the stored key is returned instead and unwrapped with the same password.
+ */
 async function backfillDekMaterial(
   userId: string,
   password: string
 ): Promise<{ ok: true; material: DekMaterial } | { ok: false; error: string }> {
   const generated = await generateEncryptionMaterial(password);
+  const generatedMaterial: DekMaterial = {
+    salt: generated.salt,
+    encrypted_dek: generated.encryptedDek,
+    dek_iv: generated.dekIv,
+    kdf_iterations: generated.kdfIterations,
+  };
 
   try {
-    await withRetry(
+    const material = await withRetry(
       async () => {
         const { error: updateError, data: updated } = await supabase
           .from('profiles')
-          .update({
-            salt: generated.salt,
-            encrypted_dek: generated.encryptedDek,
-            dek_iv: generated.dekIv,
-            kdf_iterations: generated.kdfIterations,
-          })
+          .update(generatedMaterial)
           .eq('id', userId)
+          .is('encrypted_dek', null)
           .select('id');
 
         if (updateError) throw updateError;
-        if (!updated || updated.length === 0) throw new Error(strings.auth.errors.profileNotReady);
+        if (updated && updated.length > 0) return generatedMaterial;
+
+        // Nothing updated: either the profile row does not exist yet (the signup trigger)
+        // or it already holds a key.
+        const { data: stored, error: readError } = await supabase
+          .from('profiles')
+          .select('salt, encrypted_dek, dek_iv, kdf_iterations')
+          .eq('id', userId)
+          .maybeSingle();
+        if (readError) throw readError;
+        if (stored?.encrypted_dek && stored.salt && stored.dek_iv) return stored as DekMaterial;
+        throw new Error(strings.auth.errors.profileNotReady);
       },
       { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS }
     );
+    // Refresh the offline copy with the key that is now on the server.
+    void fetchProfileRow(userId).catch(() => {});
+    return { ok: true, material };
   } catch (err) {
     logger.warn('Failed to backfill encryption material:', err);
     return { ok: false, error: strings.auth.errors.configureEncryption };
   }
-
-  return {
-    ok: true,
-    material: {
-      salt: generated.salt,
-      encrypted_dek: generated.encryptedDek,
-      dek_iv: generated.dekIv,
-      kdf_iterations: generated.kdfIterations,
-    },
-  };
 }
 
 /** Unwraps the DEK; throws when the password is wrong or the material is corrupted. */
@@ -157,7 +164,10 @@ export async function resolveDekFromPassword(options: {
         dek_iv: cached.dek_iv,
         kdf_iterations: cached.kdf_iterations,
       });
-      void upgradeKdfIterationsInBackground(options.userId, dek, options.password, iterations);
+      void upgradeKdfIterationsInBackground(options.userId, dek, options.password, iterations, {
+        salt: cached.salt,
+        encrypted_dek: cached.encrypted_dek,
+      });
       // Refresh the cached copy in the background (also picks up a password change made on
       // another device, after which the old password stops working here).
       void fetchProfileRow(options.userId).catch(() => {});
@@ -167,23 +177,33 @@ export async function resolveDekFromPassword(options: {
     }
   }
 
-  let profileData;
+  let fetched;
   try {
-    profileData = await fetchProfileRow(options.userId);
+    fetched = await fetchProfileRowWithSource(options.userId);
   } catch {
     return { ok: false, error: strings.auth.errors.fetchEncryptionProfile };
   }
 
-  let { salt, encrypted_dek, dek_iv, kdf_iterations } = profileData;
+  let { salt, encrypted_dek, dek_iv, kdf_iterations } = fetched.row;
 
   if (!salt || !encrypted_dek || !dek_iv) {
+    // The offline copy may predate the key: only the server can tell the account has none.
+    if (fetched.fromCache) {
+      return { ok: false, error: strings.auth.errors.fetchEncryptionProfile };
+    }
     if (options.verifyEmail) {
       const { error: reauthError } = await supabase.auth.signInWithPassword({
         email: options.verifyEmail,
         password: options.password,
       });
-      if (reauthError && isRejectedPassword(reauthError)) {
-        return { ok: false, error: strings.auth.errors.invalidPassword };
+      // Never create a key from an unverified password (also not when Auth was unreachable).
+      if (reauthError) {
+        return {
+          ok: false,
+          error: isRejectedPassword(reauthError)
+            ? strings.auth.errors.invalidPassword
+            : toastForError(reauthError, strings.auth.errors.configureEncryption),
+        };
       }
     }
 
@@ -208,7 +228,8 @@ export async function resolveDekFromPassword(options: {
       options.userId,
       decryptedDek,
       options.password,
-      iterations
+      iterations,
+      { salt, encrypted_dek }
     );
 
     return { ok: true, dek: decryptedDek };

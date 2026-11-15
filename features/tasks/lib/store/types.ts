@@ -13,6 +13,11 @@ export interface TasksSnapshot {
   hasMore: boolean;
 }
 
+export interface SnapshotOptions {
+  /** Read at least this many completed tasks (the pages already loaded on screen). */
+  completedLimit?: number;
+}
+
 export interface CompletedPageResult {
   page: Task[];
   hasMore: boolean;
@@ -66,7 +71,11 @@ export interface TaskStore {
   /** True when data lives locally and `requestSync` / `subscribe` do real work. */
   readonly localFirst: boolean;
 
-  fetchTasksSnapshot(userId: string, dek: Uint8Array | null): Promise<TasksSnapshot>;
+  fetchTasksSnapshot(
+    userId: string,
+    dek: Uint8Array | null,
+    options?: SnapshotOptions
+  ): Promise<TasksSnapshot>;
   fetchCompletedPage(
     userId: string,
     cursor: CompletedCursor | null,
@@ -97,6 +106,11 @@ export interface TaskStore {
   requestSync(userId: string): void;
   /** Pushes all pending changes and resolves when done; throws when it cannot (e.g. offline). */
   flush(userId: string): Promise<void>;
+  /**
+   * Stops all background server work for the account (scheduled retries, queued and running
+   * rounds) and resolves once it has stopped. Call before the session ends.
+   */
+  stopSync(userId: string): Promise<void>;
   /** Stable snapshot (same object until something changes), for useSyncExternalStore. */
   getSyncStatus(): SyncStatus;
   subscribeSyncStatus(listener: () => void): () => void;

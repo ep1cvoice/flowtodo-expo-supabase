@@ -3,7 +3,9 @@ import {
   PROFILE_RETRY_ATTEMPTS,
   PROFILE_RETRY_DELAY_MS,
 } from '@/core/auth/constants';
+import { isRejectedPassword } from '@/core/auth/rejectedPassword';
 import { encryptDekWithPassword } from '@/core/crypto';
+import { toastForError } from '@/shared/lib/networkError';
 import { withRetry } from '@/shared/lib/retry';
 import { supabase } from '@/core/supabase/client';
 import { logger } from '@/shared/lib/logger';
@@ -21,9 +23,20 @@ function retryProfileWrite(fn: () => Promise<void>) {
   return withRetry(fn, { attempts: PROFILE_RETRY_ATTEMPTS, delayMs: PROFILE_RETRY_DELAY_MS });
 }
 
-async function verifyCurrentPassword(email: string, password: string): Promise<boolean> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  return !error;
+/** Null when the password is right; otherwise the message to show. */
+async function verifyCurrentPassword(email: string, password: string): Promise<string | null> {
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) return null;
+    // Only a refusal of the password itself means it is wrong; anything else (no connection,
+    // a server error) must not be reported as an incorrect password.
+    return isRejectedPassword(error)
+      ? strings.auth.errors.currentPasswordIncorrect
+      : toastForError(error, strings.auth.errors.changePasswordFailed);
+  } catch (err) {
+    logger.warn('Current password check failed:', err);
+    return toastForError(err, strings.auth.errors.changePasswordFailed);
+  }
 }
 
 /** Reads the current wrapped DEK so it can be backed up and restored. Null if missing/incomplete. */
@@ -93,8 +106,9 @@ export async function rewrapDekAndUpdatePassword(options: {
   currentPassword: string;
   newPassword: string;
 }): Promise<{ error: string | null }> {
-  if (!(await verifyCurrentPassword(options.email, options.currentPassword))) {
-    return { error: strings.auth.errors.currentPasswordIncorrect };
+  const verifyError = await verifyCurrentPassword(options.email, options.currentPassword);
+  if (verifyError) {
+    return { error: verifyError };
   }
 
   const previous = await readCurrentDekRow(options.userId);
