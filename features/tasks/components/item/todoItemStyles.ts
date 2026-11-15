@@ -39,6 +39,10 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean, compact
     pressed: {
       opacity: 0.96,
     },
+    selectedItem: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
     controlPressed: {
       opacity: 0.85,
     },

@@ -294,6 +294,19 @@ export const strings = {
     loadMoreCompleted: 'Load more completed tasks',
     searchLoadedOnly: 'Search covers loaded tasks only. Clear search to load more.',
 
+    // Selection (action) mode
+    selectedCount: (count: number) => `${count} selected`,
+    cancelSelection: 'Cancel selection',
+    duplicateSelected: 'Duplicate',
+    categorySelected: 'Category',
+    deleteSelected: 'Delete',
+    duplicateFailed: 'Could not duplicate tasks.',
+    categoryChangeFailed: 'Could not change category.',
+    deleteSelectedTitle: (count: number) => `Delete ${count} ${count === 1 ? 'task' : 'tasks'}?`,
+    deleteSelectedMessage: 'The selected tasks will be permanently deleted.',
+    duplicated: (count: number) => `Duplicated ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+    deletedMany: (count: number) => `Deleted ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+
     // Delete confirmation
     deleteConfirmTitle: 'Delete task?',
     deleteConfirmMessage: (title: string) => `"${title}" will be permanently deleted.`,

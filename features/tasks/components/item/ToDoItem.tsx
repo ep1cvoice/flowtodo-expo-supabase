@@ -1,6 +1,8 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type ComponentType, type ReactNode } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { strings } from '@/shared/lib/strings';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
 import TaskCheckbox from '@/features/tasks/components/item/TaskCheckbox';
@@ -31,6 +33,22 @@ interface ToDoItemProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (id: number, direction: -1 | 1) => void;
+  // Selection (action) mode: a tap toggles the row's selection instead of opening details.
+  selecting?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (task: Task) => void;
+  // Long press without dragging; only passed when the row cannot be dragged.
+  onHold?: (task: Task) => void;
+  // Replaces the Pressable root (e.g. Sortable.Touchable inside a sortable list, which
+  // cooperates with the drag gesture where a JS Pressable does not).
+  TouchRoot?: ComponentType<TaskTouchRootProps>;
+}
+
+export interface TaskTouchRootProps {
+  onTap: () => void;
+  onLongPress?: () => void;
+  style: StyleProp<ViewStyle>;
+  children: ReactNode;
 }
 
 function ToDoItem({
@@ -45,6 +63,11 @@ function ToDoItem({
   canMoveUp = false,
   canMoveDown = false,
   onMove,
+  selecting = false,
+  selected = false,
+  onToggleSelect,
+  onHold,
+  TouchRoot,
 }: ToDoItemProps) {
   const { isDark } = useTheme();
   const { colors, styles } = useTodoItemStyles();
@@ -71,26 +94,14 @@ function ToDoItem({
   const completedWash = task.done && !isDark && !category ? colors.chrome : null;
   const cardWash = completedWash;
 
-  const openDetail = () => open('detail', task);
+  const openDetail = () => (selecting ? onToggleSelect?.(task) : open('detail', task));
+  const handleHold = onHold ? () => onHold(task) : undefined;
   const openActions = () => open('actions', task);
   const requestDelete = () => open('confirmDelete', task);
   const openCalendar = () => open('calendar', task);
 
-  return (
-    <Pressable
-      onPress={openDetail}
-      accessibilityRole="none"
-      accessibilityLabel={task.title}
-      accessibilityHint={strings.tasks.showDetails}
-      {...(isWeb ? { tabIndex: -1 } : null)}
-      style={({ pressed, hovered }) => [
-        styles.todoItem,
-        cardWash ? { backgroundColor: cardWash } : null,
-        hovered && !cardWash ? styles.itemHovered : null,
-        hovered && cardWash ? styles.itemHoveredTinted : null,
-        pressed ? styles.pressed : null,
-      ]}
-    >
+  const content = (
+    <>
       {categoryGradient ? (
         <LinearGradient
           colors={categoryGradient}
@@ -115,7 +126,17 @@ function ToDoItem({
 
         <View style={styles.todoContent}>
           <View style={styles.todoTitleRow}>
-            <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
+            {selecting ? (
+              <View
+                style={[styles.todoCheckbox, selected && styles.checked]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selected }}
+              >
+                {selected ? <Check size={16} strokeWidth={3} color="#ffffff" /> : null}
+              </View>
+            ) : (
+              <TaskCheckbox done={task.done} styles={styles} onPress={handleToggleDone} />
+            )}
 
             <View style={styles.todoBody}>
               <Text
@@ -127,7 +148,7 @@ function ToDoItem({
               </Text>
             </View>
 
-            <View style={styles.sideColumn}>
+            <View style={styles.sideColumn} pointerEvents={selecting ? 'none' : 'auto'}>
               {category ? (
                 <View
                   style={styles.categoryMark}
@@ -178,6 +199,43 @@ function ToDoItem({
           ) : null}
         </View>
       </View>
+    </>
+  );
+
+  if (TouchRoot) {
+    return (
+      <TouchRoot
+        onTap={openDetail}
+        onLongPress={handleHold}
+        style={[
+          styles.todoItem,
+          cardWash ? { backgroundColor: cardWash } : null,
+          selected ? styles.selectedItem : null,
+        ]}
+      >
+        {content}
+      </TouchRoot>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={openDetail}
+      onLongPress={handleHold}
+      accessibilityRole="none"
+      accessibilityLabel={task.title}
+      accessibilityHint={strings.tasks.showDetails}
+      {...(isWeb ? { tabIndex: -1 } : null)}
+      style={({ pressed, hovered }) => [
+        styles.todoItem,
+        cardWash ? { backgroundColor: cardWash } : null,
+        hovered && !cardWash ? styles.itemHovered : null,
+        hovered && cardWash ? styles.itemHoveredTinted : null,
+        selected ? styles.selectedItem : null,
+        pressed ? styles.pressed : null,
+      ]}
+    >
+      {content}
     </Pressable>
   );
 }
