@@ -1,6 +1,7 @@
 import { strings } from '@/shared/lib/strings';
 import type { RefObject } from 'react';
-import { TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
+import { NotebookPen } from 'lucide-react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import type { TaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
 import {
@@ -14,6 +15,7 @@ interface Props {
   inputRef: RefObject<TextInput | null>;
   value: string;
   done: boolean;
+  fullscreen?: boolean;
   styles: TaskDetailStyles;
   onChange: (text: string) => void;
   onFocus: () => void;
@@ -24,6 +26,7 @@ export default function TaskDescriptionField({
   inputRef,
   value,
   done,
+  fullscreen = false,
   styles,
   onChange,
   onFocus,
@@ -33,8 +36,17 @@ export default function TaskDescriptionField({
   const height = descriptionHeight(value);
 
   return (
-    <View id="task-desc-field" style={styles.descriptionField}>
-      <TextInput
+    <View
+      id="task-desc-field"
+      style={[styles.descriptionWrap, fullscreen && styles.descriptionWrapFull]}>
+      <Pressable
+        style={[styles.descriptionField, fullscreen && styles.descriptionFieldFull]} onPress={() => inputRef.current?.focus()}>
+        {value.length === 0 ? (
+          <View pointerEvents="none" style={styles.descriptionGlyph}>
+            <NotebookPen size={44} strokeWidth={1.25} color={colors.textMuted} />
+          </View>
+        ) : null}
+        <TextInput
         ref={inputRef}
         value={value}
         onChangeText={onChange}
@@ -43,14 +55,20 @@ export default function TaskDescriptionField({
         placeholder={DESCRIPTION_PLACEHOLDER}
         placeholderTextColor={colors.textMuted}
         multiline
-        scrollEnabled={height >= DESC_MAX_HEIGHT}
+        scrollEnabled={fullscreen || height >= DESC_MAX_HEIGHT}
         textAlignVertical="top"
         underlineColorAndroid="transparent"
         cursorColor={colors.textPrimary}
         selectionColor={colors.primary}
-        style={[styles.descriptionInput, webTextCursor, { height }, done && styles.done]}
+        style={[
+          styles.descriptionInput,
+          webTextCursor,
+          fullscreen ? styles.descriptionInputFull : { height },
+          done && styles.done,
+        ]}
         accessibilityLabel={strings.tasks.taskDescription}
-      />
+        />
+      </Pressable>
     </View>
   );
 }

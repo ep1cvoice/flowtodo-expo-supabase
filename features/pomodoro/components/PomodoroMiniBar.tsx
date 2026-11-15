@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { AlarmClock, Pause, Play, X } from 'lucide-react-native';
+import { Pause, Play, X } from 'lucide-react-native';
 import { usePomodoroState, usePomodoroActions } from '@/features/pomodoro/PomodoroContext';
 import { useTasksState } from '@/features/tasks/TasksContext';
 import { displaySeconds } from '@/features/pomodoro/lib/displayTime';
@@ -131,7 +131,7 @@ export default function PomodoroMiniBar({ onOpen, hidden = false }: Props) {
           <Pressable style={styles.alarmModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.alarmHeader}>
               <Text style={styles.alarmTitle}>{strings.pomodoro.takeBreak}</Text>
-              <AlarmClock size={22} color={colors.primary} />
+              <TomatoIcon size={22} color={colors.primary} />
             </View>
             <Text style={styles.alarmText}>{strings.pomodoro.finished}</Text>
             <Pressable

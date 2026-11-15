@@ -15,17 +15,54 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingVertical: 14,
+      gap: 12,
+      paddingVertical: 12,
       paddingHorizontal: 16,
       backgroundColor: colors.bgSurface,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderColor,
     },
     closeBtn: {
-      padding: 6,
+      padding: 8,
+      borderRadius: 999,
+      ...webInteractive,
+    },
+    metaTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    dateSlot: {
+      flexShrink: 0,
+      marginLeft: 'auto',
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
+      ...webInteractive,
+    },
+    categoryChipText: {
+      flexShrink: 1,
+    },
+    tagsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      minHeight: 32,
       borderRadius: 8,
       ...webInteractive,
+    },
+    tagsText: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    titleInput: {
+      margin: 0,
+      padding: 0,
+      borderWidth: 0,
     },
     titleWrap: {
       flex: 1,
@@ -41,6 +78,31 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       textDecorationLine: 'line-through',
       color: colors.textMuted,
     },
+    cardFull: {
+      height: '100%',
+      maxHeight: '100%',
+      borderRadius: 0,
+      borderWidth: 0,
+    },
+    overlayFull: {
+      padding: 0,
+    },
+    sheetBodyFull: {
+      flex: 1,
+    },
+    contentFull: {
+      flex: 1,
+    },
+    descriptionWrapFull: {
+      flex: 1,
+    },
+    descriptionFieldFull: {
+      flex: 1,
+      justifyContent: 'flex-start',
+    },
+    descriptionInputFull: {
+      flex: 1,
+    },
     sheetBody: {
       flexShrink: 1,
       width: '100%',
@@ -50,8 +112,7 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     },
     meta: {
       paddingHorizontal: 16,
-      paddingTop: 14,
-      paddingBottom: 12,
+      paddingVertical: 12,
       gap: 8,
     },
     metaDivider: {
@@ -78,12 +139,13 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
     },
     tagChip: {
-      minHeight: 29,
+      minHeight: 32,
+      flexShrink: 0,
       paddingVertical: 4,
-      paddingHorizontal: 10,
+      paddingHorizontal: 12,
       borderRadius: 999,
       borderWidth: 1.5,
       justifyContent: 'center',
@@ -92,10 +154,63 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       fontSize: 13,
       fontWeight: '600',
     },
+    descriptionWrap: {
+      marginHorizontal: 16,
+      marginVertical: 12,
+    },
     descriptionField: {
-      backgroundColor: isDark ? '#011816' : '#e7e9ea',
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      minHeight: 64,
+      justifyContent: 'center',
+    },
+    descriptionGlyph: {
+      position: 'absolute',
+      alignSelf: 'center',
+      opacity: 0.1,
+    },
+    menuCard: {
+      maxHeight: '70%',
+      overflow: 'hidden',
+    },
+    menuScroll: {
+      flexShrink: 1,
+    },
+    menuList: {
+      padding: 8,
+      gap: 4,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      minHeight: 48,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      ...webInteractive,
+    },
+    menuRowPressed: {
+      backgroundColor: colors.bgCardHover,
+    },
+    menuDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
+    menuRowText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    menuEmpty: {
+      padding: 12,
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    menuHint: {
+      paddingHorizontal: 12,
+      paddingTop: 6,
+      fontSize: 12,
+      color: colors.textMuted,
     },
     descriptionInput: {
       margin: 0,
@@ -107,8 +222,7 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     },
     footer: {
       paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 14,
+      paddingVertical: 12,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderColor,
       backgroundColor: isDark ? colors.bgSurface : '#f3f5f4',
@@ -119,9 +233,14 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       justifyContent: 'space-between',
       gap: 8,
     },
+    footerGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     iconBtn: {
-      width: 29,
-      height: 29,
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 999,
@@ -130,35 +249,8 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     iconBtnPressed: {
       backgroundColor: colors.bgCardHover,
     },
-    deleteBtn: {
-      width: 32,
-      height: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 999,
-      ...webInteractive,
-    },
     deleteBtnPressed: {
       backgroundColor: colors.sidebarLogoutHover,
-    },
-    completeBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 9,
-      paddingHorizontal: 14,
-      borderRadius: 10,
-      backgroundColor: colors.primary,
-      ...webInteractive,
-    },
-    completeBtnPressed: {
-      opacity: 0.88,
-    },
-    completeBtnText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#fff',
     },
   });
 }

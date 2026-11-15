@@ -17,7 +17,6 @@ const CLOSED: TaskModalVisibility = {
   detail: false,
   actions: false,
   confirmDelete: false,
-  edit: false,
   calendar: false,
 };
 

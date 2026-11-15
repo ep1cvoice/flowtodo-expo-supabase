@@ -3,7 +3,6 @@ import PomodoroMiniBar from '@/features/pomodoro/components/PomodoroMiniBar';
 import { strings } from '@/shared/lib/strings';
 
 jest.mock('lucide-react-native', () => ({
-  AlarmClock: () => null,
   Pause: () => null,
   Play: () => null,
   X: () => null,
