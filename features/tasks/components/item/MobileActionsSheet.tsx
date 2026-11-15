@@ -1,7 +1,8 @@
 import { strings } from '@/shared/lib/strings';
 import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import { AlarmClock, Calendar, Pencil, Trash2, X } from 'lucide-react-native';
+import { Calendar, Trash2, X } from 'lucide-react-native';
+import TomatoIcon from '@/features/pomodoro/components/TomatoIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
 import AppModal from '@/shared/ui/AppModal';
@@ -17,7 +18,6 @@ interface MobileActionsSheetProps {
   onClose: () => void;
   onStartPomodoro: () => void;
   onOpenCalendar: () => void;
-  onEdit: () => void;
   onDelete: () => void | boolean | Promise<void | boolean>;
 }
 
@@ -30,7 +30,6 @@ export default function MobileActionsSheet({
   onClose,
   onStartPomodoro,
   onOpenCalendar,
-  onEdit,
   onDelete,
 }: MobileActionsSheetProps) {
   const insets = useSafeAreaInsets();
@@ -58,7 +57,7 @@ export default function MobileActionsSheet({
                 onStartPomodoro();
               }}
             >
-              <AlarmClock size={18} color={colors.textPrimary} />
+              <TomatoIcon size={18} color={colors.textPrimary} />
               <Text style={styles.mobileActionText}>{strings.tasks.actionPomodoro}</Text>
             </Pressable>
           ) : null}
@@ -72,17 +71,6 @@ export default function MobileActionsSheet({
           >
             <Calendar size={18} color={colors.textPrimary} />
             <Text style={styles.mobileActionText}>{strings.tasks.actionCalendar}</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.mobileActionRow}
-            onPress={() => {
-              onClose();
-              onEdit();
-            }}
-          >
-            <Pencil size={18} color={colors.textPrimary} />
-            <Text style={styles.mobileActionText}>{strings.common.edit}</Text>
           </Pressable>
 
           <Pressable style={styles.mobileActionRow} onPress={() => setConfirming(true)}>

@@ -26,7 +26,7 @@ export function pointerMarker(target: unknown): 'field' | 'calendar' | 'skip' | 
   const node = target as MarkerNode;
   const el = node.nodeType === 3 ? node.parentElement : node;
   if (!el?.closest) return null;
-  if (el.closest('#task-desc-field')) return 'field';
+  if (el.closest('#task-desc-field') || el.closest('#task-title-field')) return 'field';
   if (el.closest('#open-task-calendar')) return 'calendar';
   if (el.closest('[id^="skip-desc-save"]')) return 'skip';
   return 'outside';

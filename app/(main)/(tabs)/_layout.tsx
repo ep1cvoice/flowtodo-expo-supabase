@@ -1,7 +1,8 @@
 import { strings } from '@/shared/lib/strings';
 import { type ReactNode } from 'react';
 import { Tabs } from 'expo-router';
-import { ListTodo, CheckCircle2, Settings, Tags, Timer, type LucideIcon } from 'lucide-react-native';
+import { ListTodo, CheckCircle2, Settings, Tags, type LucideIcon } from 'lucide-react-native';
+import TomatoIcon from '@/features/pomodoro/components/TomatoIcon';
 import { Text, useWindowDimensions, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MainTabBar from '@/shared/ui/navigation/MainTabBar';
@@ -16,7 +17,7 @@ const HEADER_ICONS: Record<string, LucideIcon> = {
   completed: CheckCircle2,
   labels: Tags,
   settings: Settings,
-  pomodoro: Timer,
+  pomodoro: TomatoIcon as unknown as LucideIcon,
 };
 
 function DesktopConstrainedHeader({

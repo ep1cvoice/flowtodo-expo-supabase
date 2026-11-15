@@ -7,7 +7,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { type LucideIcon } from 'lucide-react-native';
+import { AlignLeft, Type, type LucideIcon } from 'lucide-react-native';
 import type { CategoryIcon } from '@/types';
 import LabelModal from '@/features/tasks/components/form/LabelModal';
 import { useTaskFormStyles } from '@/features/tasks/components/form/taskFormStyles';
@@ -76,13 +76,14 @@ export default function TaskFormModal({
   useAutoFocus(titleRef, visible && autoFocusTitle);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
-  const headerStyle = !isDark
-    ? {
-        backgroundColor: selectedCategory
-          ? categoryCardWash(selectedCategory.color, 0.3)
-          : colors.chrome,
-      }
-    : undefined;
+  const [focusedField, setFocusedField] = useState<'title' | 'description' | null>(null);
+  // The header takes on the selected category's color in both appearances; without a category
+  // it keeps the neutral chrome in light mode and the default header in dark mode.
+  const headerStyle = selectedCategory
+    ? { backgroundColor: categoryCardWash(selectedCategory.color, isDark ? 0.22 : 0.3) }
+    : !isDark
+      ? { backgroundColor: colors.chrome }
+      : undefined;
   const [showTagModal, setShowTagModal] = useState(false);
 
   // Callers usually pass a fresh initialValues object every render, so the sync effect reads the
@@ -196,20 +197,32 @@ export default function TaskFormModal({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>{strings.form.taskTitle}</Text>
+                <View style={styles.fieldLabelRow}>
+                  <Type size={15} color={colors.primary} />
+                  <Text style={styles.label}>{strings.form.taskTitle}</Text>
+                </View>
                 <TextInput
                   ref={titleRef}
                   value={title}
                   onChangeText={handleTitleChange}
                   placeholder={strings.form.taskTitlePlaceholder}
                   placeholderTextColor={colors.textMuted}
-                  style={[styles.input, inputError ? styles.inputError : null]}
+                  onFocus={() => setFocusedField('title')}
+                  onBlur={() => setFocusedField(null)}
+                  style={[
+                    styles.input,
+                    focusedField === 'title' && styles.inputFocused,
+                    inputError ? styles.inputError : null,
+                  ]}
                 />
                 {!!inputError && <Text style={styles.inputErrorMsg}>{inputError}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>{strings.form.description}</Text>
+                <View style={styles.fieldLabelRow}>
+                  <AlignLeft size={15} color={colors.primary} />
+                  <Text style={styles.label}>{strings.form.description}</Text>
+                </View>
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
@@ -218,7 +231,13 @@ export default function TaskFormModal({
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
-                  style={[styles.input, styles.textarea]}
+                  onFocus={() => setFocusedField('description')}
+                  onBlur={() => setFocusedField(null)}
+                  style={[
+                    styles.input,
+                    styles.textarea,
+                    focusedField === 'description' && styles.inputFocused,
+                  ]}
                 />
               </View>
 

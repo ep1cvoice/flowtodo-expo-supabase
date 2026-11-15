@@ -15,10 +15,15 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
       flexShrink: 1,
     },
     form: {
-      padding: 18,
+      padding: 16,
       gap: 16,
     },
     inputGroup: {
+      gap: 8,
+    },
+    fieldLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 6,
     },
     labelRow: {
@@ -28,8 +33,8 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
     },
     label: {
       color: colors.textSecondary,
-      fontSize: 15,
-      marginBottom: 2,
+      fontSize: 14,
+      fontWeight: '600',
     },
     newLinkBtn: {
       ...webInteractive,
@@ -41,16 +46,21 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
     },
     input: {
       width: '100%',
-      padding: 12,
-      borderRadius: 12,
-      borderWidth: 1,
+      minHeight: 48,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
       borderColor: colors.borderColor,
       backgroundColor: isDark ? colors.bgSurface : colors.chrome,
       color: colors.textPrimary,
       fontSize: 15,
     },
+    inputFocused: {
+      borderColor: colors.primary,
+    },
     textarea: {
-      minHeight: 88,
+      minHeight: 96,
     },
     inputError: {
       borderColor: colors.red,
@@ -64,11 +74,12 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
     categoryList: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 6,
+      gap: 8,
     },
     categoryChip: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      minHeight: 40,
+      justifyContent: 'center',
+      paddingHorizontal: 14,
       borderRadius: 999,
       borderWidth: 1.5,
       borderColor: colors.borderColor,
@@ -90,14 +101,15 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
       flexDirection: 'row',
       justifyContent: 'flex-end',
       gap: 10,
-      marginTop: 6,
+      marginTop: 4,
     },
     btn: {
-      borderRadius: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
+      minHeight: 48,
+      borderRadius: 14,
+      paddingHorizontal: 20,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
     },
     cancel: {
@@ -107,10 +119,11 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
       backgroundColor: colors.bgSurface,
     },
     cancelText: {
-      fontSize: 14,
+      fontSize: 15,
       color: colors.textSecondary,
     },
     submit: {
+      flex: 1,
       backgroundColor: colors.primary,
     },
     submitPressed: {
@@ -120,7 +133,7 @@ export function createTaskFormStyles(colors: AppColors, isDark: boolean) {
       opacity: 0.6,
     },
     submitText: {
-      fontSize: 14,
+      fontSize: 15,
       color: '#fff',
       fontWeight: '600',
     },

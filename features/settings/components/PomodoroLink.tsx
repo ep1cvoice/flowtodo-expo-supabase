@@ -1,7 +1,8 @@
 import { strings } from '@/shared/lib/strings';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
-import { ChevronRight, Timer } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
+import TomatoIcon from '@/features/pomodoro/components/TomatoIcon';
 import { useSettingsStyles } from '@/features/settings/components/settingsStyles';
 
 // Settings row that opens the dedicated Pomodoro screen (hidden from the tab bar).
@@ -21,7 +22,7 @@ export default function PomodoroLink() {
         ]}
         onPress={() => router.push('/(main)/(tabs)/pomodoro' as Href)}>
         <View style={styles.sectionHeaderStart}>
-          <Timer size={22} color={colors.textSecondary} />
+          <TomatoIcon size={22} color={colors.textSecondary} />
           <Text style={styles.sectionTitle}>{strings.nav.pomodoro}</Text>
         </View>
         <ChevronRight size={22} color={colors.textSecondary} />

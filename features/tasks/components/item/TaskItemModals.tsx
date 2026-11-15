@@ -1,11 +1,9 @@
 import * as Haptics from 'expo-haptics';
 import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
-import EditTaskModal from '@/features/tasks/components/form/EditTaskModal';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import MobileActionsSheet from '@/features/tasks/components/item/MobileActionsSheet';
 import TaskDetailModal from '@/features/tasks/components/item/TaskDetailModal';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
-import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useTaskItemActions } from '@/features/tasks/lib/useTaskItemActions';
 import { useTaskScheduleActions } from '@/features/tasks/lib/useTaskScheduleActions';
 import { useMountOnFirstOpen } from '@/shared/lib/useMountOnFirstOpen';
@@ -13,7 +11,7 @@ import { isWeb } from '@/shared/lib/platform';
 import { strings } from '@/shared/lib/strings';
 import type { Task } from '@/types';
 
-export type TaskModalKind = 'detail' | 'actions' | 'confirmDelete' | 'edit' | 'calendar';
+export type TaskModalKind = 'detail' | 'actions' | 'confirmDelete' | 'calendar';
 export type TaskModalVisibility = Record<TaskModalKind, boolean>;
 
 interface TaskItemModalsProps {
@@ -36,7 +34,6 @@ export default function TaskItemModals({
   onDelete,
 }: TaskItemModalsProps) {
   const { colors, styles } = useTodoItemStyles();
-  const { updateTask } = useTasksActions();
   const { isPomoActive, canStart, stopPomodoroIfActive, handleStartPomodoro, handleToggleDone } =
     useTaskItemActions(task, onToggle);
   const { handleClearDate, handleConfirmDate } = useTaskScheduleActions(task, () =>
@@ -46,7 +43,6 @@ export default function TaskItemModals({
   const mountDetail = useMountOnFirstOpen(visible.detail);
   const mountActions = useMountOnFirstOpen(visible.actions);
   const mountConfirmDelete = useMountOnFirstOpen(visible.confirmDelete);
-  const mountEdit = useMountOnFirstOpen(visible.edit);
   const mountCalendar = useMountOnFirstOpen(visible.calendar);
 
   const dueDate = task.scheduled ? new Date(task.scheduled) : null;
@@ -60,7 +56,6 @@ export default function TaskItemModals({
     return true;
   };
 
-  const handleEdit = () => onShow('edit');
   const openCalendar = () => onShow('calendar');
 
   return (
@@ -77,12 +72,10 @@ export default function TaskItemModals({
             if (deleted) onHide('detail');
             return deleted;
           }}
-          onEdit={handleEdit}
           onOpenCalendar={openCalendar}
           onStartPomodoro={handleStartPomodoro}
           onToggleComplete={async () => {
-            const ok = await handleToggleDone();
-            if (ok && !task.done) onHide('detail');
+            await handleToggleDone();
           }}
         />
       ) : null}
@@ -97,7 +90,6 @@ export default function TaskItemModals({
           onClose={() => onHide('actions')}
           onStartPomodoro={handleStartPomodoro}
           onOpenCalendar={openCalendar}
-          onEdit={handleEdit}
           onDelete={handleDelete}
         />
       ) : null}
@@ -112,15 +104,6 @@ export default function TaskItemModals({
             const deleted = await handleDelete();
             if (deleted) onHide('confirmDelete');
           }}
-        />
-      ) : null}
-
-      {mountEdit ? (
-        <EditTaskModal
-          visible={visible.edit}
-          task={task}
-          onClose={() => onHide('edit')}
-          onUpdate={updateTask}
         />
       ) : null}
 

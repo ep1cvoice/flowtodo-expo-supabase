@@ -74,7 +74,6 @@ function ToDoItem({
   const openDetail = () => open('detail', task);
   const openActions = () => open('actions', task);
   const requestDelete = () => open('confirmDelete', task);
-  const handleEdit = () => open('edit', task);
   const openCalendar = () => open('calendar', task);
 
   return (
@@ -154,7 +153,6 @@ function ToDoItem({
                   styles={styles}
                   onStartPomodoro={handleStartPomodoro}
                   onOpenCalendar={openCalendar}
-                  onEdit={handleEdit}
                   onDelete={requestDelete}
                 />
               ) : (
