@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_TAGS_PER_TASK } from '@/types';
 import { useTasksState } from '@/features/tasks/TasksContext';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
+import { isWeb } from '@/shared/lib/platform';
 import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 import SheetFrame from '@/shared/ui/SheetFrame';
@@ -48,6 +49,11 @@ export default function TaskDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Larger screens than a phone (tablet, laptop, desktop) on web get a roomier card.
+  const wide = isWeb && width >= 768;
+  // Fullscreen and the wide card both stretch the description so the action bar sits at the bottom.
+  const expanded = fullscreen || wide;
   const [menu, setMenu] = useState<'tags' | 'category' | null>(null);
   const { categories, tags: allTags } = useTasksState();
   const patchTask = useTaskPatch(task);
@@ -98,12 +104,12 @@ export default function TaskDetailModal({
       keyboardAvoiding
       header="none"
       centered
-      maxWidth={fullscreen ? 100000 : undefined}
+      maxWidth={fullscreen ? 100000 : wide ? 720 : undefined}
       overlayStyle={fullscreen ? styles.overlayFull : undefined}
       cardStyle={
         fullscreen
           ? [styles.card, styles.cardFull, { paddingTop: insets.top, paddingBottom: insets.bottom }]
-          : styles.card
+          : [styles.card, wide && styles.cardWide]
       }
       accessory={
         <>
@@ -175,7 +181,7 @@ export default function TaskDetailModal({
       }
     >
       <View
-        style={[styles.sheetBody, fullscreen && styles.sheetBodyFull]}
+        style={[styles.sheetBody, expanded && styles.sheetBodyFull]}
         onPointerDownCapture={(event) => {
           const marker = pointerMarker(event.target);
           if (marker === 'field') return;
@@ -192,27 +198,23 @@ export default function TaskDetailModal({
         }}
       >
         <TaskDetailHeader
-          task={task}
+          category={task.category ?? null}
           styles={styles}
           onClose={handleClose}
           onPressOutside={commitFromOutside}
-          onSaveTitle={(title) => patchTask(() => ({ title }))}
-          onArmSkipSave={armSkipSave}
-          onToggleComplete={() => {
-            void onToggleComplete();
+          onOpenCategory={() => {
+            commitFromOutside();
+            setMenu('category');
           }}
         />
-        <View style={[styles.content, fullscreen && styles.contentFull]}>
+        <View style={[styles.content, expanded && styles.contentFull]}>
           <TaskDetailMeta
             task={task}
-            dueDate={dueDate}
-            showCalendarIcon={showCalendarIcon}
             styles={styles}
-            onCommitFromOutside={commitFromOutside}
-            onOpenCalendar={openDetailCalendar}
-            onOpenCategory={() => {
-              commitFromOutside();
-              setMenu('category');
+            onSaveTitle={(title) => patchTask(() => ({ title }))}
+            onArmSkipSave={armSkipSave}
+            onToggleComplete={() => {
+              void onToggleComplete();
             }}
             onOpenTags={() => {
               commitFromOutside();
@@ -223,13 +225,16 @@ export default function TaskDetailModal({
             inputRef={inputRef}
             value={draft}
             done={task.done}
-            fullscreen={fullscreen}
+            fullscreen={expanded}
             styles={styles}
             onChange={setDraft}
             onFocus={handleFocus}
             onBlur={handleBlur}
           />
           <TaskDetailFooter
+            dueDate={dueDate}
+            showCalendarIcon={showCalendarIcon}
+            onOpenCalendar={openDetailCalendar}
             showAlarmIcon={showAlarmIcon}
             fullscreen={fullscreen}
             styles={styles}

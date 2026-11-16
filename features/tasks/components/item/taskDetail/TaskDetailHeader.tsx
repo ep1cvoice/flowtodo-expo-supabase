@@ -1,62 +1,34 @@
 import { strings } from '@/shared/lib/strings';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { X } from 'lucide-react-native';
+import { Pressable, Text } from 'react-native';
+import { ChevronDown, CircleDashed, X } from 'lucide-react-native';
+import CategoryIconGlyph from '@/shared/ui/CategoryIconGlyph';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
-import { useToast } from '@/shared/providers/ToastContext';
-import { validateTaskTitle } from '@/features/tasks/lib/taskValidation';
-import type { Task } from '@/types';
+import type { Category } from '@/types';
 import type { TaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
-import { tagTint, webTextCursor } from '@/features/tasks/components/item/taskDetail/taskDetailUtils';
+import { tagTint } from '@/features/tasks/components/item/taskDetail/taskDetailUtils';
 
 interface Props {
-  task: Task;
+  category: Category | null;
   styles: TaskDetailStyles;
   onClose: () => void;
   onPressOutside: () => void;
-  onSaveTitle: (title: string) => void | Promise<unknown>;
-  onArmSkipSave: () => void;
-  onToggleComplete: () => void;
+  onOpenCategory: () => void;
+  // Chip text while no category is set.
+  placeholder?: string;
 }
 
+// Top bar of the task sheets (detail and create): the category dropdown chip on the left,
+// close on the right.
 export default function TaskDetailHeader({
-  task,
+  category,
   styles,
   onClose,
   onPressOutside,
-  onSaveTitle,
-  onArmSkipSave,
-  onToggleComplete,
+  onOpenCategory,
+  placeholder = strings.tasks.categoryMenuTitle,
 }: Props) {
   const { colors } = useTheme();
-  const { showToast } = useToast();
-  const { styles: todoStyles } = useTodoItemStyles();
-  const category = task.category;
-  const [draft, setDraft] = useState(task.title);
-  const focusedRef = useRef(false);
-
-  // Follow external title changes unless the user is typing.
-  useEffect(() => {
-    if (!focusedRef.current) setDraft(task.title);
-  }, [task.title]);
-
-  const commit = () => {
-    focusedRef.current = false;
-    const next = draft.trim();
-    if (next === task.title) {
-      setDraft(task.title);
-      return;
-    }
-    const error = validateTaskTitle(next);
-    if (error) {
-      showToast(error);
-      setDraft(task.title);
-      return;
-    }
-    setDraft(next);
-    void onSaveTitle(next);
-  };
+  const categoryColor = category?.color ?? colors.textSecondary;
 
   return (
     <Pressable
@@ -65,42 +37,32 @@ export default function TaskDetailHeader({
       style={[styles.header, category ? { backgroundColor: tagTint(category.color, 0.3) } : null]}
     >
       <Pressable
-        id="skip-desc-save-complete"
-        onPressIn={onArmSkipSave}
-        onPress={onToggleComplete}
-        hitSlop={8}
+        onPress={onOpenCategory}
+        accessibilityRole="button"
+        accessibilityLabel={strings.tasks.changeCategory}
         style={({ pressed, hovered }) => [
-          todoStyles.todoCheckbox,
-          task.done && todoStyles.checked,
-          hovered && !task.done && todoStyles.checkboxHovered,
-          hovered && task.done && todoStyles.checkboxCheckedHovered,
-          pressed && todoStyles.controlPressed,
-        ]}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: task.done }}
-        accessibilityLabel={task.done ? strings.tasks.markIncomplete : strings.tasks.markCompleted}
-      >
-        {task.done ? <Text style={todoStyles.checkmark}>✓</Text> : null}
+          styles.tagChip,
+          styles.categoryChip,
+          { borderColor: category ? category.color : colors.borderColor },
+          category && { backgroundColor: tagTint(category.color, 0.14) },
+          // Hover deepens the category tint so it stays in the header's colour scheme.
+          (hovered || pressed) &&
+            (category
+              ? { backgroundColor: tagTint(category.color, pressed ? 0.4 : 0.28) }
+              : styles.categoryChipHover),
+        ]}>
+        {category ? (
+          <CategoryIconGlyph icon={category.icon} size={14} strokeWidth={2.2} color={categoryColor} />
+        ) : (
+          <CircleDashed size={14} strokeWidth={2.2} color={categoryColor} />
+        )}
+        <Text
+          style={[styles.tagChipText, styles.categoryChipText, { color: categoryColor }]}
+          numberOfLines={1}>
+          {category ? category.name : placeholder}
+        </Text>
+        <ChevronDown size={14} strokeWidth={2.5} color={categoryColor} />
       </Pressable>
-      <View id="task-title-field" style={styles.titleWrap}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          onFocus={() => {
-            focusedRef.current = true;
-          }}
-          onBlur={commit}
-          returnKeyType="done"
-          submitBehavior="blurAndSubmit"
-          maxLength={50}
-          selectionColor={colors.primary}
-          cursorColor={colors.textPrimary}
-          underlineColorAndroid="transparent"
-          placeholderTextColor={colors.textMuted}
-          accessibilityLabel={strings.tasks.taskTitleInput}
-          style={[styles.title, styles.titleInput, webTextCursor, task.done && styles.done]}
-        />
-      </View>
       <Pressable
         onPress={onClose}
         style={styles.closeBtn}

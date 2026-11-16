@@ -14,8 +14,7 @@ import {
   buildMonthWeeks,
   focusWeekIndex,
   sameDay,
-  toDayKey,
-} from '@/features/tasks/lib/calendarDate';
+  toDayKey, calendarRowHeight } from '@/features/tasks/lib/calendarDate';
 
 export default function MonthPage({
   month,
@@ -80,7 +79,7 @@ export default function MonthPage({
         contentContainerStyle={{ width: pageWidth }}
         contentOffset={{
           x: 0,
-          y: expanded ? 0 : focusIndex * (pageWidth / 7),
+          y: expanded ? 0 : focusIndex * calendarRowHeight(pageWidth),
         }}>
         <MonthGrid
           weeks={weeks}

@@ -62,26 +62,6 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean, compact
       alignItems: 'center',
       gap: 10,
     },
-    reorderButtons: {
-      marginLeft: -4,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 0,
-    },
-    reorderBtn: {
-      width: 22,
-      height: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 8,
-      ...webInteractive,
-    },
-    reorderBtnPressed: {
-      backgroundColor: colors.todoHighlight,
-    },
-    reorderBtnDisabled: {
-      opacity: 0.35,
-    },
     todoCheckbox: {
       width: 26,
       height: 26,
@@ -198,16 +178,6 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean, compact
     actionPressed: {
       backgroundColor: colors.todoHighlight,
     },
-    iconTile: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.bgSurface,
-      borderWidth: 1,
-      borderColor: colors.borderColor,
-    },
     categoryMark: {
       width: 28,
       height: 28,
@@ -220,39 +190,6 @@ export function createTodoItemStyles(colors: AppColors, isDark: boolean, compact
       borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    mobileOverlay: {
-      flex: 1,
-      width: '100%',
-      height: '100%',
-      justifyContent: 'flex-end',
-    },
-    mobileActionsModal: {
-      backgroundColor: colors.bgSurface,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      paddingVertical: 8,
-      paddingHorizontal: 8,
-      borderTopWidth: 1,
-      borderColor: colors.borderColor,
-    },
-    mobileActionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderRadius: 10,
-    },
-    mobileActionText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.textPrimary,
-    },
-    mobileClose: {
-      marginTop: 4,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderColor,
     },
   });
 }

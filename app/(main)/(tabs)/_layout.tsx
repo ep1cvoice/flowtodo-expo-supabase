@@ -10,7 +10,7 @@ import BrandLogo from '@/shared/ui/BrandLogo';
 import { tokens } from '@/shared/constants/theme';
 import { CreateTaskProvider } from '@/features/tasks/CreateTaskContext';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { platformSelect } from '@/shared/lib/platform';
+import { isWeb, platformSelect } from '@/shared/lib/platform';
 
 const HEADER_ICONS: Record<string, LucideIcon> = {
   active: ListTodo,
@@ -70,7 +70,8 @@ export default function MainTabsLayout() {
   const { colors } = useTheme();
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= tokens.desktopBreakpoint;
-  const isCompactTabBar = !isDesktop && height < 700;
+  // Web windows are often short; labels stay visible there (only native phones hide them).
+  const isCompactTabBar = !isWeb && !isDesktop && height < 700;
 
   return (
     <CreateTaskProvider>
@@ -88,7 +89,7 @@ export default function MainTabsLayout() {
           />
         ),
         headerShown: true,
-        tabBarLabelPosition: isDesktop ? 'beside-icon' : 'below-icon',
+        tabBarLabelPosition: 'below-icon',
         // Keep labels on normal phone screens so the iOS home-indicator inset
         // feels intentional. Only hide them when the viewport is too short.
         tabBarShowLabel: !isCompactTabBar,
@@ -101,33 +102,13 @@ export default function MainTabsLayout() {
           shadowOpacity: 0,
           overflow: 'visible',
         },
-        tabBarItemStyle: isDesktop
-          ? {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 8,
-            }
-          : {
-              paddingVertical: 2,
-            },
-        tabBarIconStyle: isDesktop
-          ? {
-              marginTop: 0,
-              marginBottom: 0,
-            }
-          : undefined,
+        tabBarItemStyle: {
+          paddingVertical: 2,
+        },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
-          ...(isDesktop
-            ? {
-                marginLeft: 6,
-                marginTop: 0,
-              }
-            : {
-                marginTop: 2,
-              }),
+          marginTop: 2,
         },
       }}>
       <Tabs.Screen

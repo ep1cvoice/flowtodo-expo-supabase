@@ -77,7 +77,6 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
               style={({ pressed, hovered }) => [
                 styles.item,
-                isDesktop && styles.itemDesktop,
                 (pressed || hovered) && { backgroundColor: colors.todoHighlight },
               ]}>
               {options.tabBarIcon?.({ focused, color: color ?? colors.textSecondary, size: 24 })}
@@ -85,7 +84,6 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
                 <Text
                   style={[
                     styles.label,
-                    isDesktop && styles.labelDesktop,
                     { color: color ?? colors.textSecondary },
                   ]}
                   numberOfLines={1}>
@@ -192,19 +190,10 @@ const styles = StyleSheet.create({
     gap: 2,
     ...webInteractive,
   },
-  itemDesktop: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 4,
-  },
   label: {
     fontSize: 11,
     fontWeight: '500',
     marginTop: 1,
-  },
-  labelDesktop: {
-    fontSize: 12,
-    marginTop: 0,
   },
   plusSlot: {
     width: PLUS_SLOT_WIDTH,

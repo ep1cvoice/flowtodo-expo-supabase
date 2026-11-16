@@ -12,6 +12,10 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       maxHeight: '85%',
       overflow: 'hidden',
     },
+    cardWide: {
+      maxHeight: '90%',
+      minHeight: 420,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -23,18 +27,10 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       borderBottomColor: colors.borderColor,
     },
     closeBtn: {
+      marginLeft: 'auto',
       padding: 8,
       borderRadius: 999,
       ...webInteractive,
-    },
-    metaTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    dateSlot: {
-      flexShrink: 0,
-      marginLeft: 'auto',
     },
     categoryChip: {
       flexDirection: 'row',
@@ -42,6 +38,9 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       gap: 6,
       flexShrink: 1,
       ...webInteractive,
+    },
+    categoryChipHover: {
+      backgroundColor: colors.todoHighlight,
     },
     categoryChipText: {
       flexShrink: 1,
@@ -63,6 +62,11 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       margin: 0,
       padding: 0,
       borderWidth: 0,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
     },
     titleWrap: {
       flex: 1,
@@ -118,28 +122,6 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     metaDivider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderColor,
-    },
-    topRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    iconGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexShrink: 1,
-      gap: 2,
-      marginLeft: 'auto',
-      maxWidth: '100%',
-    },
-    tagWrap: {
-      flexGrow: 1,
-      flexShrink: 1,
-      minWidth: 0,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 8,
     },
     tagChip: {
       minHeight: 32,
@@ -236,7 +218,7 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
     footerGroup: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 0,
     },
     iconBtn: {
       width: 40,
@@ -245,6 +227,18 @@ export function createTaskDetailStyles(colors: AppColors, isDark: boolean) {
       justifyContent: 'center',
       borderRadius: 999,
       ...webInteractive,
+    },
+    // Icon button with a text label (e.g. "Due date" in the create sheet).
+    labelBtn: {
+      width: 'auto',
+      flexDirection: 'row',
+      gap: 6,
+      paddingHorizontal: 12,
+    },
+    labelBtnText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
     },
     iconBtnPressed: {
       backgroundColor: colors.bgCardHover,

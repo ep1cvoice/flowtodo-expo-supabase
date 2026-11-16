@@ -12,8 +12,7 @@ import {
   buildMonthWeeks,
   formatMonthLabel,
   sameDay,
-  startOfDay,
-} from '@/features/tasks/lib/calendarDate';
+  startOfDay, calendarRowHeight } from '@/features/tasks/lib/calendarDate';
 import { isWeb } from '@/shared/lib/platform';
 
 interface MonthCalendarProps {
@@ -106,7 +105,7 @@ export default function MonthCalendar({
               style={[styles.monthPager, frameStyle]}
               onLayout={(event) => {
                 const nextWidth = event.nativeEvent.layout.width;
-                if (nextWidth > 0) rowHeightSv.set(nextWidth / 7);
+                if (nextWidth > 0) rowHeightSv.set(calendarRowHeight(nextWidth));
                 setPageWidth((current) => (current === nextWidth ? current : nextWidth));
               }}>
               {pageWidth > 0 ? (

@@ -3,6 +3,7 @@ import ReconnectRefresh from '@/features/sync/ReconnectRefresh';
 import { Pbkdf2WebView } from '@/core/auth/Pbkdf2WebView';
 import AppSplash from '@/shared/ui/AppSplash';
 import ToastHost from '@/shared/ui/ToastHost';
+import WebScrollbarStyle from '@/shared/ui/WebScrollbarStyle';
 import { UnlockGate } from '@/core/auth/UnlockGate';
 import { AuthProvider } from '@/core/auth/AuthContext';
 import { EncryptionProvider } from '@/core/auth/EncryptionContext';
@@ -86,6 +87,7 @@ function RootNavigation() {
 	return (
 		<View style={styles.root} collapsable={false}>
 			<StatusBar style={isDark ? 'light' : 'dark'} />
+			<WebScrollbarStyle />
 			<View style={styles.stack} collapsable={false}>
 				<Stack
 					screenOptions={{

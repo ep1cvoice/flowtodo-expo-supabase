@@ -1,8 +1,9 @@
+import { isWeb } from '@/shared/lib/platform';
 import { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
-import { WEEKDAY_LABELS } from '@/features/tasks/lib/calendarDate';
+import { WEB_CALENDAR_COLUMN_MAX, WEB_CALENDAR_ROW_MAX, WEEKDAY_LABELS } from '@/features/tasks/lib/calendarDate';
 import { webInteractive } from '@/shared/lib/pressableWeb';
 
 export type MonthGridDayState = {
@@ -129,6 +130,9 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
     weekRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      ...(compact && isWeb
+        ? { width: '100%', maxWidth: WEB_CALENDAR_COLUMN_MAX * 7, alignSelf: 'center' }
+        : null),
     },
     weekdayCell: {
       flex: 1,
@@ -147,6 +151,7 @@ function createStyles(colors: AppColors, variant: 'modal' | 'inline') {
     cell: {
       flex: 1,
       aspectRatio: 1,
+      ...(compact && isWeb ? { maxHeight: WEB_CALENDAR_ROW_MAX } : null),
       alignItems: 'center',
       justifyContent: 'center',
       ...webInteractive,

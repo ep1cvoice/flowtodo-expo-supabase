@@ -1,4 +1,5 @@
 import type { Task } from '@/types';
+import { isWeb } from '@/shared/lib/platform';
 
 export const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
 
@@ -125,4 +126,15 @@ export function collectDayTaskCounts(
     counts[key] = (counts[key] ?? 0) + 1;
   }
   return counts;
+}
+
+// Max height of an inline calendar row on web, so wide layouts do not stretch the cells.
+export const WEB_CALENDAR_ROW_MAX = 44;
+// Max width of an inline calendar day column on web, so wide layouts do not spread the days apart.
+export const WEB_CALENDAR_COLUMN_MAX = 64;
+
+/** Height of one inline calendar row for a given page width. */
+export function calendarRowHeight(pageWidth: number): number {
+  const row = pageWidth / 7;
+  return isWeb ? Math.min(row, WEB_CALENDAR_ROW_MAX) : row;
 }

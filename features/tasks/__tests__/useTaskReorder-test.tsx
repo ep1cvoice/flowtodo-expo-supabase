@@ -36,9 +36,9 @@ function setup(over: Partial<Parameters<typeof useTaskReorder>[0]> = {}) {
   );
 }
 
-it('persists sequential sortOrder for the changed tasks on moveTask (no filter)', async () => {
+it('persists sequential sortOrder for the changed tasks on drag end (no filter)', async () => {
   const { result } = await setup();
-  result.current.moveTask(1, 1);
+  result.current.handleDragEnd({ data: [b, a, c, d] });
   expect(mockReorderTasks).toHaveBeenCalledWith([
     { id: 2, sortOrder: 0 },
     // Task 1 already has sortOrder 1 in this fixture, so it is not sent.
@@ -53,7 +53,7 @@ it('keeps non-filtered tasks in their slots when reordering a filtered list', as
     filteredTasks: [a, c, d],
     hasListConstraints: true,
   });
-  result.current.moveTask(3, -1);
+  result.current.handleDragEnd({ data: [c, a, d] });
   // Slots 0,2,3 get [c, a, d]; b stays at slot 1.
   expect(ids(mockReorderTasks.mock.calls)).toEqual([3, 2, 1, 4]);
 });
@@ -66,7 +66,6 @@ it('handleDragEnd persists reordered data under a filter', async () => {
 
 it('does nothing when reordering is disabled', async () => {
   const { result } = await setup({ canReorder: false });
-  result.current.moveTask(1, 1);
   result.current.handleDragEnd({ data: [b, a, c, d] });
   expect(mockReorderTasks).not.toHaveBeenCalled();
 });
@@ -78,18 +77,10 @@ it('ignores drag end with the same array reference', async () => {
   expect(mockReorderTasks).not.toHaveBeenCalled();
 });
 
-it('ignores moves past the list edges and unknown ids', async () => {
-  const { result } = await setup();
-  result.current.moveTask(1, -1);
-  result.current.moveTask(4, 1);
-  result.current.moveTask(99, 1);
-  expect(mockReorderTasks).not.toHaveBeenCalled();
-});
-
 it('shows an error toast when persisting fails', async () => {
   mockReorderTasks.mockRejectedValue(new Error('boom'));
   const { result } = await setup();
-  result.current.moveTask(1, 1);
+  result.current.handleDragEnd({ data: [b, a, c, d] });
   await new Promise<void>((r) => setImmediate(r));
   expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
 });
@@ -100,7 +91,7 @@ describe('only changed positions are sent', () => {
 
   it('sends just the two swapped tasks', async () => {
     const { result } = await setup({ activeTasks: [w, x, y, z], filteredTasks: [w, x, y, z] });
-    result.current.moveTask(2, 1);
+    result.current.handleDragEnd({ data: [w, y, x, z] });
     expect(mockReorderTasks).toHaveBeenCalledWith([
       { id: 3, sortOrder: 1 },
       { id: 2, sortOrder: 2 },
