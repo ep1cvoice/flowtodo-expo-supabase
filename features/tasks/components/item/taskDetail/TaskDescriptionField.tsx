@@ -16,6 +16,7 @@ interface Props {
   value: string;
   done: boolean;
   fullscreen?: boolean;
+  placeholder?: string;
   styles: TaskDetailStyles;
   onChange: (text: string) => void;
   onFocus: () => void;
@@ -27,6 +28,7 @@ export default function TaskDescriptionField({
   value,
   done,
   fullscreen = false,
+  placeholder = DESCRIPTION_PLACEHOLDER,
   styles,
   onChange,
   onFocus,
@@ -52,7 +54,7 @@ export default function TaskDescriptionField({
         onChangeText={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
-        placeholder={DESCRIPTION_PLACEHOLDER}
+        placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         multiline
         scrollEnabled={fullscreen || height >= DESC_MAX_HEIGHT}

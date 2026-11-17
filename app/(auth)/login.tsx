@@ -76,6 +76,9 @@ export default function LoginScreen() {
           setErrors((prev) => ({ ...prev, password: '' }));
         }}
         error={submitted ? errors.password : ''}
+        onSubmitEditing={() => {
+          void handleSubmit();
+        }}
       />
       <Button inner="Sign in" onPress={handleSubmit} />
       <Linking to={'/(auth)/register' as Href} innerText="Don't have an account? Sign up" />

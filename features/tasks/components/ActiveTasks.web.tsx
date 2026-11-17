@@ -1,5 +1,13 @@
-import { useCallback, useMemo } from 'react';
+import {
+  createElement,
+  useCallback,
+  useMemo,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { FlatList, View } from 'react-native';
+import { useWebRowDrag } from '@/features/tasks/lib/useWebRowDrag';
 import ToDoItem from '@/features/tasks/components/item/ToDoItem';
 import ActiveTasksFrame from '@/features/tasks/components/ActiveTasksFrame';
 import ActiveTasksHeader from '@/features/tasks/components/ActiveTasksHeader';
@@ -11,9 +19,46 @@ import { useTaskBulkActions } from '@/features/tasks/lib/useTaskBulkActions';
 import { useTaskRowProps } from '@/features/tasks/lib/useTaskListActions';
 import type { Task } from '@/types';
 
+type RowDrag = ReturnType<typeof useWebRowDrag<Task>>;
+
+// Plain DOM wrappers around a row: the outer one is measured, the inner one moves while the
+// row is dragged (see useWebRowDrag). The whole row is the drag surface.
+function DraggableRow({
+  id,
+  register,
+  onPointerDown,
+  children,
+}: {
+  id: number;
+  register: RowDrag['register'];
+  onPointerDown: RowDrag['onPointerDown'];
+  children: ReactNode;
+}) {
+  const outerRef = useCallback(
+    (el: HTMLDivElement | null) => register(id, 'outer', el),
+    [id, register]
+  );
+  const innerRef = useCallback(
+    (el: HTMLDivElement | null) => register(id, 'inner', el),
+    [id, register]
+  );
+  return createElement(
+    'div',
+    { ref: outerRef },
+    createElement(
+      'div',
+      {
+        ref: innerRef,
+        onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => onPointerDown(id, event),
+      },
+      children
+    )
+  );
+}
+
 export default function ActiveTasks() {
   const view = useActiveTasksScreen();
-  const { styles, filters, handleToggle, moveTask, categories } = view;
+  const { styles, filters, handleToggle, handleDragEnd, categories } = view;
   const { canReorder, filteredTasks, emptyCopy } = filters;
   const { rowProps, activeTaskId } = useTaskRowProps(handleToggle);
 
@@ -23,35 +68,49 @@ export default function ActiveTasks() {
   const toggleSelect = useCallback((task: Task) => toggle(task.id), [toggle]);
   const holdTask = useCallback((task: Task) => select(task.id), [select]);
 
+  const dragEnabled = canReorder && !selecting;
+  const listRef = useRef<FlatList<Task>>(null);
+  const getScrollNode = useCallback(
+    () => (listRef.current?.getScrollableNode() as HTMLElement | null | undefined) ?? null,
+    []
+  );
+  const onReorder = useCallback((data: Task[]) => handleDragEnd({ data }), [handleDragEnd]);
+  const { register, onPointerDown } = useWebRowDrag(
+    filteredTasks,
+    dragEnabled,
+    onReorder,
+    select,
+    getScrollNode
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: Task; index: number }) => (
       <View style={styles.itemWrap}>
-        <ToDoItem
-          task={item}
-          index={index}
-          {...rowProps}
-          isPomoActive={activeTaskId === item.id}
-          showReorderButtons={canReorder && !selecting}
-          canMoveUp={canReorder && index > 0}
-          canMoveDown={canReorder && index < filteredTasks.length - 1}
-          onMove={moveTask}
-          selecting={selecting}
-          selected={selectedIds.has(item.id)}
-          onToggleSelect={toggleSelect}
-          onHold={holdTask}
-        />
+        <DraggableRow id={item.id} register={register} onPointerDown={onPointerDown}>
+          <ToDoItem
+            task={item}
+            index={index}
+            {...rowProps}
+            isPomoActive={activeTaskId === item.id}
+            selecting={selecting}
+            selected={selectedIds.has(item.id)}
+            onToggleSelect={toggleSelect}
+            // While rows can be dragged, a hold is detected by useWebRowDrag (as on native).
+            onHold={dragEnabled ? undefined : holdTask}
+          />
+        </DraggableRow>
       </View>
     ),
     [
-      canReorder,
-      filteredTasks.length,
+      register,
+      onPointerDown,
       rowProps,
       activeTaskId,
-      moveTask,
       selecting,
       selectedIds,
       toggleSelect,
       holdTask,
+      dragEnabled,
       styles.itemWrap,
     ]
   );
@@ -65,6 +124,7 @@ export default function ActiveTasks() {
   return (
     <ActiveTasksFrame view={view}>
       <FlatList
+        ref={listRef}
         style={styles.tasksList}
         contentContainerStyle={listContentStyle}
         data={filteredTasks}

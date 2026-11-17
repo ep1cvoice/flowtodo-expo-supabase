@@ -3,6 +3,8 @@ import type { AppColors } from '@/shared/constants/theme';
 import { CREATE_TASK_FAB_CLEARANCE } from '@/features/tasks/components/form/CreateTaskButton';
 import { TASK_LIST_INSET } from '@/features/tasks/components/filters/TaskSearchBar';
 import { webInteractive } from '@/shared/lib/pressableWeb';
+import { isWeb } from '@/shared/lib/platform';
+import { WEB_CALENDAR_COLUMN_MAX } from '@/features/tasks/lib/calendarDate';
 
 export function createCalendarTasksStyles(colors: AppColors) {
   return StyleSheet.create({
@@ -27,6 +29,10 @@ export function createCalendarTasksStyles(colors: AppColors) {
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderColor,
       overflow: 'hidden',
+      // On wide web layouts the card hugs the capped day grid instead of spanning the list.
+      ...(isWeb
+        ? { width: '100%', maxWidth: WEB_CALENDAR_COLUMN_MAX * 7 + 24, alignSelf: 'center' }
+        : null),
     },
     monthPager: {
       width: '100%',

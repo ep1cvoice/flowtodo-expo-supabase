@@ -15,7 +15,6 @@ import type { Task } from '@/types';
 
 const CLOSED: TaskModalVisibility = {
   detail: false,
-  actions: false,
   confirmDelete: false,
   calendar: false,
 };

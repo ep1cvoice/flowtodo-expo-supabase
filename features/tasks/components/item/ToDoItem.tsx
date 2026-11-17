@@ -8,7 +8,6 @@ import DueDateBadge from '@/features/tasks/components/item/DueDateBadge';
 import TaskCheckbox from '@/features/tasks/components/item/TaskCheckbox';
 import TaskDesktopActions from '@/features/tasks/components/item/TaskDesktopActions';
 import TaskMobileTrailing from '@/features/tasks/components/item/TaskMobileTrailing';
-import TaskReorderButtons from '@/features/tasks/components/item/TaskReorderButtons';
 import TaskTagLabels from '@/features/tasks/components/item/TaskTagLabels';
 import { useTaskItemModals } from '@/features/tasks/components/item/TaskItemModalsContext';
 import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
@@ -29,10 +28,6 @@ interface ToDoItemProps {
   canStart: boolean;
   onStartPomodoro: (task: Task) => void;
   onToggleDone: (task: Task) => Promise<boolean>;
-  showReorderButtons?: boolean;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
-  onMove?: (id: number, direction: -1 | 1) => void;
   // Selection (action) mode: a tap toggles the row's selection instead of opening details.
   selecting?: boolean;
   selected?: boolean;
@@ -59,10 +54,6 @@ function ToDoItem({
   canStart,
   onStartPomodoro,
   onToggleDone,
-  showReorderButtons = false,
-  canMoveUp = false,
-  canMoveDown = false,
-  onMove,
   selecting = false,
   selected = false,
   onToggleSelect,
@@ -96,7 +87,6 @@ function ToDoItem({
 
   const openDetail = () => (selecting ? onToggleSelect?.(task) : open('detail', task));
   const handleHold = onHold ? () => onHold(task) : undefined;
-  const openActions = () => open('actions', task);
   const requestDelete = () => open('confirmDelete', task);
   const openCalendar = () => open('calendar', task);
 
@@ -113,17 +103,6 @@ function ToDoItem({
         />
       ) : null}
       <View style={styles.todoMainRow}>
-        {showReorderButtons ? (
-          <TaskReorderButtons
-            canMoveUp={canMoveUp}
-            canMoveDown={canMoveDown}
-            colors={colors}
-            styles={styles}
-            onMoveUp={onMove ? () => onMove(task.id, -1) : undefined}
-            onMoveDown={onMove ? () => onMove(task.id, 1) : undefined}
-          />
-        ) : null}
-
         <View style={styles.todoContent}>
           <View style={styles.todoTitleRow}>
             {selecting ? (
@@ -181,7 +160,6 @@ function ToDoItem({
                   done={task.done}
                   colors={colors}
                   styles={styles}
-                  onOpenActions={openActions}
                   onDelete={requestDelete}
                 />
               )}

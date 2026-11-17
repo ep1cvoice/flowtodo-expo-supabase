@@ -100,7 +100,7 @@ export function useActiveTasksScreen() {
     openSortSheet,
   ]);
 
-  const { handleDragEnd, moveTask } = useTaskReorder({
+  const { handleDragEnd } = useTaskReorder({
     activeTasks,
     filteredTasks,
     canReorder,
@@ -119,7 +119,6 @@ export function useActiveTasksScreen() {
     handleToggle,
     handleDelete,
     handleDragEnd,
-    moveTask,
     showFilterSheet,
     setShowFilterSheet,
     showSortSheet,

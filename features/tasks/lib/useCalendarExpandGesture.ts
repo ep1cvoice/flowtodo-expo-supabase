@@ -1,3 +1,4 @@
+import { calendarRowHeight } from '@/features/tasks/lib/calendarDate';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Gesture, type GestureType } from 'react-native-gesture-handler';
 import {
@@ -48,7 +49,7 @@ export function useCalendarExpandGesture(pageWidth: number, weekCount: number) {
   const weekCountSv = useSharedValue(weekCount);
 
   useLayoutEffect(() => {
-    rowHeightSv.set(pageWidth > 0 ? pageWidth / 7 : 0);
+    rowHeightSv.set(pageWidth > 0 ? calendarRowHeight(pageWidth) : 0);
     weekCountSv.set(weekCount);
   }, [weekCount, pageWidth, rowHeightSv, weekCountSv]);
 

@@ -264,7 +264,6 @@ export const strings = {
     hideSearch: 'Hide search',
     showSearch: 'Show search',
     deleteTask: 'Delete task',
-    taskActions: 'Task actions',
     taskDescription: 'Task description',
     taskTitleInput: 'Task title',
     addTag: 'Tag',
@@ -276,8 +275,6 @@ export const strings = {
     categoryMenuTitle: 'Category',
     noTagsYet: 'No tags yet. Create some in Categories & Tags.',
     tagLimit: (max: number) => `You can add up to ${max} tags.`,
-    moveUp: 'Move task up',
-    moveDown: 'Move task down',
     setDueDate: 'Set due date',
     startPomodoro: 'Start pomodoro',
     markIncomplete: 'Mark as incomplete',
@@ -310,10 +307,6 @@ export const strings = {
     // Delete confirmation
     deleteConfirmTitle: 'Delete task?',
     deleteConfirmMessage: (title: string) => `"${title}" will be permanently deleted.`,
-
-    // Mobile actions sheet
-    actionPomodoro: 'Pomodoro',
-    actionCalendar: 'Calendar',
 
     // Calendar
     setDueDateTitle: 'Set due date',
@@ -377,15 +370,20 @@ export const strings = {
   },
 
   form: {
-    taskTitle: 'Task Title',
-    taskTitlePlaceholder: 'Enter task title...',
-    description: 'Description (optional)',
-    descriptionPlaceholder: 'Enter description...',
-    category: 'Category (optional)',
+    // Create task sheet
+    newTitlePlaceholder: 'What needs to be done?',
+    newDescriptionPlaceholder: 'Add a description (optional)',
+    chooseCategory: 'Choose category',
+    addTags: 'Add tags',
+    dueDate: 'Due date',
+    addTask: 'Add task',
+    addingTask: 'Adding…',
+    taskCreated: 'Task created.',
+    addTaskFailedLog: 'Failed to add task:',
+    newCategory: 'New category',
+    newTag: 'New tag',
+    noTagsYetCreate: 'No tags yet.',
     noCategory: 'No category',
-    newLink: '+ New',
-    tagsOptional: 'Tags (optional)',
-    noTagsCreate: 'No tags yet — create one',
     categoryCreated: 'Category created.',
     tagCreated: 'Tag created.',
     saveCategoryFailed: 'Could not save category.',

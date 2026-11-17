@@ -28,6 +28,10 @@ export function createSettingsStyles(colors: AppColors, isDark: boolean) {
       backgroundColor: isDark ? colors.bgTodoItem : colors.chrome,
       overflow: 'hidden',
     },
+    // A section card holding only its body (no header above), e.g. the Labels tab.
+    sectionStandalone: {
+      borderTopWidth: 1,
+    },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',

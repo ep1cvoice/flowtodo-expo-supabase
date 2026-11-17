@@ -1,9 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import CalendarModal from '@/features/tasks/components/calendar/CalendarModal';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
-import MobileActionsSheet from '@/features/tasks/components/item/MobileActionsSheet';
 import TaskDetailModal from '@/features/tasks/components/item/TaskDetailModal';
-import { useTodoItemStyles } from '@/features/tasks/components/item/todoItemStyles';
 import { useTaskItemActions } from '@/features/tasks/lib/useTaskItemActions';
 import { useTaskScheduleActions } from '@/features/tasks/lib/useTaskScheduleActions';
 import { useMountOnFirstOpen } from '@/shared/lib/useMountOnFirstOpen';
@@ -11,7 +9,7 @@ import { isWeb } from '@/shared/lib/platform';
 import { strings } from '@/shared/lib/strings';
 import type { Task } from '@/types';
 
-export type TaskModalKind = 'detail' | 'actions' | 'confirmDelete' | 'calendar';
+export type TaskModalKind = 'detail' | 'confirmDelete' | 'calendar';
 export type TaskModalVisibility = Record<TaskModalKind, boolean>;
 
 interface TaskItemModalsProps {
@@ -33,7 +31,6 @@ export default function TaskItemModals({
   onToggle,
   onDelete,
 }: TaskItemModalsProps) {
-  const { colors, styles } = useTodoItemStyles();
   const { isPomoActive, canStart, stopPomodoroIfActive, handleStartPomodoro, handleToggleDone } =
     useTaskItemActions(task, onToggle);
   const { handleClearDate, handleConfirmDate } = useTaskScheduleActions(task, () =>
@@ -41,7 +38,6 @@ export default function TaskItemModals({
   );
 
   const mountDetail = useMountOnFirstOpen(visible.detail);
-  const mountActions = useMountOnFirstOpen(visible.actions);
   const mountConfirmDelete = useMountOnFirstOpen(visible.confirmDelete);
   const mountCalendar = useMountOnFirstOpen(visible.calendar);
 
@@ -77,20 +73,6 @@ export default function TaskItemModals({
           onToggleComplete={async () => {
             await handleToggleDone();
           }}
-        />
-      ) : null}
-
-      {mountActions ? (
-        <MobileActionsSheet
-          visible={visible.actions}
-          canStart={canStart}
-          taskTitle={task.title}
-          colors={colors}
-          styles={styles}
-          onClose={() => onHide('actions')}
-          onStartPomodoro={handleStartPomodoro}
-          onOpenCalendar={openCalendar}
-          onDelete={handleDelete}
         />
       ) : null}
 

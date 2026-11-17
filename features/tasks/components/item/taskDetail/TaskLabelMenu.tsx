@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Check, Plus } from 'lucide-react-native';
+import { useTheme } from '@/shared/providers/ThemeContext';
 import SheetFrame from '@/shared/ui/SheetFrame';
 import type { TaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
 
@@ -16,6 +17,9 @@ interface Props {
   selectedIds: (number | null)[];
   emptyText: string;
   hint?: string;
+  // Optional last row that creates a new label (e.g. "+ New tag").
+  createLabel?: string;
+  onCreate?: () => void;
   styles: TaskDetailStyles;
   onToggle: (id: number | null) => void;
   onClose: () => void;
@@ -29,10 +33,13 @@ export default function TaskLabelMenu({
   selectedIds,
   emptyText,
   hint,
+  createLabel,
+  onCreate,
   styles,
   onToggle,
   onClose,
 }: Props) {
+  const { colors } = useTheme();
 
   return (
     <SheetFrame
@@ -69,6 +76,21 @@ export default function TaskLabelMenu({
             </Pressable>
           );
         })}
+        {createLabel && onCreate ? (
+          <Pressable
+            onPress={onCreate}
+            accessibilityRole="button"
+            style={({ pressed, hovered }) => [
+              styles.menuRow,
+              (hovered || pressed) && styles.menuRowPressed,
+            ]}
+          >
+            <Plus size={16} strokeWidth={2.5} color={colors.primary} />
+            <Text style={[styles.menuRowText, { color: colors.primary }]} numberOfLines={1}>
+              {createLabel}
+            </Text>
+          </Pressable>
+        ) : null}
         {hint ? <Text style={styles.menuHint}>{hint}</Text> : null}
       </ScrollView>
     </SheetFrame>

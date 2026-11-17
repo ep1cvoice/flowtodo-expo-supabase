@@ -16,7 +16,9 @@ export default function LabelsTab() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View style={styles.panel}>
-          <LabelsSection />
+          <View style={[styles.section, styles.sectionStandalone]}>
+            <LabelsSection />
+          </View>
         </View>
       </ScrollView>
     </ScreenBackground>

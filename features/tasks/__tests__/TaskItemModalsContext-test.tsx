@@ -50,10 +50,6 @@ jest.mock('@/features/tasks/components/item/TaskDetailModal', () => {
     },
   };
 });
-jest.mock('@/features/tasks/components/item/MobileActionsSheet', () => ({
-  __esModule: true,
-  default: () => null,
-}));
 jest.mock('@/features/tasks/components/calendar/CalendarModal', () => ({
   __esModule: true,
   default: () => null,
