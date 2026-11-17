@@ -1,6 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
-const ALARM_SOURCE = require('../../assets/sounds/ElectronicAlarmBuzzer.wav');
+const ALARM_SOURCE = require('../../assets/sounds/pomodoro_alarm.wav');
 
 let player: AudioPlayer | null = null;
 let starting: Promise<void> | null = null;

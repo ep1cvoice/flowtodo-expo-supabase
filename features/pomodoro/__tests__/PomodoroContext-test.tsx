@@ -7,6 +7,7 @@ import {
   usePomodoroState,
 } from '@/features/pomodoro/PomodoroContext';
 import { pomodoroStore } from '@/features/pomodoro/lib/store';
+import * as notifications from '@/features/pomodoro/lib/notifications';
 
 const usePomodoro = () => ({ ...usePomodoroState(), ...usePomodoroActions() });
 
@@ -25,6 +26,12 @@ jest.mock('@/features/pomodoro/lib/pomodoroLogoutBridge', () => ({
   registerPomodoroLogoutSnapshot: jest.fn(() => () => {}),
 }));
 jest.mock('@/features/pomodoro/lib/queries', () => ({ MAX_HISTORY: 5 }));
+jest.mock('@/features/pomodoro/lib/notifications', () => ({
+  requestPomodoroNotificationPermission: jest.fn(),
+  schedulePomodoroEndNotification: jest.fn(),
+  cancelPomodoroEndNotification: jest.fn(),
+  dismissPomodoroEndNotification: jest.fn(),
+}));
 jest.mock('@/features/pomodoro/lib/store', () => ({
   pomodoroStore: {
     fetchPomodoros: jest.fn(),
@@ -90,6 +97,29 @@ it('starts a session with the configured duration and task name', async () => {
   expect(result.current.canStart).toBe(false);
 });
 
+it('asks for notification permission and schedules the end of a started session', async () => {
+  insertPomodoro.mockImplementation(async (o: any) => pomo({ duration: o.durationSec }));
+  const { result } = await renderPomodoro();
+  const before = Date.now();
+  await act(() => result.current.startPomo(TASK));
+
+  expect(notifications.requestPomodoroNotificationPermission).toHaveBeenCalledTimes(1);
+  const schedule = notifications.schedulePomodoroEndNotification as jest.Mock;
+  expect(schedule).toHaveBeenCalledTimes(1);
+  const at = schedule.mock.calls[0][0];
+  expect(at).toBeGreaterThanOrEqual(Math.floor((before + 1_800_000) / 1000) * 1000 - 1000);
+  expect(at).toBeLessThanOrEqual(Date.now() + 1_800_000);
+});
+
+it('neither asks nor schedules in count-up mode', async () => {
+  mockAuth.user = { id: 'u1', settings: { pomodoroTime: 30, pomodoroMode: 'countup' } };
+  insertPomodoro.mockImplementation(async (o: any) => pomo({ duration: o.durationSec }));
+  const { result } = await renderPomodoro();
+  await act(() => result.current.startPomo(TASK));
+  expect(notifications.requestPomodoroNotificationPermission).not.toHaveBeenCalled();
+  expect(notifications.schedulePomodoroEndNotification).not.toHaveBeenCalled();
+});
+
 it('falls back to 25 minutes when the setting is invalid', async () => {
   mockAuth.user = { id: 'u1', settings: { pomodoroTime: 0 } };
   insertPomodoro.mockResolvedValue(pomo());
@@ -112,6 +142,44 @@ it('pauses with accumulated elapsed time', async () => {
   expect(result.current.activePomo?.pausedAt).toEqual(expect.any(String));
   expect(result.current.activePomo!.elapsed).toBeGreaterThanOrEqual(60_000);
   expect(pausePomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1', id: 1 }));
+});
+
+it('does not count time past the end of a countdown session (app was in the background)', async () => {
+  const overdue = pomo({ startedAt: new Date(Date.now() - 2_000_000).toISOString() });
+  fetchPomodoros.mockResolvedValue({ active: overdue, history: [] });
+  const { result } = await renderPomodoro();
+  await act(() => result.current.pausePomo());
+  expect(pausePomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ elapsed: 1_500_000 }));
+
+  await act(() => result.current.endPomo('Write tests'));
+  expect(endPomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ elapsed: 1_500_000 }));
+  expect(result.current.history[0].elapsed).toBe(1_500_000);
+});
+
+it('caps the time when ending an overdue countdown session directly', async () => {
+  const overdue = pomo({ startedAt: new Date(Date.now() - 2_000_000).toISOString() });
+  fetchPomodoros.mockResolvedValue({ active: overdue, history: [] });
+  const { result } = await renderPomodoro();
+  await act(() => result.current.endPomo('Write tests'));
+  expect(endPomodoroRow).toHaveBeenCalledWith(expect.objectContaining({ elapsed: 1_500_000 }));
+});
+
+it('keeps the full time of a count-up session', async () => {
+  mockAuth.user = { id: 'u1', settings: { pomodoroTime: 25, pomodoroMode: 'countup' } };
+  const long = pomo({ startedAt: new Date(Date.now() - 2_000_000).toISOString() });
+  fetchPomodoros.mockResolvedValue({ active: long, history: [] });
+  const { result } = await renderPomodoro();
+  await act(() => result.current.endPomo('Write tests'));
+  expect(endPomodoroRow.mock.calls[0][0].elapsed).toBeGreaterThanOrEqual(2_000_000);
+});
+
+it('does not touch notifications while auth is still loading', async () => {
+  mockAuth.user = null;
+  (mockAuth as any).loading = true;
+  await renderHook(() => usePomodoro(), { wrapper });
+  expect(notifications.cancelPomodoroEndNotification).not.toHaveBeenCalled();
+  expect(notifications.dismissPomodoroEndNotification).not.toHaveBeenCalled();
+  delete (mockAuth as any).loading;
 });
 
 it('rolls back and rethrows when pausing fails', async () => {

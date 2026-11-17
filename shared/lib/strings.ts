@@ -446,5 +446,23 @@ export const strings = {
     statsCompleted: 'Completed',
     statsFocusTime: 'Focus time',
     openFullscreen: 'Open pomodoro timer',
+    // System notification shown when a session ends while the app is in the background.
+    // Task titles are end-to-end encrypted, so they are never put on the lock screen.
+    notificationTitle: 'Pomodoro finished',
+    notificationBody: 'Time for a short rest.',
+    notificationChannel: 'Pomodoro timer',
+    notifications: 'Notifications',
+    notificationsOn: 'On. You will be notified when a session ends while the app is in the background.',
+    notificationsAsk: 'Get notified when a session ends while the app is in the background.',
+    notificationsEnable: 'Enable notifications',
+    notificationsNoPrompt:
+      'The browser did not show the prompt. Click the icon at the left of the address bar and allow notifications.',
+    notificationsBlockedWeb:
+      'Notifications are blocked for this site. Allow them in the site settings (icon at the left of the address bar), then reload the page.',
+    notificationsBlockedNative:
+      'Notifications are turned off for FlowTodo. Turn them on in the system settings.',
+    notificationsOpenSettings: 'Open settings',
+    notificationsUnsupported:
+      'This browser cannot show notifications (they need HTTPS or localhost).',
   },
 };

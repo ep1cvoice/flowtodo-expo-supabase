@@ -44,6 +44,19 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
+// Tapping the "pomodoro finished" notification brings the app back (or opens it).
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const open = windows.find((client) => 'focus' in client);
+      if (open) return open.focus();
+      return self.clients.openWindow('/');
+    })()
+  );
+});
+
 const shellRequest = () => new Request(self.location.origin + SHELL_KEY);
 
 async function pageResponse(request) {

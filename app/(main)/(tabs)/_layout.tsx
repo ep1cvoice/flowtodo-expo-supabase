@@ -119,8 +119,14 @@ export default function MainTabsLayout() {
           tabBarIcon: ({ color, size }) => <ListTodo size={size} color={color} strokeWidth={2} />,
         }}
       />
-      {/* Reachable from Settings only; keeps the bottom bar symmetric around the + button. */}
-      <Tabs.Screen name="pomodoro" options={{ title: strings.nav.pomodoro, href: null }} />
+      {/* Reachable from Settings only; keeps the bottom bar symmetric around the + button.
+          Hidden through the item style, not `href: null`: since expo-router 58 that marks the
+          route `hidden`, and a focused hidden route redirects to the first tab, so the screen
+          could never be opened. */}
+      <Tabs.Screen
+        name="pomodoro"
+        options={{ title: strings.nav.pomodoro, tabBarItemStyle: { display: 'none' } }}
+      />
       <Tabs.Screen
         name="completed"
         options={{

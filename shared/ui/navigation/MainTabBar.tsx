@@ -56,7 +56,8 @@ export default function MainTabBar({
       <View style={[styles.row, { height: contentHeight }]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          // Routes declared with `href: null` are reachable but not shown in the bar.
+          // Routes hidden through `tabBarItemStyle: { display: 'none' }` are reachable but not
+          // shown in the bar.
           if (StyleSheet.flatten(options.tabBarItemStyle)?.display === 'none') return null;
           const focused = state.index === index;
           const color = focused ? options.tabBarActiveTintColor : options.tabBarInactiveTintColor;
