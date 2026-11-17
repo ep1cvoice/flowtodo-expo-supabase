@@ -19,7 +19,8 @@
         "backgroundColor": "#0d9488"
       },
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "bundler": "metro",
@@ -61,7 +62,14 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#0d9488",
+          "sounds": ["./assets/sounds/pomodoro_alarm.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

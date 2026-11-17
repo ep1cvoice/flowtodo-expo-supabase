@@ -446,5 +446,10 @@ export const strings = {
     statsCompleted: 'Completed',
     statsFocusTime: 'Focus time',
     openFullscreen: 'Open pomodoro timer',
+    // System notification shown when a session ends while the app is in the background.
+    // Task titles are end-to-end encrypted, so they are never put on the lock screen.
+    notificationTitle: 'Pomodoro finished',
+    notificationBody: 'Time for a short rest.',
+    notificationChannel: 'Pomodoro timer',
   },
 };

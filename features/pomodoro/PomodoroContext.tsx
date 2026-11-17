@@ -11,7 +11,8 @@ import {
   useState,
 } from 'react';
 import type { PomoData, PomoRecord } from '@/types';
-import { computeElapsedMs } from '@/features/pomodoro/lib/elapsed';
+import type { PomodoroMode } from '@/features/pomodoro/lib/displayTime';
+import { computeElapsedMs, countedElapsedMs } from '@/features/pomodoro/lib/elapsed';
 import { useAuth } from '@/core/auth/AuthContext';
 import { useEncryption } from '@/core/auth/EncryptionContext';
 import { taskStore } from '@/features/tasks/lib/store';
@@ -19,6 +20,8 @@ import { newLocalId } from '@/features/tasks/lib/store/localId';
 import { MAX_HISTORY } from '@/features/pomodoro/lib/queries';
 import { pomodoroStore } from '@/features/pomodoro/lib/store';
 import { registerPomodoroLogoutSnapshot } from '@/features/pomodoro/lib/pomodoroLogoutBridge';
+import { usePomodoroEndNotification } from '@/features/pomodoro/lib/usePomodoroEndNotification';
+import { requestPomodoroNotificationPermission } from '@/features/pomodoro/lib/notifications';
 import { requireDek } from '@/core/auth/requireDek';
 import { withTimeout } from '@/shared/lib/withTimeout';
 import { logger } from '@/shared/lib/logger';
@@ -44,11 +47,14 @@ interface PomodoroActions {
   getElapsedSeconds: (pomo?: PomoData | null) => number;
 }
 
+const modeOf = (user: { settings?: { pomodoroMode?: PomodoroMode } } | null | undefined) =>
+  user?.settings?.pomodoroMode ?? 'countdown';
+
 const PomodoroStateContext = createContext<PomodoroState | null>(null);
 const PomodoroActionsContext = createContext<PomodoroActions | null>(null);
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { dek } = useEncryption();
   const [activePomo, setActivePomo] = useState<PomoData | null>(null);
   const [history, setHistory] = useState<PomoRecord[]>([]);
@@ -69,6 +75,10 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
 
   const activeTaskId = activePomo?.taskId ?? null;
   const canStart = activePomo === null;
+  const mode = modeOf(user);
+
+  // Not before the signed-in user is known: a cold start must not cancel a valid notification.
+  usePomodoroEndNotification(activePomo, mode, !authLoading && !loading);
 
   // Actions read the latest values through this ref so they can stay referentially stable.
   const latest = useRef({ user, dek, activePomo });
@@ -192,6 +202,10 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       startPomo: async (task) => {
         if (latest.current.activePomo) return;
         const userId = requireUserId();
+        // Before any await: browsers only show the permission prompt during a user gesture.
+        if (modeOf(latest.current.user) !== 'countup') {
+          void requestPomodoroNotificationPermission();
+        }
         const activeDek = requireDek(latest.current.dek);
 
         const minutes = Number(latest.current.user?.settings?.pomodoroTime);
@@ -256,7 +270,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const current = latest.current.activePomo;
         if (!current || current.pausedAt) return;
         const userId = requireUserId();
-        const elapsed = computeElapsedMs(current);
+        const elapsed = countedElapsedMs(current, modeOf(latest.current.user));
         const pausedAt = new Date().toISOString();
 
         setActivePomo({ ...current, elapsed, pausedAt });
@@ -293,7 +307,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         const userId = requireUserId();
         const activeDek = requireDek(latest.current.dek);
 
-        const elapsed = computeElapsedMs(current);
+        const elapsed = countedElapsedMs(current, modeOf(latest.current.user));
         const endedAt = new Date().toISOString();
         const taskName = taskTitle ?? strings.pomodoro.deletedTask;
 
