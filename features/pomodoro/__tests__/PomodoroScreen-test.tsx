@@ -32,6 +32,7 @@ jest.mock(
 );
 jest.mock('@/features/pomodoro/components/ActiveSessionCard', () => () => null);
 jest.mock('@/features/pomodoro/components/PomodoroStats', () => () => null);
+jest.mock('@/features/pomodoro/components/PomodoroNotificationSettings', () => () => null);
 jest.mock('@/features/pomodoro/components/PomodoroHistory', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
   return function PomodoroHistoryStub() {

@@ -4,8 +4,16 @@
 // - web (index.web.ts): the Notification API through the service worker, fired by a timer in
 //   the page (browsers have no scheduled local notifications).
 
-/** Asks for notification permission if it was never asked. Call from a user gesture (web). */
-export function requestPomodoroNotificationPermission(): Promise<void>;
+import type { NotificationPermissionState } from '@/features/pomodoro/lib/notifications/types';
+export type { NotificationPermissionState };
+
+export function getPomodoroNotificationPermission(): Promise<NotificationPermissionState>;
+
+/**
+ * Asks for notification permission if it can still be asked and resolves with the resulting
+ * state. Call from a user gesture (browsers ignore requests outside one).
+ */
+export function requestPomodoroNotificationPermission(): Promise<NotificationPermissionState>;
 
 /** Schedules the "session finished" notification at `fireAt` (ms epoch), replacing any other. */
 export function schedulePomodoroEndNotification(fireAt: number): Promise<void>;

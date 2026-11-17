@@ -1,5 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import { logger } from '@/shared/lib/logger';
+import type { NotificationPermissionState } from '@/features/pomodoro/lib/notifications/types';
 
 // Browsers cannot schedule local notifications, so a page timer fires it. A single (not
 // chained) timeout in a hidden tab is only throttled to about one second, so it stays on
@@ -41,12 +42,20 @@ async function show(): Promise<void> {
   }
 }
 
-export async function requestPomodoroNotificationPermission(): Promise<void> {
-  if (!supported() || Notification.permission !== 'default') return;
+export async function getPomodoroNotificationPermission(): Promise<NotificationPermissionState> {
+  return supported() ? Notification.permission : 'unsupported';
+}
+
+export async function requestPomodoroNotificationPermission(): Promise<NotificationPermissionState> {
+  if (!supported()) return 'unsupported';
+  if (Notification.permission !== 'default') return Notification.permission;
   try {
-    await Notification.requestPermission();
+    // Chrome stops showing the prompt after it was dismissed a few times; it then resolves
+    // with 'default' right away.
+    return await Notification.requestPermission();
   } catch (err) {
     logger.warn('Failed to request notification permission:', (err as Error)?.message ?? err);
+    return Notification.permission;
   }
 }
 

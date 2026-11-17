@@ -13,6 +13,7 @@ import {
 import { isAndroid } from '@/shared/lib/platform';
 import { strings } from '@/shared/lib/strings';
 import { logger } from '@/shared/lib/logger';
+import type { NotificationPermissionState } from '@/features/pomodoro/lib/notifications/types';
 
 const NOTIFICATION_ID = 'pomodoro-end';
 const CHANNEL_ID = 'pomodoro';
@@ -67,13 +68,28 @@ function enqueue(label: string, op: () => Promise<unknown>): Promise<void> {
   return run;
 }
 
-export function requestPomodoroNotificationPermission(): Promise<void> {
-  return enqueue('request permission for', async () => {
+const toState = (p: { granted: boolean; canAskAgain: boolean }): NotificationPermissionState =>
+  p.granted ? 'granted' : p.canAskAgain ? 'default' : 'denied';
+
+export async function getPomodoroNotificationPermission(): Promise<NotificationPermissionState> {
+  try {
+    return toState(await getPermissionsAsync());
+  } catch (err) {
+    logger.warn('Failed to read notification permission:', (err as Error)?.message ?? err);
+    return 'unsupported';
+  }
+}
+
+export async function requestPomodoroNotificationPermission(): Promise<NotificationPermissionState> {
+  let state: NotificationPermissionState = 'unsupported';
+  await enqueue('request permission for', async () => {
     await ensureChannel();
     const current = await getPermissionsAsync();
-    if (current.granted || !current.canAskAgain) return;
-    await requestPermissionsAsync();
+    state = toState(current);
+    if (state !== 'default') return;
+    state = toState(await requestPermissionsAsync());
   });
+  return state;
 }
 
 export function schedulePomodoroEndNotification(fireAt: number): Promise<void> {

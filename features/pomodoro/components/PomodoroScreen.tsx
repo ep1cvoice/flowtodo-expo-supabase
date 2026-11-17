@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react-native';
 import ActiveSessionCard from '@/features/pomodoro/components/ActiveSessionCard';
 import PomodoroStats from '@/features/pomodoro/components/PomodoroStats';
 import PomodoroHistory from '@/features/pomodoro/components/PomodoroHistory';
+import PomodoroNotificationSettings from '@/features/pomodoro/components/PomodoroNotificationSettings';
 import { usePomodoroScreenStyles } from '@/features/pomodoro/components/pomodoroScreenStyles';
 import type { PomodoroMode } from '@/features/pomodoro/lib/displayTime';
 import ScreenBackground from '@/shared/ui/ScreenBackground';
@@ -155,6 +156,8 @@ export default function PomodoroScreen() {
               </Pressable>
             </View>
             {!!pomodoroErr && <Text style={styles.errorInfo}>{pomodoroErr}</Text>}
+
+            {mode === 'countdown' ? <PomodoroNotificationSettings /> : null}
           </View>
 
           <PomodoroStats />
