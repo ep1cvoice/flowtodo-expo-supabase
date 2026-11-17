@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef } from 'react';
-import { Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, StyleSheet, View, useWindowDimensions, type ViewInstance } from 'react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import { useKeyboardHeight } from '@/shared/lib/useKeyboardBottomInset';
 import { isWeb, isAndroid } from '@/shared/lib/platform';
@@ -16,7 +16,7 @@ export default function AppModal({ visible, onClose, children }: AppModalProps) 
   const { colors } = useTheme();
   const keyboardInset = useKeyboardHeight();
   const { width, height } = useWindowDimensions();
-  const rootRef = useRef<View>(null);
+  const rootRef = useRef<ViewInstance>(null);
 
   useEffect(() => {
     if (!visible || !isWeb) return;

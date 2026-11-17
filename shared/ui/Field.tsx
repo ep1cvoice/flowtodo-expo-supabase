@@ -5,6 +5,7 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
+  type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -48,7 +49,7 @@ export default function Field({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   useAutoFocus(inputRef, !!autoFocus && editable);
 
   const isPassword = type === 'password';
