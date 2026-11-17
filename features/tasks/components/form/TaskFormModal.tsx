@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  type TextInputInstance,
 } from 'react-native';
 import { AlignLeft, Type, type LucideIcon } from 'lucide-react-native';
 import type { CategoryIcon } from '@/types';
@@ -72,7 +73,7 @@ export default function TaskFormModal({
   const [inputError, setInputError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  const titleRef = useRef<TextInput>(null);
+  const titleRef = useRef<TextInputInstance>(null);
   useAutoFocus(titleRef, visible && autoFocusTitle);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;

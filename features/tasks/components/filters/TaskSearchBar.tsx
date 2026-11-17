@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
-  type TextInput as TextInputType,
+  type TextInputInstance,
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import type { AppColors } from '@/shared/constants/theme';
@@ -33,7 +33,7 @@ export default function TaskSearchBar({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const hasValue = value.trim().length > 0;
-  const inputRef = useRef<TextInputType>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [progress] = useState(() => new Animated.Value(0));
   const prevVisibleRef = useRef(false);
   const [inputMounted, setInputMounted] = useState(false);

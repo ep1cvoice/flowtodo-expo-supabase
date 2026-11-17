@@ -1,6 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import type { RefObject } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View, type TextInputInstance } from 'react-native';
 import { NotebookPen } from 'lucide-react-native';
 import { useTheme } from '@/shared/providers/ThemeContext';
 import type { TaskDetailStyles } from '@/features/tasks/components/item/taskDetail/taskDetailStyles';
@@ -12,7 +12,7 @@ import {
 } from '@/features/tasks/components/item/taskDetail/taskDetailUtils';
 
 interface Props {
-  inputRef: RefObject<TextInput | null>;
+  inputRef: RefObject<TextInputInstance | null>;
   value: string;
   done: boolean;
   fullscreen?: boolean;

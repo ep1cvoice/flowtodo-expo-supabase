@@ -14,7 +14,13 @@ import { isWeb } from '@/shared/lib/platform';
 const PLUS_SIZE = 66;
 const PLUS_SLOT_WIDTH = 76;
 
-export default function MainTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
+export default function MainTabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+  insets,
+}: BottomTabBarProps) {
   const { colors } = useTheme();
   const chromeColor = colors.chrome;
   const { openCreate } = useCreateTask();
@@ -42,7 +48,10 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
       ]}>
       <PomodoroMiniBar
         hidden={focusedRoute === 'pomodoro'}
-        onOpen={() => navigation.navigate('pomodoro')}
+        onOpen={() => {
+          const pomodoroRoute = state.routes.find((route) => route.name === 'pomodoro');
+          if (pomodoroRoute) navigateToTab(pomodoroRoute.key);
+        }}
       />
       <View style={[styles.row, { height: contentHeight }]}>
         {state.routes.map((route, index) => {
@@ -57,13 +66,13 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
               : (options.title ?? route.name);
 
           const onPress = () => {
-            const event = navigation.emit({
+            const event = emitter.emit({
               type: 'tabPress',
               target: route.key,
               canPreventDefault: true,
             });
             if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+              navigateToTab(route.key);
             }
           };
 
@@ -74,7 +83,7 @@ export default function MainTabBar({ state, descriptors, navigation, insets }: B
               accessibilityState={{ selected: focused }}
               accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
               onPress={onPress}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+              onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
               style={({ pressed, hovered }) => [
                 styles.item,
                 isDesktop && styles.itemDesktop,
