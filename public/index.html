@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover exposes the notch / home-indicator insets as env(safe-area-inset-*),
+         which react-native-safe-area-context reads on web. Without it every inset is 0 and the
+         header slides under the iOS status bar while the tab bar sits on the home indicator. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0d9488" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FlowTodo" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>%WEB_TITLE%</title>
+    <style id="expo-reset">
+      /* Full-height root; body scrolling is off so ScrollView behaves like on native. */
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <!-- Plain CSS so the background never flashes white before the JS bundle paints. -->
+    <style>
+      body {
+        background-color: #eef6f3;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #021c1b;
+        }
+      }
+    </style>
+    <!-- Offline support: caches the app shell and assets. Skipped on localhost so the dev
+         server never serves stale cached bundles. -->
+    <script>
+      if (
+        'serviceWorker' in navigator &&
+        location.hostname !== 'localhost' &&
+        location.hostname !== '127.0.0.1'
+      ) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
+  </head>
+
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
