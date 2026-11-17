@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, type TextInputInstance } from 'react-native';
 import { useTasksActions } from '@/features/tasks/TasksContext';
 import { useToastedAction } from '@/shared/lib/useToastedAction';
 import { logger } from '@/shared/lib/logger';
@@ -12,7 +12,7 @@ export function useDescriptionAutosave(task: Task) {
   const { updateTask } = useTasksActions();
   const runToasted = useToastedAction();
   const [draft, setDraftState] = useState(task.description ?? '');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const draftRef = useRef(draft);
   const focusedRef = useRef(false);
   const savingRef = useRef(false);

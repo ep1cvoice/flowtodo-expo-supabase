@@ -1,6 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import { useMemo, useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, type TextInputInstance } from 'react-native';
 import { Check } from 'lucide-react-native';
 import type { Category, CategoryIcon, Tag } from '@/types';
 import { CATEGORY_ICON_MAP, CATEGORY_ICONS } from '@/shared/constants/categoryIcons';
@@ -86,7 +86,7 @@ export default function LabelModal(props: LabelModalProps) {
   const [selectedColor, setSelectedColor] = useState<string>(cfg.defaultColor);
   const [selectedIcon, setSelectedIcon] = useState<CategoryIcon>(CATEGORY_ICONS[0]);
   const [nameError, setNameError] = useState('');
-  const nameRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
   useAutoFocus(nameRef, visible);
 
   // Load the edited item while rendering whenever the modal opens or the item/kind changes

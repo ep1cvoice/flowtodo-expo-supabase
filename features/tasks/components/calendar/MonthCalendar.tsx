@@ -1,7 +1,15 @@
 import { strings } from '@/shared/lib/strings';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import {
+  Pressable,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollViewInstance,
+} from 'react-native';
+// RNGH 3's new ScrollView dropped `waitFor`; the legacy one keeps it, which the pan gesture needs.
+import { GestureDetector, LegacyScrollView as ScrollView } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import MonthPage from '@/features/tasks/components/calendar/MonthPage';
@@ -40,7 +48,7 @@ export default function MonthCalendar({
   );
   const currentWeekCount = useMemo(() => buildMonthWeeks(monthCursor).length, [monthCursor]);
   const monthLabel = formatMonthLabel(monthCursor);
-  const monthScrollRef = useRef<ScrollView>(null);
+  const monthScrollRef = useRef<ScrollViewInstance>(null);
   const paging = useRef(false);
   const [pageWidth, setPageWidth] = useState(0);
   const { pan, panRef, expanded, expandedSv, rowHeightSv, frameStyle, toggleExpanded } =

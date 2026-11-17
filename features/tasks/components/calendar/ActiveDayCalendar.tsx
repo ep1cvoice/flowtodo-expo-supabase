@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   useWindowDimensions,
+  type ScrollViewInstance,
 } from 'react-native';
 import { tokens, type AppColors } from '@/shared/constants/theme';
 import { useTheme } from '@/shared/providers/ThemeContext';
@@ -35,7 +36,7 @@ export default function ActiveDayCalendar({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const today = useMemo(() => startOfDay(new Date()), []);
   const stripDays = useMemo(() => buildDayStrip(today), [today]);
-  const stripRef = useRef<ScrollView>(null);
+  const stripRef = useRef<ScrollViewInstance>(null);
   const todayOffset = useMemo(() => {
     const todayIndex = stripDays.findIndex((day) => sameDay(day, today));
     return Math.max(0, todayIndex) * (STRIP_DAY_WIDTH + STRIP_DAY_GAP);

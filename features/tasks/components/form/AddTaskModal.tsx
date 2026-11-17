@@ -1,6 +1,6 @@
 import { strings } from '@/shared/lib/strings';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text, TextInput, View, useWindowDimensions, type TextInputInstance } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_TAGS_PER_TASK, type CategoryIcon } from '@/types';
@@ -72,8 +72,8 @@ export default function AddTaskModal({
   const [menu, setMenu] = useState<'tags' | 'category' | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [labelModal, setLabelModal] = useState<'category' | 'tag' | null>(null);
-  const titleRef = useRef<TextInput>(null);
-  const descriptionRef = useRef<TextInput>(null);
+  const titleRef = useRef<TextInputInstance>(null);
+  const descriptionRef = useRef<TextInputInstance>(null);
   useAutoFocus(titleRef, visible);
   const expanded = fullscreen || wide;
 

@@ -136,7 +136,7 @@ export default function CompletedTasksScreen() {
                     <Text style={styles.searchHint}>
                       {strings.tasks.searchLoadedOnly}
                     </Text>
-                  ) : null
+                  ) : undefined
                 }
                 renderSectionHeader={({ section }) => (
                   <View style={styles.sectionHeader}>
