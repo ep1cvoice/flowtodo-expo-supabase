@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "installCommand": "rm -rf node_modules && bun install",
   "framework": null,
-  "cleanUrls": true,
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",
